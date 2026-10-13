@@ -57,6 +57,9 @@ async function pronto() {
   const limite = Date.now() + 15_000
   const ok = () => [...document.querySelectorAll('video')].every((v) => v.error || (v.readyState >= 2 && !v.seeking))
   while (!ok() && Date.now() < limite) await esperar(5)
+  // o quadro buscado já apresentado (desenho.ts); uma busca que cai no mesmo quadro pode não avisar: no máximo 300 ms
+  const apresentado = Date.now() + 300
+  while (document.querySelector('video[data-quadro="0"]') && Date.now() < apresentado) await esperar(5)
   await Promise.all([...document.images].map((i) => (i.complete ? null : i.decode().catch(() => {}))))
   // motions: o iframe carregado e a cena já no instante pedido
   const motions = () => !document.querySelector('iframe[data-pronto="0"], iframe[data-pintando]')

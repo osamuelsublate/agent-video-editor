@@ -140,8 +140,15 @@ function videoNoTempo(m: MidiaLigada, item: ItemBanco, rel: number, topo?: boole
     depois: (el) => {
       const v = el as HTMLVideoElement
       const fim = Math.min(item.fim ?? Infinity, Number.isFinite(v.duration) ? v.duration : Infinity)
-      const destino = Math.min(alvo, fim)
-      if (Math.abs(v.currentTime - destino) > 0.001) v.currentTime = destino
+      // no meio do quadro (grade de 24 fps): um instante na fronteira de dois quadros às vezes mostra o anterior (um
+      // repetido e um pulado); fora de 24 fps o meio fica a ≥ 0,8 ms de qualquer fronteira (25, 30, 60 fps)
+      const destino = Math.min((Math.floor(Math.min(alvo, fim) * 24 + 1e-6) + 0.5) / 24, fim - 0.001)
+      if (Math.abs(v.currentTime - destino) > 0.001) {
+        // a foto só sai com o quadro novo já apresentado (sem isso, às vezes sai o anterior: um quadro repetido e um pulado)
+        v.dataset.quadro = '0'
+        v.requestVideoFrameCallback?.(() => (v.dataset.quadro = '1'))
+        v.currentTime = destino
+      }
       if (!v.paused) v.pause()
     },
   }

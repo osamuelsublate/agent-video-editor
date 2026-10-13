@@ -1277,8 +1277,12 @@
       depois: (el) => {
         const v = el;
         const fim = Math.min(item.fim ?? Infinity, Number.isFinite(v.duration) ? v.duration : Infinity);
-        const destino = Math.min(alvo, fim);
-        if (Math.abs(v.currentTime - destino) > 1e-3) v.currentTime = destino;
+        const destino = Math.min((Math.floor(Math.min(alvo, fim) * 24 + 1e-6) + 0.5) / 24, fim - 1e-3);
+        if (Math.abs(v.currentTime - destino) > 1e-3) {
+          v.dataset.quadro = "0";
+          v.requestVideoFrameCallback?.(() => v.dataset.quadro = "1");
+          v.currentTime = destino;
+        }
         if (!v.paused) v.pause();
       }
     };
@@ -1706,6 +1710,8 @@ ${b}` };
     const limite3 = Date.now() + 15e3;
     const ok = () => [...document.querySelectorAll("video")].every((v) => v.error || v.readyState >= 2 && !v.seeking);
     while (!ok() && Date.now() < limite3) await esperar(5);
+    const apresentado = Date.now() + 300;
+    while (document.querySelector('video[data-quadro="0"]') && Date.now() < apresentado) await esperar(5);
     await Promise.all([...document.images].map((i) => i.complete ? null : i.decode().catch(() => {
     })));
     const motions = () => !document.querySelector('iframe[data-pronto="0"], iframe[data-pintando]');
