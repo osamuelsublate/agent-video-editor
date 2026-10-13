@@ -11,6 +11,8 @@ e não repita estes erros. **[gosto]** = preferência confirmada pelo criador ·
 - **[gosto] Respiro só entre blocos ligados.** Entre duas frases da mesma tomada, que continuam o raciocínio sem erro,
   pode ficar uma pausa natural de até ~0,5 s: é o respiro do ator, e cortá-lo atropela a fala. Pausa maior que ~1 s
   dentro de um trecho sai sempre: o Reels não aguenta silêncio. _mvi-0717 · 2026-10-12_
+- **[gosto] Pausa no meio da frase sai.** Pausa no meio da mesma frase acima de ~0,6 s parece erro e sai
+  (`cortes.parametros.pausa_max` 0,6). Entre frases ligadas, o respiro natural de até ~0,5 s continua. _mvi-0718 · 2026-10-13_
 
 ## Técnicos (do editor)
 

@@ -15,6 +15,13 @@ _Nenhum ainda._
   o ponto apontado: o mesmo defeito costuma estar em outras trocas de plano, e a correção pode criar outro. _mvi-0717 · 2026-10-12_
 - **[defeito] Quadro repetido na emenda.** O bruto roda a 23,976 quadros/s e o vídeo final a 24: cada trecho precisa
   ocupar exatamente os quadros do vídeo final que lhe cabem — corrigido em `ferramentas/montagem/exportacao.py`. _mvi-0717 · 2026-10-12_
+- **[defeito] Quadro repetido dentro de um insert de vídeo.** Quando o instante buscado caía na fronteira entre dois
+  quadros da mídia, o navegador às vezes mostrava o anterior: um quadro repetido seguido de um pulado, e o vídeo
+  parecia ter fps baixo. Corrigido em `render/src/desenho.ts`: a busca vai ao meio do quadro e espera ele aparecer
+  antes da foto. _mvi-0718 · 2026-10-13_
+- **[técnica] Quadro repetido dentro do plano.** Antes de entregar, procure quadros repetidos também dentro de cada
+  plano, não só nas emendas: um insert com quadros iguais a intervalos regulares parece travado ou lento, mesmo com o
+  original liso. _mvi-0718 · 2026-10-13_
 - O Gemini acerta problemas de corte e de legenda sobre conteúdo, e erra cor de legenda (diz "preta" para a branca com
   sombra): confira na folha de contato antes de mexer. _1º teste · 2026-10-10_
 - Nunca rode o render (ou algo que use multiprocessing) por `python -` (stdin): os processos-filho entram em laço e a

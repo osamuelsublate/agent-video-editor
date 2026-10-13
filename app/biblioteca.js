@@ -67,6 +67,13 @@ function origemDe(o) {
 
 /** Os selos do banco e dos motions (o que entrou num vídeo aprovado, o aprovado à mão, o recusado). */
 const SELOS = { usado: ['Usado em vídeo', 'selo-menta'], aprovado: ['Aprovado', 'selo-azul'], recusado: ['Recusado', 'selo-coral'] }
+/** Os trechos no card do banco; com mais de 3, recolhidos num expansor (não ocupam a altura toda da grade). */
+function listaTrechos(ts, cod) {
+  if (!ts.length) return ''
+  const ul = `<ul class="trechos">${ts.map((t) => `<li data-ini="${t.inicio}" data-fim="${t.fim}"><span>${esc(t.nome)}</span>${chipCodigo(cod[t.id], t.nome)}<span class="apagado">${seg(t.fim - t.inicio)}</span></li>`).join('')}</ul>`
+  return ts.length > 3 ? `<details class="dobra-trechos"><summary>${ts.length} trechos</summary>${ul}</details>` : ul
+}
+
 const FILTROS_BANCO = { todos: ['Todos', null], usado: ['Usados', 'usado'], aprovado: ['Aprovados', 'check'], recusado: ['Recusados', 'fechar'], sem: ['Em edição', 'semSelo'] }
 /** Os chips de onde a peça entrou nos vídeos aprovados ("PRJ-05·p3"): abrem a revisão da versão aprovada naquele plano. */
 const chipsDeUso = (usos, cods) => (usos || []).map((u) => {
@@ -91,6 +98,10 @@ async function bancoInserts(el) {
   for (const l of Object.values(trechos)) l.sort((a, b) => a.inicio - b.inicio)
 
   const estadoDe = (it) => estados[it.id]?.estado || 'sem'
+  const midiasT = tipo === 'motions' ? [] : originais
+  const motionsT = tipo === 'inserts' ? [] : ms
+  const conta = (k) => (k === 'todos' ? midiasT.length + motionsT.length : midiasT.filter((it) => estadoDe(it) === k).length + motionsT.filter((m) => estadoMotion(m) === k).length)
+  if (!conta(filtro)) filtro = 'todos' // um filtro vazio some da barra (ex.: Em edição sem projeto em edição)
   const cardsMidia = originais.filter((it) => filtro === 'todos' || estadoDe(it) === filtro).map((it) => {
     const e = estados[it.id] || {}
     const [rotulo, cor] = SELOS[e.estado] || []
@@ -105,7 +116,7 @@ async function bancoInserts(el) {
         <span class="chip-tipo">Insert${ts.length ? ` · ${ts.length} ${ts.length === 1 ? 'trecho' : 'trechos'}` : ''}</span></div>
       <div class="card-titulo"><h3 title="${esc([it.descricao, it.fonte].filter(Boolean).join('\n'))}">${esc(it.nome)}</h3>${chipCodigo(cod[it.id], it.nome)}</div>
       ${rotulo ? `<div class="estado-banco"><span class="selo-linha ${cor}">${rotulo}</span>${chipsDeUso(e.usos, cods)}</div>` : ''}
-      ${ts.length ? `<ul class="trechos">${ts.map((t) => `<li data-ini="${t.inicio}" data-fim="${t.fim}"><span>${esc(t.nome)}</span>${chipCodigo(cod[t.id], t.nome)}<span class="apagado">${seg(t.fim - t.inicio)}</span></li>`).join('')}</ul>` : ''}
+      ${listaTrechos(ts, cod)}
     </article>`
   }).map((html, k) => ({ html, criado: '' }))
   // os motions na mesma grade: a prévia em pé no meio do card, o chip "Motion" e os selos do mesmo jeito
@@ -124,16 +135,13 @@ async function bancoInserts(el) {
     </article>` }
   })
   const cards = [...(tipo === 'motions' ? [] : cardsMidia), ...(tipo === 'inserts' ? [] : cardsMotion)].sort((a, b) => b.criado.localeCompare(a.criado)).map((c) => c.html)
-  const midiasT = tipo === 'motions' ? [] : originais
-  const motionsT = tipo === 'inserts' ? [] : ms
-  const conta = (k) => (k === 'todos' ? midiasT.length + motionsT.length : midiasT.filter((it) => estadoDe(it) === k).length + motionsT.filter((m) => estadoMotion(m) === k).length)
   const contaTipo = (t) => (t === 'inserts' ? originais.length : t === 'motions' ? ms.length : originais.length + ms.length)
   const icone = (n) => (n ? ICONE[n] : '')
   const nRecusados = conta('recusado')
   el.innerHTML = `<div class="barra-banco">
       <div class="alternar">${Object.entries(TIPOS_BANCO).map(([k, [n, ic]]) => `<button class="pilula${k === tipo ? ' ativa' : ''}" data-tipo-banco="${k}">${icone(ic)}${n} <span class="conta">${contaTipo(k)}</span></button>`).join('')}</div>
       <span class="barra-sep"></span>
-      ${Object.entries(FILTROS_BANCO).map(([k, [n, ic]]) => chip(k === filtro, `${icone(ic)}${n} <span class="conta">${conta(k)}</span>`, `data-filtro-banco="${k}"`)).join('')}
+      ${Object.entries(FILTROS_BANCO).filter(([k]) => k === 'todos' || conta(k)).map(([k, [n, ic]]) => chip(k === filtro, `${icone(ic)}${n} <span class="conta">${conta(k)}</span>`, `data-filtro-banco="${k}"`)).join('')}
       <span class="barra-banco-acoes">
         <label class="botao pequeno botao-subir" title="Vídeos e imagens, vários de uma vez (ou arraste para esta página): entram Aprovados e a IA descreve">${ICONE.subir} Subir mídia<input type="file" multiple accept="video/mp4,video/quicktime,video/webm,image/png,image/jpeg,image/webp" hidden data-subir></label>
         ${nRecusados ? `<button class="botao pequeno botao-perigo-contorno" data-limpar-recusados title="Leva os recusados para a lixeira do banco (biblioteca/banco/_lixeira/), de onde dá para recuperar">${ICONE.lixo} Limpar recusados (${nRecusados})</button>` : ''}
@@ -206,7 +214,7 @@ async function bancoInserts(el) {
 
   for (const card of $$('.card-banco', el)) {
     if (card.dataset.motion) continue
-    card.addEventListener('click', (e) => !e.target.closest('a') && detalheBanco(card.dataset.id, () => bancoInserts(el), cod, estados[card.dataset.id], cods))
+    card.addEventListener('click', (e) => !e.target.closest('a, summary') && detalheBanco(card.dataset.id, () => bancoInserts(el), cod, estados[card.dataset.id], cods))
     const v = $('video', card)
     if (!v) continue
     let trecho = null // [ini, fim] enquanto o mouse está num trecho

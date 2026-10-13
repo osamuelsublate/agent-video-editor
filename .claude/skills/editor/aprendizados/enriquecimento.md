@@ -7,6 +7,8 @@ e não repita estes erros. **[gosto]** = preferência confirmada pelo criador ·
 
 - **[gosto] Fundo oficial atrás dos inserts.** O fundo atrás dos inserts com moldura é o fundo oficial da marca
   (`chuva`), o mesmo no vídeo todo. _mvi-0717 · 2026-10-12_
+- **[gosto] Mídia parada ganha zoom lento leve.** Site, página ou print entram com um zoom lento leve até o corte
+  (no Corte seco: "Zoom lento" Leve): imagem sem nenhum movimento parece congelada no vídeo. _mvi-0718 · 2026-10-13_
 
 ## Técnicos (do editor)
 

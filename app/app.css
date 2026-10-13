@@ -352,6 +352,13 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 .trechos li::before { content: '↳'; color: var(--color-coral); }
 .trechos li span:first-of-type { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .trechos li.ativo { color: var(--color-coral); }
+.dobra-trechos { margin-top: 8px; }
+.dobra-trechos > summary { list-style: none; display: flex; align-items: center; gap: 6px; padding: 5px 2px; border-top: 1px solid var(--color-line-dark); font-size: 12px; color: var(--color-fog); cursor: pointer; user-select: none; }
+.dobra-trechos > summary::-webkit-details-marker { display: none; }
+.dobra-trechos > summary::before { content: '›'; display: inline-block; width: 10px; color: var(--color-coral); transition: transform .15s ease; }
+.dobra-trechos[open] > summary::before { transform: rotate(90deg); }
+.dobra-trechos > summary:hover { color: var(--color-cream); }
+.dobra-trechos .trechos { margin-top: 0; }
 .card-transicao .mini { cursor: pointer; }
 .video-tocar {
   position: absolute; left: 50%; top: 50%; z-index: 3; display: grid; place-items: center; width: 44px; height: 44px; margin: -22px 0 0 -22px;

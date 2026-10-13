@@ -12,6 +12,7 @@ As Regras do criador são obrigatórias. As sugeridas pela IA são guia; o criad
 - Nunca repita material seguido: não mostre o mesmo vídeo duas vezes em sequência (em tela cheia e logo depois em tela dividida, por exemplo). Quando o assunto muda, avance para o próximo visual.
 - O real antes do motion: quando a fala é sobre uma ferramenta, mostre a ferramenta sendo usada de verdade. Motion fica para ideias abstratas, números, comparações e hierarquias, que não existem como imagem real.
 - Lettering grande (texto sobre o ator) só para a palavra do ManyChat; não é a forma padrão de destacar algo. Quando a fala cita uma ferramenta, um modelo ou uma marca, mostre a própria marca: o vídeo oficial em que o nome aparece, o logo ou um card com o nome.
+- Lançamento de produto: primeiro a página do anúncio (o título e a data legíveis), depois os vídeos oficiais do produto em uso, sem som e em cortes secos. Enquanto a fala continuar no mesmo assunto, o vídeo segue tocando: não volte ao ator só para preencher.
 
 ### Inserts
 - Na marcação de cada insert, conte o que acontece, em ordem: qual material aparece (o site, a página, a ferramenta, concretos), como entra, zooms (em quê), destaques, trocas de um material para outro.

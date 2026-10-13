@@ -12,6 +12,10 @@ e não repita estes erros. **[gosto]** = preferência confirmada pelo criador ·
 - **[gosto] O produto em ação vale mais que a página.** Alguém usando o app, o terminal rodando, o resultado
   aparecendo convencem mais que documentação, landing page ou tabela. Página só quando a fala cita a própria página
   (um anúncio, uma data, um preço). _mvi-0717 · 2026-10-12_
+- **[gosto] Fala + prova.** O insert mostra exatamente o que a frase diz, no melhor momento do vídeo de apoio. Se a
+  fala diz "coloquei ele pra controlar a minha webcam", o trecho é o instante em que a webcam liga, não o antes nem o
+  depois. Escolha o trecho olhando os quadros do vídeo, não só a descrição dele, e prefira o momento em que a ação
+  acontece na tela. _mvi-0718 · 2026-10-13_
 - **[gosto] Material atual.** Mostre a versão e as telas da geração atual do produto. Versão antiga (outro nome de
   modelo, interface velha) só se não houver outra, e com nota para o criador. _mvi-0717 · 2026-10-12_
 
