@@ -264,7 +264,10 @@ async function iniciar() {
     // a legenda (SPEC §8.10): os blocos visíveis (a mesma conta da prévia, com a altura pelos inserts desta página e
     // desviando da barra do ManyChat, da caixinha e do print), sem o que um lettering já mostra, para o ASS
     legenda: async () => {
-      const zonas = [...zonasDaLegenda(lista, banco, presets), ...zonasDosElementos(desenhaveis, banco)]
+      // um motion pode dizer a altura da legenda enquanto está na tela (`legenda_y`, fração do quadro)
+      const zonasMotion = comMotion.filter((m) => motions[m.plano]?.legenda_y != null)
+        .map((m) => ({ ini: m.ini, fim: m.fim, divisao: null, card: null, y: Number(motions[m.plano].legenda_y) }))
+      const zonas = [...zonasMotion, ...zonasDaLegenda(lista, banco, presets), ...zonasDosElementos(desenhaveis, banco)]
       if (!d.legenda.ligada) return null
       const blocos = semOsLetterings(blocosDaLegenda(saida, planos, d.legenda, d.palavras, zonas), saida, intervalosDeLettering(desenhaveis))
       return { blocos: paraExportar(blocos) }

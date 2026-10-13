@@ -4,7 +4,7 @@ import { eventoNoTempo, INTENSIDADES, type Catalogo, type EventoSom, type Intens
 
 export type Formato = 'vertical' | 'dividida'
 /** O motion de um plano: um preset (com os valores e o fundo) ou um vídeo do banco. */
-export type MotionPlano = { nome: string; formato: Formato; usado_em?: string } & (
+export type MotionPlano = { nome: string; formato: Formato; usado_em?: string; legenda_y?: number } & (
   | { tipo: 'preset'; preset: string; valores: Record<string, string>; fundo: string; sons?: Record<string, { som: string | null; intensidade: Intensidade }> }
   | { tipo: 'video'; banco: string }
 )

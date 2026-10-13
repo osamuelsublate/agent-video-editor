@@ -266,6 +266,25 @@ def som(p: Path, edicao: dict, fonte: dict, clipes: list[dict], transcricao: lis
             'falas': audio.falas(palavras_na_saida(transcricao, clipes)), 'ducking_db': audio.DUCKING_DB, 'limpeza': limpeza}
 
 
+def sons_das_midias(edicao: dict, planos: list[dict]) -> list[dict]:
+    """O áudio próprio dos inserts com `som: true` (ex.: a demo do produto falando): a 1ª mídia toca do começo do plano
+    até o fim dele, no ganho `som_ganho` (padrão 1, o nível do arquivo). Um trecho toca o original a partir do início dele."""
+    tempo = {p.get('id'): p for p in planos}
+    out = []
+    for q in (edicao.get('inserts') or {}).get('pedidos') or []:
+        pl = tempo.get(q.get('plano'))
+        if not q.get('som') or not pl or not q.get('midias'):
+            continue
+        item = ler_json(BIBLIOTECA / 'banco' / q['midias'][0]['banco'] / 'item.json', {}) or {}
+        dono = ler_json(BIBLIOTECA / 'banco' / item['pai'] / 'item.json', {}) if item.get('pai') else item
+        if not dono or not dono.get('arquivo'):
+            continue
+        arq = BIBLIOTECA / 'banco' / (item.get('pai') or item['id']) / dono['arquivo']
+        out.append({'arquivo': str(arq), 't': float(pl['ini']), 'desde': float(item.get('inicio') or 0),
+                    'dur': float(pl['fim']) - float(pl['ini']), 'ganho': float(q.get('som_ganho', 1.0)), 'grupo': 'midia'})
+    return out
+
+
 def mistura(p: Path, a: dict, clipes: list[dict], eventos: list[dict], duracao: float) -> tuple[dict, Path]:
     """O áudio pronto: o ganho do −14 LUFS (`audio.medir`, algumas passadas do áudio) e a mistura com ele, num WAV em
     float (as mesmas amostras que a passada final faria: ela só codifica). Guardados em `.cache/audio.json` e
@@ -361,6 +380,7 @@ def render(slug: str, final: bool = False) -> Path:
         db_voz = nivel.get('db') if nivel.get('fonte') == fonte['id'] else sons.nivel_da_voz(p / fonte['arquivo'])
         fator = sons.fator_da_voz(db_voz)  # os sons na mesma relação com a voz deste vídeo que nas referências
         eventos = [{**ev, 'ganho': float(ev.get('ganho', sons.INTENSIDADES['baixo'])) * fator} for ev in r['sons'] or []]
+        eventos += sons_das_midias(edicao, r.get('planos') or [])
         a = som(p, edicao, fonte, clipes, transcricao, avisos)
         a['medida'], a['pronta'] = mistura(p, a, clipes, eventos, duracao)
         print(f"      voz {a['limpeza']}, fundo {(edicao.get('audio') or {}).get('fundo') or '—'}, ganho {a['medida']['ganho']:+.1f} dB → "

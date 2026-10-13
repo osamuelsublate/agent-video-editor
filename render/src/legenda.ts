@@ -70,7 +70,7 @@ const limpar = (t: string) => t.replace(/[,;:]+$/, '')
 /** O que há na tela num trecho (um insert) e muda a altura da legenda: a divisão da tela (onde fica a costura), o ator
  *  no "ator embaixo" (a geometria, `ator/ator.ts`; sem o rosto, que só muda o x) e o card do comentário (`y`: o
  *  centro, `h`: a altura, frações do quadro). */
-export type Zona = { ini: number; fim: number; divisao: Divisao | null; ator?: Geometria | null; card: { y: number; h: number } | null; deitada?: boolean }
+export type Zona = { ini: number; fim: number; divisao: Divisao | null; ator?: Geometria | null; card: { y: number; h: number } | null; deitada?: boolean; y?: number }
 
 export function zonasDaLegenda(pedidos: Pedido[], banco: Map<string, ItemBanco> | null | undefined, presets: Preset[] | null | undefined): Zona[] {
   return pedidos.map((x) => {
@@ -95,6 +95,7 @@ export function zonasDaLegenda(pedidos: Pedido[], banco: Map<string, ItemBanco> 
  *  e, se houver um card de comentário ali, logo acima dele (ou abaixo, se não couber). Inserts em tela cheia e motions não são lidos (o conteúdo é desenhado na hora): fica a
  *  altura medida. */
 function alturaDaLegenda(tipo: string | undefined, z: Zona | null): number {
+  if (z?.y != null) return z.y // o motion diz onde a legenda não atrapalha (`legenda_y` no edicao.motions)
   let y = ALTURA_POR_PLANO[tipo ?? ''] ?? ALTURA_PADRAO
   const d = z?.divisao
   if (d?.modo === 'metade') y = Math.min(Math.max(d.f, 0.3), 0.7)

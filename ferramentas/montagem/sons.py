@@ -26,6 +26,14 @@ def arquivo(sid: str) -> Path:
     return p
 
 
+def midia(caminho: str) -> Path:
+    """O áudio de uma mídia do banco que toca no vídeo (um insert com som): só dentro da biblioteca."""
+    p = Path(caminho).resolve()
+    if not p.is_file() or BIBLIOTECA.resolve() not in p.parents:
+        raise FileNotFoundError(caminho)
+    return p
+
+
 def filtro_mistura(eventos: list[dict], primeira_entrada: int, rotulo_voz: str, saida: str) -> tuple[list[str], list[str]]:
     """As entradas e os filtros do ffmpeg que põem os sons por cima da voz: cada evento (`som`, `t` no vídeo final,
     `ganho`, `desde`: de onde tocar dentro do arquivo, `dur` opcional) vira um atraso + volume, e tudo soma com a voz
@@ -33,7 +41,7 @@ def filtro_mistura(eventos: list[dict], primeira_entrada: int, rotulo_voz: str, 
     validos = []
     for e in eventos:
         try:
-            validos.append((arquivo(e['som']), max(float(e['t']), 0.0), float(e.get('ganho', INTENSIDADES['baixo'])),
+            validos.append((midia(e['arquivo']) if e.get('arquivo') else arquivo(e['som']), max(float(e['t']), 0.0), float(e.get('ganho', INTENSIDADES['baixo'])),
                             max(float(e.get('desde', 0)), 0.0), e.get('dur'), min(max(float(e.get('vel') or 1), 0.5), 2.0)))
         except (FileNotFoundError, KeyError, TypeError, ValueError):
             continue
