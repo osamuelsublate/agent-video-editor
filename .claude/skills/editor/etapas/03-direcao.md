@@ -19,12 +19,13 @@ em uso (o criador liga cada uma no card da Calibragem), leia as de todas as cate
    criador** são obrigatórias; as sugeridas são guia.
 2. Leia `biblioteca/exemplos/<categoria>/favoritos.md`: os planos que o criador marcou com ★ na galeria de Referências do app. São os melhores
    exemplos dele: quando um momento do vídeo novo se parece com um deles, siga aquele padrão.
-3. Leia **todos** os roteiros de `biblioteca/exemplos/<categoria>/roteiros/` como um editor novo lê os roteiros anotados do chefe: entenda, pela
-   fala, por que cada coisa aparece onde aparece. O que está sendo dito manda. Os marcados "(revisado)" foram corrigidos
-   pelo criador e valem mais que os outros.
+3. Leia os roteiros de `biblioteca/exemplos/<categoria>/roteiros/` como um editor novo lê os roteiros anotados do chefe:
+   entenda, pela fala, por que cada coisa aparece onde aparece. O que está sendo dito manda. **No máximo 6**, para a
+   direção caber em ~1 min: primeiro os marcados "(revisado)" (o criador corrigiu: valem mais), depois os de assunto
+   mais parecido com este vídeo. São só os que o criador deixou em uso na Calibragem.
 
-Esses arquivos são gerados pela Calibragem do app (`calibragem.py roteiros`): quando o criador revisa uma referência,
-favorita um plano ou sobe um Reel novo, eles mudam. Não os edite à mão (as regras, sim: `regras.md`).
+Esses arquivos são gerados pela Calibragem do app (`calibragem.py roteiros`): quando o criador liga ou desliga um vídeo
+(Usar / Não usar), revisa uma referência ou favorita um plano, eles mudam. Não os edite à mão (as regras, sim: `regras.md`).
 
 ## Rodar
 
@@ -99,4 +100,4 @@ casar todas; se não, você alterou a fala — corrija o roteiro).
 - Confira as Regras do criador contra o resultado (abertura, máximo de 3–4 s de Full ator seguido etc.). Se violou,
   reescreva o trecho e aplique de novo.
 
-Tempo esperado: ~2 min.
+Tempo esperado: ~1,5 min.

@@ -45,6 +45,8 @@ uv run ferramentas/servidor.py      # se não estiver no ar (em segundo plano) �
 Diga ao criador, em poucas linhas: o link do app, a duração final, quanto tempo levou, as dúvidas que deixou como nota
 e o que não conseguiu (ex.: "o insert do p7 ficou com um print estático: o site exige login").
 
-Tempo esperado (máquina calma, 1 min de vídeo com metade em insert): ~55 s do zero; numa revisão, 15 a 26 s, porque os
-trechos de insert/motion que não mudaram vêm do cache (`.cache/camadas/` do projeto) e o áudio também, se não mudou. O
+Tempo esperado: com o pré-render feito (`render.py <slug> --camadas`, em segundo plano a cada leva de inserts), ~25 s
+para 80 s de vídeo (medido: a montagem; a camada vem toda do cache, `.cache/camadas/` do projeto, e o áudio também, se
+não mudou). Sem pré-render, a fotografia da camada leva de ~1 min (vídeo com poucos inserts) a ~5 min (80 s quase todo
+em insert e motion, medido no mvi-0718): por isso o pré-render. Numa revisão, só o que mudou é fotografado. O
 render imprime "N trechos do cache, M para fotografar". Autorrevisão: ~30 s (o Gemini responde em ~16 s).

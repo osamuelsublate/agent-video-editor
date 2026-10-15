@@ -16,22 +16,29 @@ raiz do repositório.
 
 ## Fluxo 1 — Vídeo novo: do bruto à v1 (sem parar)
 
-Marque a hora de início; a meta é a v1 em até 15 min para 2 min de bruto (o 1º teste levou 26 min: preparar 1 min,
-cortes e direção 4 min, inserts 13 min, render e autorrevisão 6 min; no 18, os briefs pela ferramenta, os inserts em
-grupos de 3 e o motion novo primeiro baixaram a parte dos inserts para ~3 min). Registre o tempo de cada etapa.
+Marque a hora de início; a meta é a **v1 em menos de 10 min** para 2 min de bruto. Registre o tempo de cada etapa. O
+que segura o relógio (medido): a busca de inserts (~3 min em grupos), um motion novo (~7 min) e a fotografia da camada
+de inserts e motions no render (até ~5 min sem cache). Por isso: o motion novo fica fora do caminho da v1, e a camada é
+fotografada em segundo plano (o pré-render) enquanto a edição segue.
 
 1. **Preparar** (`etapas/01-preparar.md`): cria o projeto, transcreve, proxy, rosto, voz limpa.
 2. **Cortes** (`etapas/02-cortes.md`): você escolhe as palavras que ficam.
 3. **Direção** (`etapas/03-direcao.md`): você escreve o roteiro dirigido.
-4. **Em paralelo**, num só turno — **primeiro o motion novo** (o mais longo), depois o resto:
-   - **Motions novos** (`etapas/06-motions-e-elementos.md`), se a direção pediu algo que nenhum preset faz:
-     `inserts.py motion-brief` e um subagente (opus) com `Leia <arquivo> e siga.`;
+4. **Em paralelo**, num só turno:
+   - **Motions** (`etapas/06-motions-e-elementos.md`): na v1, só presets que já existem (ou um vídeo do banco). Se a
+     direção pediu algo que nenhum preset faz, o motion novo vai num subagente (opus, `inserts.py motion-brief` +
+     `Leia <arquivo> e siga.`) **fora do caminho da v1**: o plano entra na v1 com o preset mais próximo e o novo só
+     substitui se ficar pronto antes do render; senão, entra na v2 (diga na entrega);
    - **Inserts** (`etapas/04-inserts.md`): `inserts.py briefs` e um subagente por arquivo (grupos de 3, sonnet), com
      `Leia <arquivo> e siga.`; nunca escreva os briefs à mão;
    - enquanto eles trabalham, você faz **Áudio** (`etapas/08-audio.md`), **Legenda** (`etapas/09-legenda.md`) e
      **Transições** (`etapas/07-transicoes.md`).
-5. **Enriquecimento** (`etapas/05-enriquecimento.md`): junta as mídias, escolhe os presets e o zoom do Full ator.
-6. **Render e autorrevisão** (`etapas/10-render.md`): proxy da v1, uma rodada de conferência, entrega.
+5. **Enriquecimento e pré-render, a cada leva** (`etapas/05-enriquecimento.md`): quando um subagente volta,
+   `inserts.py juntar`, os presets desses inserts e, em segundo plano, `uv run ferramentas/render.py <slug> --camadas`
+   (o pré-render fotografa a camada do que já está pronto; se um já está rodando, ele sai sem fazer nada e o próximo
+   pega o resto). Os motions de preset entram já no 1º pré-render.
+6. **Render e autorrevisão** (`etapas/10-render.md`): o render da entrega espera o pré-render e acha a camada quase
+   toda no cache (só fotografa o que mudou depois); uma rodada de conferência; entrega.
 
 Briefing: se vier, leia antes dos cortes; ele vale para cortes, direção e inserts. Materiais de apoio citados vão para
 `projetos/<slug>/apoio/` e são a primeira fonte dos inserts.

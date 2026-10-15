@@ -6,6 +6,8 @@
 
     uv run ferramentas/render.py <slug>            → projetos/<slug>/versoes/vN/ (proxy.mp4 720×1280 H.264 + os JSONs da revisão)
     uv run ferramentas/render.py <slug> --final    → projetos/<slug>/final/<nome> · <AAAA-MM-DD HHhMM>.mp4 (2160×3840 HEVC)
+    uv run ferramentas/render.py <slug> --camadas  → só fotografa a camada dos inserts e motions para o cache (o pré-render:
+        rode em segundo plano enquanto a edição segue; o render da entrega espera ele e acha tudo pronto)
     uv run ferramentas/render.py amostra-look <slug> <t> <lut|-> <intensidade> <vinheta>
         → um trecho de 3 s do ator (do bruto, no instante t do vídeo final) com aquele look: o provador da revisão
 
@@ -18,6 +20,7 @@ O cache (`projetos/<slug>/.cache/`): a foto de cada trecho da camada (`camadas/<
 página dá a ele) e o áudio pronto, com o −14 LUFS (`audio.json` + `audio.wav`). Numa revisão, só os trechos que mudaram
 são fotografados de novo e o áudio só é refeito se algo nele mudou.
 """
+import fcntl
 import hashlib
 import json
 import math
@@ -29,6 +32,7 @@ import subprocess
 import sys
 import tempfile
 import time
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 
@@ -374,7 +378,8 @@ def render(slug: str, final: bool = False) -> Path:
 
         print('[3/5] Fotos da camada dos inserts', flush=True)
         cache = p / '.cache' / 'camadas'
-        camadas, chaves = camada(url, trechos, w, h, cache, tmp)
+        with _cadeado_camadas(p, esperar=True):  # um pré-render rodando: espera ele e usa o que ele fotografou
+            camadas, chaves = camada(url, trechos, w, h, cache, tmp)
         fase('fotos')
 
         print('[4/5] Áudio: a voz, o fundo e o −14 LUFS', flush=True)
@@ -453,6 +458,51 @@ def render(slug: str, final: bool = False) -> Path:
     return destino
 
 
+@contextmanager
+def _cadeado_camadas(p: Path, esperar: bool):
+    """Um só fotografando a camada de um projeto por vez (o pré-render e o render da entrega dividem o cache). Sem
+    `esperar`, sai com False se já há outro."""
+    arq = p / '.cache' / 'camadas.trava'
+    arq.parent.mkdir(parents=True, exist_ok=True)
+    with open(arq, 'w') as f:
+        try:
+            fcntl.flock(f, fcntl.LOCK_EX | (0 if esperar else fcntl.LOCK_NB))
+        except BlockingIOError:
+            yield False
+            return
+        try:
+            yield True
+        finally:
+            fcntl.flock(f, fcntl.LOCK_UN)
+
+
+def pre_render(slug: str) -> None:
+    """O pré-render: fotografa para o cache (`.cache/camadas/`) os trechos de insert e motion do estado de agora, sem
+    áudio, montagem nem versão. Rodado em segundo plano a cada leva de inserts que fica pronta, o render da entrega acha
+    a camada quase toda feita (só o que mudou depois é fotografado de novo). Já há um rodando: sai sem fazer nada."""
+    t0 = time.time()
+    p = pasta(slug)
+    edicao = ler(slug)
+    if not v1_tocada(edicao):
+        raise SystemExit(f'O projeto {slug} ainda não tem cortes.')
+    w, h, _ = PROXY
+    with _cadeado_camadas(p, esperar=False) as livre:
+        if not livre:
+            print('Já há um pré-render deste projeto rodando: nada a fazer (o próximo pega o que mudou).')
+            return
+        tmp = Path(tempfile.mkdtemp(prefix='.prerender-', dir=p))
+        srv = servidor.servir(0)
+        try:
+            copias_do_banco(edicao)
+            url = pagina(slug, srv.server_address[1])
+            trechos = ler_pagina(url)['trechos'] or []
+            camada(url, trechos, w, h, p / '.cache' / 'camadas', tmp)
+        finally:
+            srv.shutdown()
+            shutil.rmtree(tmp, ignore_errors=True)
+    print(f'Pré-render de {slug}: {len(trechos)} trechos no cache em {time.time() - t0:.0f} s')
+
+
 AMOSTRA = 3.0  # s do provador de look
 
 
@@ -510,7 +560,10 @@ if __name__ == '__main__':
         _, _, slug, t, lut, intensidade, vinheta = sys.argv
         print(amostra_look(slug, float(t), {'lut': None if lut == '-' else lut, 'intensidade': float(intensidade), 'vinheta': vinheta}).relative_to(RAIZ))
         sys.exit(0)
-    args = [a for a in sys.argv[1:] if a != '--final']
+    args = [a for a in sys.argv[1:] if a not in ('--final', '--camadas')]
     if len(args) != 1:
         raise SystemExit(__doc__)
-    render(args[0], final='--final' in sys.argv[1:])
+    if '--camadas' in sys.argv[1:]:
+        pre_render(args[0])
+    else:
+        render(args[0], final='--final' in sys.argv[1:])

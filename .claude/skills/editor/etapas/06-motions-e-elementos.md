@@ -37,8 +37,9 @@ gráfico de barras), um **subagente em segundo plano** (`model: opus`) escreve u
 uv run ferramentas/inserts.py motion-brief <slug> <plano> --preset <id-novo> [--duracao <s>] [--pedido "<o que mais mostrar>"]
 ```
 Dispare o subagente com o prompt **só**: `Leia <caminho> e siga.` (o modelo é `06-brief-motion.md`; mude lá; ele já
-manda ler os recusados e os aprendizados). **Dispare-o primeiro, logo depois da direção**: é a tarefa mais longa
-(~7 min) e, se ficar por último, é ela que segura a entrega.
+manda ler os recusados e os aprendizados). Ele leva ~7 min: **nunca espere por ele na v1**. Ligue já ao plano o preset
+mais próximo (`inserts.py motion`); se o novo ficar pronto antes do render da entrega, troque; senão, ele entra na v2 e
+você diz isso na entrega.
 Depois ligue com `inserts.py motion`. Animação mais elaborada que isso: troque o plano (insert real ou Full ator) e
 registre a ideia como nota para o criador.
 

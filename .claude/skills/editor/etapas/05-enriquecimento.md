@@ -13,6 +13,13 @@ uv run ferramentas/presets.py listar              # os aprovados: nome, onde val
 uv run ferramentas/presets.py escolher <slug>     # cada insert com mídia e sem preset recebe o 1º favorito da situação
 ```
 
+**A cada leva de inserts que fica pronta** (um subagente voltou): `inserts.py juntar <slug>`, os presets desses inserts e,
+em segundo plano, o pré-render (fotografa a camada do que já está pronto para o cache; se um já está rodando, sai sem
+fazer nada e o próximo pega o resto):
+```bash
+uv run ferramentas/render.py <slug> --camadas     # em segundo plano (run_in_background)
+```
+
 `escolher` usa as favoritas que o criador marcou por **situação** (modo de tela × nº de mídias × proporção, em
 `biblioteca/presets/ordem.json`). Ele imprime a escolha de cada insert e o motivo.
 
