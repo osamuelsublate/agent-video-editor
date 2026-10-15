@@ -1184,24 +1184,14 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 .look-amostras figure.carregando video { opacity: 0.35; }
 .look-acoes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; }
 
-/* o "Usar / Não usar" do card da Calibragem: ligado, o roteiro do vídeo entra na Heurística da categoria */
+/* a linha de baixo do card da Calibragem: a data e a categoria */
 .pe-ref { display: flex; align-items: center; gap: 8px; margin-top: 4px; min-width: 0; }
 .pe-ref .sub { margin: 0; flex: none; }
 .pe-ref > .cta-categoria { margin-top: 0; min-width: 0; }
-.uso-ref { position: absolute; right: 8px; bottom: 8px; z-index: 2; display: inline-flex; align-items: center; gap: 7px; padding: 3px 10px 3px 4px;
-  border: 1px solid var(--color-line-dark); border-radius: var(--radius-full); background: rgba(11, 23, 20, 0.85); color: var(--color-fog);
-  font: inherit; font-size: 11px; font-weight: 600; cursor: pointer; backdrop-filter: blur(6px); }
-.uso-ref i { position: relative; width: 24px; height: 14px; border-radius: 7px; background: rgba(240, 236, 228, 0.18); transition: background 0.2s; }
-.uso-ref i::after { content: ''; position: absolute; top: 2px; left: 2px; width: 10px; height: 10px; border-radius: 50%; background: var(--color-cream); transition: transform 0.2s; }
-.uso-ref.ligado { border-color: var(--color-mint, #a8d5b5); color: var(--color-cream); }
-.uso-ref.ligado i { background: var(--color-mint, #a8d5b5); }
-.uso-ref.ligado i::after { transform: translateX(10px); background: var(--color-ink, #0b1714); }
-.uso-ref:hover { border-color: var(--color-cream-50); }
 
 /* a marca "[só VSL]" de um aprendizado, desenhada como o selo da categoria (app/referencias.js) */
 .selo-categoria { display: inline-block; margin: 0 6px; padding: 0 8px; border: 1px solid var(--color-line-dark); border-radius: var(--radius-full);
   font-size: 11px; font-weight: 600; color: var(--color-cream); vertical-align: 1px; white-space: nowrap; }
 .pagina-aprendizados .filtro-produtos { margin: 0 0 12px; }
-.card-ref .mini .selo-origem { max-width: calc(100% - 118px); } /* não encosta no Usar / Não usar */
 [data-ver-ocultos] svg { width: 12px; height: 12px; vertical-align: -1px; margin-right: 2px; }
 .acoes-card [data-ocultar] svg { width: 14px; height: 14px; }

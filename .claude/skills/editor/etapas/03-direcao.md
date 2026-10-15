@@ -13,7 +13,7 @@ categoria. Descubra qual é e onde estão os exemplos dela:
 ```bash
 uv run ferramentas/calibragem.py exemplos <slug>    # a categoria do projeto, a pasta e quantos vídeos estão em uso
 ```
-Os exemplos são os vídeos que o criador ligou (Usar) na Calibragem: ele decide quais servem, então leia todos. Sem
+Os exemplos são os vídeos da categoria que o criador não ocultou na Calibragem: ele decide quais servem, então leia todos. Sem
 nenhum vídeo da categoria em uso, dirija pelas regras dela e avise o criador na entrega.
 
 1. Leia `biblioteca/exemplos/criador.md` (quem grava e do que o canal fala) e `biblioteca/exemplos/<categoria>/regras.md` inteiro. As **Regras do
@@ -24,8 +24,8 @@ nenhum vídeo da categoria em uso, dirija pelas regras dela e avise o criador na
    do chefe: entenda, pela fala, por que cada coisa aparece onde aparece. O que está sendo dito manda. Os marcados
    "(revisado)" foram corrigidos pelo criador e valem mais que os outros.
 
-Esses arquivos são gerados pela Calibragem do app (`calibragem.py roteiros`): quando o criador liga ou desliga um vídeo
-(Usar / Não usar), revisa uma referência ou favorita um plano, eles mudam. Não os edite à mão (as regras, sim: `regras.md`).
+Esses arquivos são gerados pela Calibragem do app (`calibragem.py roteiros`): quando o criador oculta ou mostra um vídeo,
+revisa uma referência ou favorita um plano, eles mudam. Não os edite à mão (as regras, sim: `regras.md`).
 
 ## Rodar
 

@@ -36,7 +36,7 @@ export async function abrirCalibragem(tela) {
   // a categoria de vídeo (Reels, Ad…): filtra a grade, e os vídeos que sobem entram nela
   let cats = []
   let filtro = preferencia('calibragem.categoria', '')
-  let verOcultos = false // a vista dos ocultos (os vídeos que não quer usar por ora)
+  let verOcultos = false // a vista dos ocultos (fora da direção: os vídeos que não quer usar por ora)
 
   const card = (r) => {
     const [rotulo, cor] = STATUS[r.status] || [r.status, 'selo-coral']
@@ -44,8 +44,7 @@ export async function abrirCalibragem(tela) {
     const mini = `<div class="mini mini-916">${r.miniatura ? `<img src="${r.miniatura}" alt="" loading="lazy">` : ''}
         <span class="selo ${cor}">${rotulo}</span>${r.duracao ? `<span class="duracao">${mmss(r.duracao)}</span>` : ''}${seloOrigem(r.origem, 'selo selo-azul')}
         ${r.status === 'analisando' || r.status === 'na_fila' ? `<span class="progresso"><i style="width:${Math.round((r.progresso ?? 0) * 100)}%"></i></span>` : ''}
-        ${abrivel(r) && !r.oculto ? `<button class="uso-ref${r.usar ? ' ligado' : ''}" data-usar role="switch" aria-checked="${!!r.usar}" title="${r.usar ? 'Em uso: o roteiro dele ensina a direção (está na Heurística da categoria). Clique para tirar.' : 'Fora: clique para usar (o roteiro entra na Heurística da categoria).'}"><i></i>${r.usar ? 'Usar' : 'Não usar'}</button>` : ''}
-        <span class="acoes-card"><button class="botao-icone pequeno" data-ocultar title="${r.oculto ? 'Mostrar de novo (volta para a grade, desligado)' : 'Ocultar (sai da grade e não ensina a direção)'}">${r.oculto ? OLHO : OLHO_FECHADO}</button>
+        <span class="acoes-card"><button class="botao-icone pequeno" data-ocultar title="${r.oculto ? 'Mostrar de novo (volta a ensinar a direção)' : 'Ocultar (sai da grade e da direção)'}">${r.oculto ? OLHO : OLHO_FECHADO}</button>
           <button class="botao-icone pequeno" data-renomear title="Renomear">${ICONE.lapis}</button>
           <button class="botao-icone pequeno" data-apagar title="Apagar">${ICONE.lixo}</button></span></div>`
     return `<article class="card-ref${abrivel(r) ? ' abrivel' : ''}" data-id="${esc(r.id)}">
@@ -180,19 +179,7 @@ export async function abrirCalibragem(tela) {
       const r = refs.find((x) => x.id === id)
       try {
         await enviar('PUT', `/api/referencias/${encodeURIComponent(id)}/oculto`, { oculto: !r.oculto })
-        aviso(r.oculto ? 'De volta à Calibragem (desligado)' : 'Ocultado: está em Ocultos')
-      } catch (x) {
-        aviso(x.message, 'erro')
-      }
-      assinatura = ''
-      return carregar()
-    }
-    if (e.target.closest('[data-usar]')) {
-      e.preventDefault()
-      const r = refs.find((x) => x.id === id)
-      try {
-        await enviar('PUT', `/api/referencias/${encodeURIComponent(id)}/uso`, { usar: !r.usar })
-        aviso(r.usar ? 'Fora da Heurística' : 'Em uso: entrou na Heurística da categoria')
+        aviso(r.oculto ? 'De volta: entra na direção da categoria' : 'Ocultado: saiu da direção (está em Ocultos)')
       } catch (x) {
         aviso(x.message, 'erro')
       }

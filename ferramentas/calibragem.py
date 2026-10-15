@@ -18,8 +18,8 @@ já editados do criador viram os roteiros dirigidos de exemplo que a direção l
 Categorias (Reels, Ad, VSL, YouTube, Aula; o criador cadastra mais no app): cada referência tem uma (`tipo` no
 referencia.json; as antigas são Reels), cada projeto também (`formato` no edicao.json), e cada categoria tem os seus
 exemplos (`exemplos/<categoria>/`: regras.md, roteiros/, favoritos.md). A direção de um projeto lê os da categoria dele;
-nunca os de outra categoria (decisão do criador). Só ensinam os vídeos com o "Usar" ligado no card da Calibragem; um
-vídeo novo nasce desligado.
+nunca os de outra categoria (decisão do criador). Ensinam todos os vídeos analisados que não estão ocultos (o olho do
+card da Calibragem).
 
 Uma pasta por referência em `biblioteca/referencias/<id>/` (o mesmo formato do 18): referencia.json (a fonte de verdade,
 com o andamento em `analise.passos`), video.<ext>, proxy.mp4, palavras.json, silencios.json, cenas.json, trechos/NNN.json
@@ -229,7 +229,7 @@ def categoria_projeto(slug: str, cat: str) -> dict:
 
 def exemplos_para(slug: str) -> tuple[str, Path, int]:
     """O que a direção do projeto lê (decisão do criador: sempre e só a categoria do vídeo em edição): a categoria, a
-    pasta de exemplos dela e quantos vídeos dela estão em uso (o "Usar" ligado na Calibragem; 0 = só as regras)."""
+    pasta de exemplos dela e quantos vídeos dela estão em uso (os não ocultos da Calibragem; 0 = só as regras)."""
     edicao = ler_json(PROJETOS / slug / 'edicao.json', None)
     if edicao is None:
         raise FileNotFoundError(f'O projeto {slug} não existe')
@@ -293,7 +293,7 @@ def listar_referencias() -> list[dict]:
             'id': r['id'], 'nome': r['nome'], 'status': r['status'], 'erro': r.get('erro'),
             'duracao': v.get('duracao'), 'largura': v.get('largura'), 'altura': v.get('altura'), 'criado_em': r.get('criado_em'),
             'passo': atual, 'passo_rotulo': ROTULOS.get(atual), 'progresso': passos.get(atual, {}).get('progresso') if atual else None,
-            'passos': passos, 'origem': r.get('origem'), 'tipo': categoria_de(r), 'usar': ensina(r), 'oculto': bool(r.get('oculto')),
+            'passos': passos, 'origem': r.get('origem'), 'tipo': categoria_de(r), 'oculto': bool(r.get('oculto')),
             'miniatura': f'{URL}/{r["id"]}/miniatura.jpg' if (base / 'miniatura.jpg').exists() else None,
             'video': f'{URL}/{r["id"]}/proxy.mp4' if (base / 'proxy.mp4').exists() else None,
         })
@@ -622,24 +622,15 @@ def _escrever(arq: Path, texto: str) -> bool:
 
 
 def ensina(r: dict) -> bool:
-    """Se a referência entra nos exemplos (a Heurística da categoria dela): só com o "Usar" ligado no card da
-    Calibragem (`usar`; sem a marca, desligada) e nunca oculta."""
-    return bool(r.get('usar')) and not r.get('oculto')
+    """Se a referência entra nos exemplos (a Heurística da categoria dela): toda a que não está oculta na Calibragem."""
+    return not r.get('oculto')
 
 
 def definir_oculto(id: str, oculto: bool) -> dict:
     """Oculta (ou mostra de volta) um vídeo da Calibragem: oculto, ele sai da grade principal (fica na vista Ocultos) e
-    não ensina a direção; mostrado de volta, volta desligado (Não usar)."""
+    não ensina a direção; mostrado, volta a ensinar."""
     pasta(id)
-    r = atualizar(id, lambda x: x.update(oculto=bool(oculto), usar=False))
-    regenerar_exemplos()
-    return r
-
-
-def definir_uso(id: str, usar: bool) -> dict:
-    """Liga ou desliga a referência: ligada, o roteiro dela entra nos exemplos da categoria (a Heurística); desligada, sai."""
-    _analisada(id)
-    r = atualizar(id, lambda x: x.update(usar=bool(usar)))
+    r = atualizar(id, lambda x: x.update(oculto=bool(oculto)))
     regenerar_exemplos()
     return r
 
@@ -815,7 +806,7 @@ def de_projeto(slug: str, versao: int | str | None = None) -> str:
         gravar_json(base / 'referencia.json', {
             'id': id, 'nome': f"{edicao.get('nome') or slug} (aprovado)", 'criado_em': datetime.now().isoformat(timespec='seconds'),
             'formato': 'vertical', 'video': {'arquivo': 'proxy.mp4', 'nome_original': f'projetos/{slug}/versoes/v{n}/proxy.mp4', **info},
-            'status': 'a_revisar', 'erro': None, 'analise': {'passos': {x: {'status': 'pronto'} for x in PASSOS}}, 'usar': False,
+            'status': 'a_revisar', 'erro': None, 'analise': {'passos': {x: {'status': 'pronto'} for x in PASSOS}},
             'origem': {'projeto': slug, 'versao': n, 'aprovado_em': aprovado_em}, 'revisoes': revisoes,
             'tipo': categoria_de(edicao, 'formato')})  # a categoria do projeto: ensina a direção dos projetos da mesma
         for i in itens:
@@ -858,8 +849,7 @@ def _criar(arquivo: str, nome: str | None, categoria: str = CATEGORIA_PADRAO) ->
         gravar_json(base / 'referencia.json', {
             'id': id, 'nome': nome, 'criado_em': datetime.now().isoformat(timespec='seconds'), 'formato': 'vertical',
             'video': {'arquivo': destino.name, 'nome_original': origem.name, **info},
-            'status': 'na_fila', 'erro': None, 'analise': {'passos': {p: {'status': 'pendente'} for p in PASSOS}}, 'tipo': categoria,
-            'usar': False})  # só ensina a direção quando o criador liga (o "Usar" do card)
+            'status': 'na_fila', 'erro': None, 'analise': {'passos': {p: {'status': 'pendente'} for p in PASSOS}}, 'tipo': categoria})
     except Exception:
         shutil.rmtree(base, ignore_errors=True)
         raise
