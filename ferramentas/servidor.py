@@ -486,7 +486,7 @@ def roteiros(cat: str = 'reels') -> list[dict]:
 @rota('GET', '/api/heuristica')
 def _heuristica(h, q):
     cat = _categoria(q)
-    arq = EXEMPLOS / cat / 'regras.md'
+    arq = calibragem().semear_regras(cat)  # sem regras ainda: começa com uma cópia das do Reels
     return {'categoria': cat, 'regras': arq.read_text(encoding='utf-8') if arq.is_file() else '', 'roteiros': roteiros(cat)}
 
 

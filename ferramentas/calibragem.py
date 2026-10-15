@@ -187,11 +187,24 @@ def salvar_categorias(lista: list[dict]) -> list[dict]:
         nomes = {c['id']: c['nome'] for c in categorias()}
         raise ValueError(f'Ainda há referências ou projetos de {", ".join(nomes.get(x, x) for x in saem)}: mude a categoria deles antes')
     gravar_json(CATEGORIAS_ARQ, out)
+    for c in out:  # uma categoria nova já nasce com as regras de direção do Reels
+        semear_regras(c['id'])
     return out
 
 
 def pasta_exemplos(cat: str) -> Path:
     return EXEMPLOS / cat
+
+
+def semear_regras(cat: str) -> Path:
+    """As regras de direção de uma categoria (`exemplos/<categoria>/regras.md`). Uma categoria sem regras ainda começa
+    com uma cópia das do Reels, as de fábrica (decisão do criador); depois cada uma segue as suas."""
+    arq = pasta_exemplos(cat) / 'regras.md'
+    padrao = pasta_exemplos(CATEGORIA_PADRAO) / 'regras.md'
+    if not arq.exists() and cat != CATEGORIA_PADRAO and padrao.exists():
+        arq.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(padrao, arq)
+    return arq
 
 
 def definir_categoria(id: str, cat: str) -> dict:
