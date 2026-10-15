@@ -18,8 +18,8 @@ já editados do criador viram os roteiros dirigidos de exemplo que a direção l
 Categorias (Reels, Ad, VSL, YouTube, Aula; o criador cadastra mais no app): cada referência tem uma (`tipo` no
 referencia.json; as antigas são Reels), cada projeto também (`formato` no edicao.json), e cada categoria tem os seus
 exemplos (`exemplos/<categoria>/`: regras.md, roteiros/, favoritos.md). A direção de um projeto lê os da categoria dele;
-sem nenhuma referência em uso da categoria (o "Usar" do card da Calibragem), os de todas. Uma referência nova nasce
-desligada: só ensina depois que o criador liga.
+nunca os de outra categoria (decisão do criador). Só ensinam os vídeos com o "Usar" ligado no card da Calibragem; um
+vídeo novo nasce desligado.
 
 Uma pasta por referência em `biblioteca/referencias/<id>/` (o mesmo formato do 18): referencia.json (a fonte de verdade,
 com o andamento em `analise.passos`), video.<ext>, proxy.mp4, palavras.json, silencios.json, cenas.json, trechos/NNN.json
@@ -214,16 +214,15 @@ def categoria_projeto(slug: str, cat: str) -> dict:
     return edicao
 
 
-def exemplos_para(slug: str) -> tuple[str, list[Path], bool]:
-    """O que a direção do projeto lê: (categoria, pastas de exemplos, se são as de todas as categorias). Sem nenhuma
-    referência em uso (o "Usar" ligado) da categoria, as de todas."""
+def exemplos_para(slug: str) -> tuple[str, Path, int]:
+    """O que a direção do projeto lê (decisão do criador: sempre e só a categoria do vídeo em edição): a categoria, a
+    pasta de exemplos dela e quantos vídeos dela estão em uso (o "Usar" ligado na Calibragem; 0 = só as regras)."""
     edicao = ler_json(PROJETOS / slug / 'edicao.json', None)
     if edicao is None:
         raise FileNotFoundError(f'O projeto {slug} não existe')
     cat = categoria_de(edicao, 'formato')
-    if any(r['status'] in ANALISADAS and ensina(r) and categoria_de(r) == cat for r in _todas()):
-        return cat, [pasta_exemplos(cat)], False
-    return cat, sorted(p for p in EXEMPLOS.iterdir() if p.is_dir()), True
+    n = sum(1 for r in _todas() if r['status'] in ANALISADAS and ensina(r) and categoria_de(r) == cat)
+    return cat, pasta_exemplos(cat), n
 
 
 def _vivo(pid) -> bool:
@@ -1429,14 +1428,13 @@ def main() -> None:
         print(f'categoria: {a.categoria}')
     elif a.comando == 'exemplos':
         try:
-            cat, pastas, de_todas = exemplos_para(a.slug)
+            cat, pasta, n = exemplos_para(a.slug)
         except FileNotFoundError as e:
             raise SystemExit(str(e)) from None
-        print(f'Categoria do projeto: {cat}')
-        if de_todas:
-            print(f'Nenhuma referência em uso de {cat}: leia os exemplos de todas as categorias (e avise o criador na entrega).')
-        for p in pastas:
-            print(f'  {p.relative_to(RAIZ)}/  (regras.md, favoritos.md, roteiros/)')
+        print(f'Categoria do projeto: {cat} · {n} vídeo(s) em uso na Calibragem')
+        print(f'  {pasta.relative_to(RAIZ)}/  (regras.md, favoritos.md, roteiros/: leia tudo)')
+        if not n:
+            print(f'Nenhum vídeo de {cat} em uso: dirija pelas regras da categoria e avise o criador na entrega.')
     elif a.comando == 'de-projeto':
         try:
             id = de_projeto(a.slug, a.versao)

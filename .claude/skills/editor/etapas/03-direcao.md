@@ -7,22 +7,22 @@ criador dirige. Não mexe em mídia: só a "partitura visual". Inserts, motions,
 
 ## Antes de escrever: aprenda o estilo
 
-Cada categoria de vídeo (📱 Reels, 💰 Ad, 📺 VSL, 🎥 YouTube, 📚 Aula…) tem os seus exemplos. Descubra quais ler:
+A direção vem **sempre e só da categoria do vídeo em edição** (📱 Reels, 📺 VSL…): nunca misture exemplos de outra
+categoria. Descubra qual é e onde estão os exemplos dela:
 
 ```bash
-uv run ferramentas/calibragem.py exemplos <slug>    # a categoria do projeto e a pasta (ou, sem referência em uso dela, todas)
+uv run ferramentas/calibragem.py exemplos <slug>    # a categoria do projeto, a pasta e quantos vídeos estão em uso
 ```
-Leia a pasta que ele indicar (`<categoria>` abaixo). Quando ele disser que a categoria ainda não tem referência
-em uso (o criador liga cada uma no card da Calibragem), leia as de todas as categorias e diga isso ao criador na entrega.
+Os exemplos são os vídeos que o criador ligou (Usar) na Calibragem: ele decide quais servem, então leia todos. Sem
+nenhum vídeo da categoria em uso, dirija pelas regras dela e avise o criador na entrega.
 
 1. Leia `biblioteca/exemplos/criador.md` (quem grava e do que o canal fala) e `biblioteca/exemplos/<categoria>/regras.md` inteiro. As **Regras do
    criador** são obrigatórias; as sugeridas são guia.
 2. Leia `biblioteca/exemplos/<categoria>/favoritos.md`: os planos que o criador marcou com ★ na galeria de Referências do app. São os melhores
    exemplos dele: quando um momento do vídeo novo se parece com um deles, siga aquele padrão.
-3. Leia os roteiros de `biblioteca/exemplos/<categoria>/roteiros/` como um editor novo lê os roteiros anotados do chefe:
-   entenda, pela fala, por que cada coisa aparece onde aparece. O que está sendo dito manda. **No máximo 6**, para a
-   direção caber em ~1 min: primeiro os marcados "(revisado)" (o criador corrigiu: valem mais), depois os de assunto
-   mais parecido com este vídeo. São só os que o criador deixou em uso na Calibragem.
+3. Leia **todos** os roteiros de `biblioteca/exemplos/<categoria>/roteiros/` como um editor novo lê os roteiros anotados
+   do chefe: entenda, pela fala, por que cada coisa aparece onde aparece. O que está sendo dito manda. Os marcados
+   "(revisado)" foram corrigidos pelo criador e valem mais que os outros.
 
 Esses arquivos são gerados pela Calibragem do app (`calibragem.py roteiros`): quando o criador liga ou desliga um vídeo
 (Usar / Não usar), revisa uma referência ou favorita um plano, eles mudam. Não os edite à mão (as regras, sim: `regras.md`).
@@ -100,4 +100,4 @@ casar todas; se não, você alterou a fala — corrija o roteiro).
 - Confira as Regras do criador contra o resultado (abertura, máximo de 3–4 s de Full ator seguido etc.). Se violou,
   reescreva o trecho e aplique de novo.
 
-Tempo esperado: ~1,5 min.
+Tempo esperado: ~2 min.
