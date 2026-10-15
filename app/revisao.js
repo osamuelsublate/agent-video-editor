@@ -30,6 +30,18 @@ const crescer = (el) => {
   el.style.height = `${Math.min(el.scrollHeight + 2, Math.round(innerHeight * 0.4))}px`
 }
 /** O botão de clipe de uma caixa de comentário (`alvo`: nova ou editor). */
+// a barra de atalhos acima da linha do tempo (como a do 18, no estilo do "Cortar D"): o ícone, a ação e a tecla
+const SVG = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`
+const ICONES_ATALHO = {
+  plano: SVG('<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>'),
+  trecho: SVG('<path d="M16 3h3v18h-3"/><path d="M8 21H5V3h3"/>'),
+  zoom: SVG('<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M11 8v6"/><path d="M8 11h6"/>'),
+}
+const ATALHOS = () => [
+  ['R', 'plano', ICONES_ATALHO.plano], ['I O', 'trecho', ICONES_ATALHO.trecho], ['C', 'geral', ICONE.balao], ['⌘V', 'anexo', ICONE.clipe],
+  ['Espaço', 'tocar', ICONE.tocar], ['← →', 'quadro', ICONE.quadroDepois], ['⇧ ← →', 'corte', ICONE.segDepois], ['⌘ rolar', 'zoom', ICONES_ATALHO.zoom],
+]
+
 const clipe = (alvo) =>
   `<label class="botao-icone pequeno botao-clipe" title="Anexar imagens ou vídeos (também dá para colar com ⌘V ou arrastar)"><input type="file" accept="image/*,video/*" multiple hidden data-anexar="${alvo}">${ICONE.clipe}</label>`
 /** O estado da revisão de uma versão, no seletor de versões (GET /api/projetos/<slug>/versoes). */
@@ -128,18 +140,15 @@ class Revisao {
           <button class="video-tocar" data-acao="tocar" aria-label="Tocar">${ICONE.tocar}</button></div>
         <div class="lado lado-dir">
           <div class="bloco" id="usado"></div>
-          <dl class="atalhos"><dt><kbd>Espaço</kbd></dt><dd>tocar</dd><dt><kbd>←</kbd><kbd>→</kbd></dt><dd>quadro · <kbd>Shift</kbd> 1 s</dd>
-            <dt><kbd>I</kbd><kbd>O</kbd></dt><dd>trecho</dd><dt><kbd>C</kbd></dt><dd>geral</dd>
-            <dt><kbd>⌘V</kbd></dt><dd>anexar print</dd><dt><kbd>Esc</kbd></dt><dd>sair</dd></dl>
         </div>
       </section>
       <div class="controles">
         <div class="grupo">
-          <button class="botao-icone" data-acao="seg-" title="−1 s (Shift+←)">${ICONE.segAntes}</button>
+          <button class="botao-icone" data-acao="corte-" title="O corte anterior (Shift+←)">${ICONE.segAntes}</button>
           <button class="botao-icone" data-acao="quadro-" title="−1 quadro (←)">${ICONE.quadroAntes}</button>
           <button class="botao-icone botao-tocar" data-acao="tocar" id="b-tocar" title="Tocar / pausar (Espaço)">${ICONE.tocar}</button>
           <button class="botao-icone" data-acao="quadro+" title="+1 quadro (→)">${ICONE.quadroDepois}</button>
-          <button class="botao-icone" data-acao="seg+" title="+1 s (Shift+→)">${ICONE.segDepois}</button>
+          <button class="botao-icone" data-acao="corte+" title="O próximo corte (Shift+→)">${ICONE.segDepois}</button>
           <span class="tempo"><b id="t-atual">0:00,0</b> / <span id="t-total">${tempo(this.dur)}</span></span>
         </div>
         <div class="grupo velocidades">${VELOCIDADES.map((x) => `<button class="pilula pequena${x === 1 ? ' ativa' : ''}" data-vel="${x}">${num(x, x % 1 ? 1 : 0)}×</button>`).join('')}</div>
@@ -149,7 +158,12 @@ class Revisao {
         </div>
       </div>
       <section class="linha">
-        <div class="linha-rotulos"><span class="r-regua"><button class="botao-icone pequeno" data-acao="zoom-" title="Afastar a linha do tempo">${ICONE.menos}</button><button class="botao-icone pequeno" data-acao="zoom+" title="Aproximar (⌘ + rolagem)">${ICONE.mais}</button></span><span>Planos</span><span>Fala</span><span>Você</span><span>Claude</span></div>
+        <div class="linha-barra"><span class="eyebrow">Linha do tempo</span>
+          <div class="linha-atalhos">${ATALHOS().map(([tecla, acao, icone]) => `<span>${icone}${acao}<kbd>${tecla}</kbd></span>`).join('')}</div>
+          <button class="botao-icone pequeno" data-acao="zoom-" title="Afastar">${ICONE.menos}</button>
+          <button class="botao-icone pequeno" data-acao="zoom+" title="Aproximar (⌘ + rolagem)">${ICONE.mais}</button>
+          <button class="botao pequeno botao-ajustar" data-acao="ajustar" title="O vídeo inteiro na largura">${ICONE.expandir} Ajustar</button></div>
+        <div class="linha-rotulos"><span class="r-regua"></span><span>Planos</span><span>Fala</span><span>Você</span><span>Claude</span></div>
         <div class="linha-rolo" id="rolo"><div class="linha-conteudo" id="conteudo">
           <div class="regua" id="regua"></div>
           <div class="faixa faixa-planos" id="f-planos"></div>
@@ -656,6 +670,27 @@ class Revisao {
     else this.buscar(this.video.currentTime + d)
   }
 
+  /** Shift + setas (como no 18): o começo do plano seguinte ou anterior (o corte); no anterior, a 1ª vez volta ao começo
+   *  do plano em que se está. */
+  irAoCorte(dir) {
+    this.video.pause()
+    const t = this.video.currentTime
+    const inicios = this.planos.map((p) => p.ini).sort((a, b) => a - b)
+    const alvo = dir > 0 ? inicios.find((x) => x > t + 0.02) : inicios.filter((x) => x < t - 0.02).at(-1)
+    this.buscar(alvo ?? (dir > 0 ? this.dur : 0))
+  }
+
+  /** R (como no 18): toca de novo o plano em que se está, do começo; apertado logo depois de voltar, vai ao anterior. */
+  replano() {
+    const t = this.video.currentTime
+    const inicios = this.planos.map((p) => p.ini).sort((a, b) => a - b)
+    let ini = inicios.filter((x) => x <= t + 0.001).at(-1) ?? 0
+    if (t - ini < 0.35 && Date.now() - (this.ultimoR || 0) < 1500) ini = inicios.filter((x) => x < ini - 0.001).at(-1) ?? 0
+    this.ultimoR = Date.now()
+    this.buscar(ini + 0.001)
+    this.video.play().catch(() => {})
+  }
+
   alternar() {
     if (this.video.paused) this.video.play().catch(() => {})
     else this.video.pause()
@@ -666,7 +701,7 @@ class Revisao {
     const a = ancora ?? (this.video.currentTime * this.pxs - rolo.scrollLeft)
     const tAncora = (rolo.scrollLeft + a) / this.pxs
     const ajuste = Math.max(rolo.clientWidth - 2, 100) / this.dur
-    this.pxs = Math.min(Math.max(this.pxs * fator, ajuste), 400)
+    this.pxs = Math.min(Math.max(this.pxs * fator, ajuste), 400) // fator 0: o vídeo inteiro na largura (Ajustar)
     this.ajustar = this.pxs <= ajuste * 1.0001
     this.renderLinha()
     rolo.scrollLeft = tAncora * this.pxs - a
@@ -1135,8 +1170,9 @@ class Revisao {
       tocar: () => this.alternar(),
       'quadro-': () => this.passo(-QUADRO),
       'quadro+': () => this.passo(QUADRO),
-      'seg-': () => this.passo(-1),
-      'seg+': () => this.passo(1),
+      'corte-': () => this.irAoCorte(-1),
+      'corte+': () => this.irAoCorte(1),
+      ajustar: () => this.zoom(0),
       'alternar-tempo': () => this.alternarTempo(true),
       soltar: () => this.soltarNova(),
       'salvar-nova': () => this.salvarNova(),
@@ -1180,8 +1216,9 @@ class Revisao {
     const k = e.key.length === 1 ? e.key.toLowerCase() : e.key
     const f = {
       ' ': () => this.alternar(),
-      ArrowLeft: () => this.passo(e.shiftKey ? -1 : -QUADRO),
-      ArrowRight: () => this.passo(e.shiftKey ? 1 : QUADRO),
+      ArrowLeft: () => (e.shiftKey ? this.irAoCorte(-1) : this.passo(-QUADRO)),
+      ArrowRight: () => (e.shiftKey ? this.irAoCorte(1) : this.passo(QUADRO)),
+      r: () => this.replano(),
       c: () => this.alternarTempo(true),
       i: () => this.marcarEntrada(),
       o: () => this.marcarSaida(),
