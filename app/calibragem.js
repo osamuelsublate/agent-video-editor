@@ -40,13 +40,13 @@ export async function abrirCalibragem(tela) {
     const mini = `<div class="mini mini-916">${r.miniatura ? `<img src="${r.miniatura}" alt="" loading="lazy">` : ''}
         <span class="selo ${cor}">${rotulo}</span>${r.duracao ? `<span class="duracao">${mmss(r.duracao)}</span>` : ''}${seloOrigem(r.origem, 'selo selo-azul')}
         ${r.status === 'analisando' || r.status === 'na_fila' ? `<span class="progresso"><i style="width:${Math.round((r.progresso ?? 0) * 100)}%"></i></span>` : ''}
+        ${abrivel(r) ? `<button class="uso-ref${r.usar ? ' ligado' : ''}" data-usar role="switch" aria-checked="${!!r.usar}" title="${r.usar ? 'Em uso: o roteiro dele ensina a direção (está na Heurística da categoria). Clique para tirar.' : 'Fora: clique para usar (o roteiro entra na Heurística da categoria).'}"><i></i>${r.usar ? 'Usar' : 'Não usar'}</button>` : ''}
         <span class="acoes-card"><button class="botao-icone pequeno" data-renomear title="Renomear">${ICONE.lapis}</button>
           <button class="botao-icone pequeno" data-apagar title="Apagar">${ICONE.lixo}</button></span></div>`
     return `<article class="card-ref${abrivel(r) ? ' abrivel' : ''}" data-id="${esc(r.id)}">
       ${abrivel(r) ? `<a href="#/calibragem/${encodeURIComponent(r.id)}" title="Abrir a revisão">${mini}</a>` : mini}
       ${editando === r.id ? `<input class="renomear" value="${esc(r.nome)}" maxlength="120">` : `<div class="card-titulo"><h3 data-renomear title="Dois cliques para renomear">${esc(r.nome)}</h3>${chipCodigo(cod[r.id], r.nome)}</div>`}
-      <p class="sub">${emAndamento(r) ? esc(passo || 'Na fila') : `${dataHora(r.criado_em)}${r.largura ? ` · ${r.largura}×${r.altura}` : ''}`}</p>
-      <div class="pe-ref">${abrivel(r) ? `<button class="uso-ref${r.usar ? ' ligado' : ''}" data-usar role="switch" aria-checked="${!!r.usar}" title="${r.usar ? 'Em uso: o roteiro dele ensina a direção (está na Heurística da categoria). Clique para tirar.' : 'Fora: clique para usar (o roteiro entra na Heurística da categoria).'}"><i></i>${r.usar ? 'Usar' : 'Não usar'}</button>` : ''}
+      <div class="pe-ref"><span class="sub" title="${r.largura ? `${r.largura}×${r.altura}` : ''}">${emAndamento(r) ? esc(passo || 'Na fila') : esc(dataHora(r.criado_em).slice(0, 5))}</span>
         ${seletorCategoria(cats, r.tipo || 'reels')}</div>
       ${r.status === 'erro' ? `<p class="erro-ref">${esc(r.erro || 'A análise falhou.')}</p><button class="botao pequeno" data-tentar>${ICONE.refazer} Tentar de novo</button>` : ''}
     </article>`
