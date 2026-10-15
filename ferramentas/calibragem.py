@@ -622,14 +622,9 @@ def _escrever(arq: Path, texto: str) -> bool:
 
 
 def ensina(r: dict) -> bool:
-    """Se a referência entra nos exemplos (a Heurística da categoria dela): o "Usar / Não usar" do card da Calibragem
-    (`usar`). As novas nascem desligadas; as de antes do botão seguem a regra antiga (ensinam, menos as de projeto ainda
-    não revisadas)."""
-    if r.get('oculto'):  # oculta na Calibragem: fora de tudo
-        return False
-    if 'usar' in r:
-        return bool(r['usar'])
-    return r['status'] == 'revisado' or not (r.get('origem') or {}).get('projeto')
+    """Se a referência entra nos exemplos (a Heurística da categoria dela): só com o "Usar" ligado no card da
+    Calibragem (`usar`; sem a marca, desligada) e nunca oculta."""
+    return bool(r.get('usar')) and not r.get('oculto')
 
 
 def definir_oculto(id: str, oculto: bool) -> dict:
