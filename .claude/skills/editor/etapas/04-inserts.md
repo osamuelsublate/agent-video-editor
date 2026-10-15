@@ -1,8 +1,9 @@
 # 04 · Inserts
 
 Cada plano com insert (Insert tela cheia, Tela dividida · insert, Comentário + insert + ator) precisa de **mídia real**:
-vídeos e imagens que mostrem o que a marcação pede. Você não busca nada no contexto principal: dispara **um subagente
-por insert, todos de uma vez, em segundo plano** (modelo `sonnet`), e segue para outras etapas enquanto eles trabalham.
+vídeos e imagens que mostrem o que a marcação pede. Você não busca nada no contexto principal: dispara **subagentes em
+grupos de 3 pedidos, todos de uma vez, em segundo plano** (modelo `sonnet`), com **até 3 min por insert**, e segue para
+outras etapas enquanto eles trabalham.
 
 > **Antes de começar, leia `../aprendizados/inserts.md` (e mande cada subagente ler também)**: o que o criador já corrigiu em vídeos anteriores. Não repita esses erros.
 
@@ -29,37 +30,16 @@ uv run ferramentas/inserts.py juntar <slug>      # liga as mídias achadas a cad
 
 Sem imagem gerada por IA (o criador não pediu).
 
-## O subagente (um por pedido)
+## Os subagentes (em grupos, pelos briefs da ferramenta)
 
-Mande, para cada pedido, este prompt preenchido (Agent, `subagent_type: general-purpose`, `model: sonnet`,
-`run_in_background: true`):
-
-```text
-Você busca a mídia de UM insert de um Reels. Repositório: <raiz>. Rode os scripts com `uv run ferramentas/<x>.py`.
-Projeto: <slug>. Insert <plano> · <tipo> · formato <vertical|dividida> · <duração> s.
-Fala: "<fala do bloco>"
-O que deve aparecer (marcação): <marcação>
-Contexto do vídeo (1 frase): <assunto do vídeo>.
-Antes: leia <raiz>/.claude/skills/editor/aprendizados/inserts.md (o que o criador já corrigiu) e siga.
-Briefing/materiais: <se houver; caminhos em projetos/<slug>/apoio/>.
-
-Ordem: (1) materiais do criador; (2) `banco.py buscar "<termos>"`; (3) `captura.py <url> --proporcao <16:9 para
-dividida | 9:16 para vertical> --duracao <duração+1, mín. 4> --projeto <slug>` quando a fala cita um site/ferramenta
-(ache a URL oficial com WebSearch); (4) web oficial: imagens/vídeos do próprio produto (yt-dlp com --download-sections
-para baixar só o trecho útil; nunca rosto ou vídeo de outro criador), e `banco.py adicionar <arquivo> --nome … --descricao
-… --palavras … --fonte <url> --projeto <slug>`.
-Mídias: 1 a 3 (se a marcação cita duas coisas, uma de cada). Vídeo com movimento é melhor que imagem parada; o vídeo
-precisa durar pelo menos a duração do insert. Proporção: horizontal para dividida; 9:16 para vertical (se só houver
-horizontal, serve).
-Confira o que achou: olhe os quadros (`folha.py <video>` e leia a imagem; imagens, leia direto). Para um vídeo baixado
-cujo conteúdo você não consegue julgar pelos quadros, pergunte ao `gemini.py <video> "<pergunta>"`.
-Se só um trecho do vídeo serve, crie um trecho: `banco.py trecho <id> <ini> <fim>` e use o id do trecho. Capturas
-começam em branco enquanto a página carrega: corte o começo branco com um trecho.
-Apague do banco o que você capturou ou baixou e NÃO usou: `banco.py apagar <id…>`.
-Se nada real servir, não monte um mockup seu: diga na nota (quem decide a troca é o editor).
-No fim, grave projetos/<slug>/inserts/<plano>.json = {"plano": "<plano>", "midias": ["<banco_id>", …], "fontes": ["<url>",
-…], "nota": "o que achou, ou por que não achou"} e responda com 2 linhas: os ids e a nota.
+```bash
+uv run ferramentas/inserts.py briefs <slug> --contexto "<1 frase do vídeo>"   # um arquivo por grupo de 3 pedidos sem mídia
 ```
+Dispare **um subagente por arquivo, todos no mesmo turno, em segundo plano** (Agent, `subagent_type: general-purpose`,
+`model: sonnet`, `run_in_background: true`), com o prompt **só**: `Leia <caminho> e siga.` — não escreva o brief à mão
+(o modelo é `04-brief-inserts.md`; mude lá). Com 24 inserts são 8 subagentes, abaixo do limite de 20 simultâneos, e sobra
+vaga para o motion novo (que já deve estar rodando, ver `06`). Cada subagente grava um `inserts/<plano>.json` por insert.
+Pedidos que ficaram sem mídia: `inserts.py briefs <slug> --grupo 1` só com eles, ou o plano B abaixo.
 
 ## Depois
 
@@ -68,4 +48,4 @@ No fim, grave projetos/<slug>/inserts/<plano>.json = {"plano": "<plano>", "midia
 - Comentário + insert + ator: o card do comentário usa o texto do plano; a mídia é o insert por trás dele.
 - O que entrou no banco fica para os próximos vídeos (o banco cresce sozinho).
 
-Tempo esperado: 3 a 6 min (em paralelo com Áudio, Legenda e Transições).
+Tempo esperado: ≤ 3 min (em paralelo com Áudio, Legenda e Transições).

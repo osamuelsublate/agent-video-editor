@@ -31,23 +31,14 @@ acompanha as palavras faladas).
 ### Motion novo
 
 Se nenhum preset serve e a ideia é simples (um número que cresce, dois logos lado a lado, uma lista que se monta, um
-gráfico de barras), escreva um preset novo — num **subagente em segundo plano** (`model: opus`), com este pedido. Antes,
-leia os recusados (`biblioteca/motions/presets/_recusados/*.html`: o JSON do topo tem o `motivo` do criador) e não
-sugira de novo o mesmo tipo de coisa.
+gráfico de barras), um **subagente em segundo plano** (`model: opus`) escreve um preset novo:
 
-```text
-Escreva um preset de motion novo em biblioteca/motions/presets/<id>.html para o editor de Reels em <raiz>.
-Leia antes .claude/skills/editor/aprendizados/motions.md (o que o criador já corrigiu), os motions recusados
-em biblioteca/motions/presets/_recusados/ (e os motivos) e 2 presets existentes (prompt.html e lettering.html) e biblioteca/motions/runtime.js: copie a estrutura
-(o JSON <script id="preset"> com nome, descricao, fundo, duracao, sons; o <script id="campos">; o <style>; a timeline do
-GSAP pausada entregue com motion.pronto(tl); motion.som/motion.digitar/motion.curva/motion.aCada).
-Pedido: <o que a direção pede> · formato <vertical|dividida> · duração <s> · fala: "<fala>".
-Regras: poucos elementos; entrada curta e suave, chegada longa (curva perto de (0.25, 0.1, 0.1, 1) em 0,8–1 s); a cena
-nunca para até o corte; fontes Inter, Instrument Serif ou SF Pro; cores do contexto; sons só da biblioteca
-(biblioteca/sons/catalogo.json). Teste abrindo render/motion.html?preset=<id>&formato=<…>&duracao=<…>&tocar=1 com o
-servidor (uv run ferramentas/servidor.py <porta livre>) e fotografe 4 instantes com Playwright; olhe as imagens e corrija.
-Marque no JSON do preset "a_revisar": true. Responda com o id e os campos.
+```bash
+uv run ferramentas/inserts.py motion-brief <slug> <plano> --preset <id-novo> [--duracao <s>] [--pedido "<o que mais mostrar>"]
 ```
+Dispare o subagente com o prompt **só**: `Leia <caminho> e siga.` (o modelo é `06-brief-motion.md`; mude lá; ele já
+manda ler os recusados e os aprendizados). **Dispare-o primeiro, logo depois da direção**: é a tarefa mais longa
+(~7 min) e, se ficar por último, é ela que segura a entrega.
 Depois ligue com `inserts.py motion`. Animação mais elaborada que isso: troque o plano (insert real ou Full ator) e
 registre a ideia como nota para o criador.
 

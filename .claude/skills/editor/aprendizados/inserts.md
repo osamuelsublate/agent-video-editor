@@ -39,3 +39,14 @@ e não repita estes erros. **[gosto]** = preferência confirmada pelo criador ·
 - Exemplos "do que não fazer" (site genérico, site poluído) são os mais difíceis de achar prontos: descreva na marcação
   um tipo concreto e achável (ex.: "a galeria de templates do Lovable"). Nunca monte um mockup sem dizer. _1º teste_
 - Apague do banco o que foi capturado e não serviu (`banco.py apagar`): os subagentes deixavam lixo. _1º teste_
+- **[técnica] Site pesado sai no loader.** Site 3D/WebGL (lusion, igloo, resn) gravado desde o 1º quadro saiu só na tela
+  de carregamento: espere a página carregar antes de gravar (ou corte o começo com um trecho). Páginas do Cloudflare
+  ("Attention Required") não servem — troque de site. _do 18 · 3-niveis-de-sites-com-ia · 2026-10-14_
+- **[técnica] Só as boas, sem repetir.** Ligue ao insert só as mídias que servem e não repita a mesma mídia em planos
+  próximos (uma mídia tinha ido para 3 inserts). _do 18 · 3-niveis-de-sites-com-ia · 2026-10-14_
+- **[técnica] "Site genérico de IA" não se acha ao vivo.** Quatro subagentes gastaram o tempo todo procurando um site
+  real "roxo, três cards, serifa": não existe como site público. Use o banco; sem nada, deixe sem mídia e peça prints
+  ao criador na entrega. _do 18 · 3-niveis-de-sites-com-ia · 2026-10-14_
+- **[técnica] Grupos de 3, com limite de tempo.** Um subagente por insert estourou o limite de 20 simultâneos (25
+  inserts) e cada um demorou até 11 min: em grupos de 3 (`inserts.py briefs`), com 3 min por insert, a etapa cabe em
+  ~3 min. _do 18 · 2026-10-14_

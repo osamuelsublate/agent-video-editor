@@ -17,14 +17,17 @@ raiz do repositório.
 ## Fluxo 1 — Vídeo novo: do bruto à v1 (sem parar)
 
 Marque a hora de início; a meta é a v1 em até 15 min para 2 min de bruto (o 1º teste levou 26 min: preparar 1 min,
-cortes e direção 4 min, inserts 13 min, render e autorrevisão 6 min). Registre o tempo de cada etapa.
+cortes e direção 4 min, inserts 13 min, render e autorrevisão 6 min; no 18, os briefs pela ferramenta, os inserts em
+grupos de 3 e o motion novo primeiro baixaram a parte dos inserts para ~3 min). Registre o tempo de cada etapa.
 
 1. **Preparar** (`etapas/01-preparar.md`): cria o projeto, transcreve, proxy, rosto, voz limpa.
 2. **Cortes** (`etapas/02-cortes.md`): você escolhe as palavras que ficam.
 3. **Direção** (`etapas/03-direcao.md`): você escreve o roteiro dirigido.
-4. **Em paralelo**, num só turno:
-   - **Inserts** (`etapas/04-inserts.md`): um subagente por insert, em segundo plano;
-   - **Motions novos** (`etapas/06-motions-e-elementos.md`), se a direção pediu algo que nenhum preset faz;
+4. **Em paralelo**, num só turno — **primeiro o motion novo** (o mais longo), depois o resto:
+   - **Motions novos** (`etapas/06-motions-e-elementos.md`), se a direção pediu algo que nenhum preset faz:
+     `inserts.py motion-brief` e um subagente (opus) com `Leia <arquivo> e siga.`;
+   - **Inserts** (`etapas/04-inserts.md`): `inserts.py briefs` e um subagente por arquivo (grupos de 3, sonnet), com
+     `Leia <arquivo> e siga.`; nunca escreva os briefs à mão;
    - enquanto eles trabalham, você faz **Áudio** (`etapas/08-audio.md`), **Legenda** (`etapas/09-legenda.md`) e
      **Transições** (`etapas/07-transicoes.md`).
 5. **Enriquecimento** (`etapas/05-enriquecimento.md`): junta as mídias, escolhe os presets e o zoom do Full ator.

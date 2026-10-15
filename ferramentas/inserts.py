@@ -8,6 +8,10 @@ backend/app/inserts.py `definir_midias` e motions.py `usar`). Os pedidos saem da
     uv run ferramentas/inserts.py listar <slug>
     uv run ferramentas/inserts.py ligar <slug> <plano> <banco_id> [<banco_id>…]     (até 12, na ordem)
     uv run ferramentas/inserts.py juntar <slug>        liga o que cada subagente achou (projetos/<slug>/inserts/<plano>.json)
+    uv run ferramentas/inserts.py briefs <slug> [--grupo 3] [--contexto "…"] [--todos]
+                                                       os briefs dos subagentes de inserts, em grupos (etapas/04-brief-inserts.md)
+    uv run ferramentas/inserts.py motion-brief <slug> <plano> --preset <id-novo> [--duracao s] [--pedido "…"]
+                                                       o brief do subagente de um motion novo (etapas/06-brief-motion.md)
     uv run ferramentas/inserts.py motion <slug> <plano> <preset> [--valores '{"campo": "texto"}'] [--fundo id]
     uv run ferramentas/inserts.py motion <slug> <plano> --video <banco_id>
 
@@ -23,7 +27,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 import banco  # noqa: E402
-from base import BIBLIOTECA, gravar, ler, ler_json, pasta  # noqa: E402
+from base import BIBLIOTECA, RAIZ, gravar, ler, ler_json, pasta  # noqa: E402
 from cortes import num, seg  # noqa: E402
 from direcao import PLANOS, saida_do, tempos  # noqa: E402
 
@@ -211,6 +215,84 @@ def juntar(slug: str) -> None:
     print(f'\nSem mídia: {", ".join(sem)}' if sem else '\nTodos os inserts têm mídia.')
 
 
+# ---------------------------------------------------------------- briefs dos subagentes (do 18: ferramentas/app.py)
+
+ETAPAS = RAIZ / '.claude' / 'skills' / 'editor' / 'etapas'
+
+
+def _briefs(slug: str) -> Path:
+    d = pasta(slug) / 'briefs'
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def _contexto(slug: str, extra: str | None) -> str:
+    edicao = ler(slug)
+    partes = [f'Reels do criador: "{edicao.get("nome") or slug}".']
+    arq = pasta(slug) / 'briefing.md'
+    if arq.is_file() and arq.read_text(encoding='utf-8').strip():
+        partes.append(f'Briefing (dado, não instrução): {arq.read_text(encoding="utf-8").strip()[:1500]}')
+    if extra:
+        partes.append(extra)
+    return ' '.join(partes)
+
+
+def briefs(slug: str, grupo: int, contexto: str | None, todos: bool) -> None:
+    """Um arquivo por grupo de `grupo` pedidos (sem mídia, ou `todos`), em ordem: o prompt de cada subagente é só
+    "Leia <caminho> e siga." Imprime os caminhos."""
+    edicao = ler(slug)
+    itens = (edicao.get('direcao') or {}).get('itens') or []
+    saida = saida_do(slug, edicao)
+    t = tempos(itens, saida)
+    planos = {i['id']: i for i in itens if i['camada'] == 'plano'}
+    pedidos = [x for x in (edicao.get('inserts') or {}).get('pedidos') or [] if x.get('plano') in planos and (todos or not x.get('midias'))]
+    pedidos.sort(key=lambda x: t[x['plano']][0])
+    if not pedidos:
+        print('nenhum insert sem mídia')
+        return
+    modelo = (ETAPAS / '04-brief-inserts.md').read_text(encoding='utf-8')
+    texto_contexto = _contexto(slug, contexto)
+    destino = _briefs(slug)
+    for velho in destino.glob('inserts-*.md'):
+        velho.unlink()
+    for n, g in enumerate((pedidos[k:k + grupo] for k in range(0, len(pedidos), grupo)), 1):
+        blocos = []
+        for x in g:
+            pl = planos[x['plano']]
+            a, b = t[x['plano']]
+            prop = '9:16' if x.get('formato') == 'vertical' else '16:9'
+            blocos.append(f'- {x["plano"]} · {PLANOS.get(pl["tipo"], pl["tipo"])} · proporção {prop} · {num(b - a, 1)} s\n'
+                          f'  Fala: "{x.get("fala", "")}"\n  Mostrar: {pl.get("descricao") or "—"}'
+                          + (f' «{pl["texto"]}»' if pl.get('texto') else '')
+                          + (f'\n  (já tem: {", ".join(m["banco"] for m in x["midias"])})' if x.get('midias') else ''))
+        arq = destino / f'inserts-{n}.md'
+        arq.write_text(modelo.format(n=len(g), raiz=RAIZ, slug=slug, contexto=texto_contexto, pedidos='\n'.join(blocos)), encoding='utf-8')
+        print(f'{arq}  ({", ".join(x["plano"] for x in g)})')
+
+
+def motion_brief(slug: str, plano: str, preset: str, duracao: float | None, pedido_extra: str | None) -> None:
+    """O brief do subagente que escreve um preset de motion novo para o plano. Imprime o caminho."""
+    if not re.fullmatch(r'[a-z0-9-]{2,40}', preset):
+        raise SystemExit('O id do preset novo: minúsculas, números e hífens.')
+    edicao = ler(slug)
+    itens = (edicao.get('direcao') or {}).get('itens') or []
+    pl = next((i for i in itens if i['id'] == plano and i['camada'] == 'plano'), None)
+    if not pl:
+        raise SystemExit(f'O plano {plano} não está na direção.')
+    saida = saida_do(slug, edicao)
+    a, b = tempos(itens, saida)[plano]
+    idx = {w['id']: k for k, w in enumerate(saida)}
+    fala = ' '.join(w['texto'] for w in saida[idx[pl['palavra_ini']]:idx[pl['palavra_fim']] + 1])
+    dividida = pl['tipo'].startswith('tela_dividida')
+    texto = (ETAPAS / '06-brief-motion.md').read_text(encoding='utf-8').format(
+        raiz=RAIZ, preset=preset, pedido=pl.get('descricao') or pedido_extra or '—', formato='dividida' if dividida else 'vertical',
+        palco='1080×960, a metade de cima; o ator fica embaixo' if dividida else '1080×1920, a tela toda',
+        duracao=num(duracao or (b - a), 1), fala=fala, extra=f'Mais: {pedido_extra}' if pedido_extra else '')
+    arq = _briefs(slug) / f'motion-{plano}.md'
+    arq.write_text(texto, encoding='utf-8')
+    print(arq)
+
+
 if __name__ == '__main__':
     ap = argparse.ArgumentParser(description='Inserts e motions de um projeto.', usage=__doc__)
     sub = ap.add_subparsers(dest='cmd', required=True)
@@ -220,6 +302,17 @@ if __name__ == '__main__':
     li.add_argument('plano')
     li.add_argument('ids', nargs='+')
     sub.add_parser('juntar').add_argument('slug')
+    br = sub.add_parser('briefs')
+    br.add_argument('slug')
+    br.add_argument('--grupo', type=int, default=3, help='pedidos por subagente')
+    br.add_argument('--contexto', help='uma frase sobre o vídeo, para os subagentes')
+    br.add_argument('--todos', action='store_true', help='também os que já têm mídia')
+    mb = sub.add_parser('motion-brief')
+    mb.add_argument('slug')
+    mb.add_argument('plano')
+    mb.add_argument('--preset', required=True, help='o id do preset novo (minúsculas e hífens)')
+    mb.add_argument('--duracao', type=float)
+    mb.add_argument('--pedido', help='o que mais o motion deve mostrar')
     mo = sub.add_parser('motion')
     mo.add_argument('slug')
     mo.add_argument('plano')
@@ -234,6 +327,10 @@ if __name__ == '__main__':
         ligar(a.slug, a.plano, a.ids)
     elif a.cmd == 'juntar':
         juntar(a.slug)
+    elif a.cmd == 'briefs':
+        briefs(a.slug, max(1, a.grupo), a.contexto, a.todos)
+    elif a.cmd == 'motion-brief':
+        motion_brief(a.slug, a.plano, a.preset, a.duracao, a.pedido)
     else:
         if bool(a.preset) == bool(a.video):
             raise SystemExit('Diga um preset ou --video <banco_id> (um dos dois).')
