@@ -77,12 +77,21 @@ function listaTrechos(ts, cod) {
 }
 
 const FILTROS_BANCO = { todos: ['Todos', null], usado: ['Usados', 'usado'], aprovado: ['Aprovados', 'check'], recusado: ['Recusados', 'fechar'], sem: ['Em edição', 'semSelo'] }
-/** Os chips de onde a peça entrou nos vídeos aprovados ("PRJ-05·p3"): abrem a revisão da versão aprovada naquele plano. */
-const chipsDeUso = (usos, cods) => (usos || []).map((u) => {
-  const prj = cods.projeto?.[u.projeto] || u.projeto
-  const t = u.t != null ? `/t${(+u.t + 0.05).toFixed(2)}` : ''
-  return `<a class="chip-uso" href="#/p/${encodeURIComponent(u.projeto)}/v${u.versao}${t}" title="Abrir a v${u.versao} de ${esc(u.projeto)} no plano ${esc(u.plano)}">${esc(prj)}·${esc(u.plano)}</a>`
-}).join('')
+/** Os chips de onde a peça entrou nos vídeos aprovados ("PRJ-05·p3"): abrem a revisão da versão aprovada naquele plano.
+ *  Agrupados por projeto: um projeto com vários planos vira um chip só ("PRJ-07 · 12 planos ▾") que abre a lista. */
+const chipsDeUso = (usos, cods) => {
+  const porProjeto = {}
+  for (const u of usos || []) (porProjeto[u.projeto] ||= []).push(u)
+  return Object.entries(porProjeto).map(([projeto, l]) => {
+    const prj = cods.projeto?.[projeto] || projeto
+    const chips = l.map((u) => {
+      const t = u.t != null ? `/t${(+u.t + 0.05).toFixed(2)}` : ''
+      return `<a class="chip-uso" href="#/p/${encodeURIComponent(u.projeto)}/v${u.versao}${t}" title="Abrir a v${u.versao} de ${esc(u.projeto)} no plano ${esc(u.plano)}">${esc(l.length > 1 ? u.plano : `${prj}·${u.plano}`)}</a>`
+    }).join('')
+    return l.length === 1 ? chips
+      : `<details class="usos-projeto"><summary class="chip-uso" title="Os planos de ${esc(projeto)} que usam">${esc(prj)} · ${l.length} planos${ICONE.seta_baixo}</summary><div class="usos-lista">${chips}</div></details>`
+  }).join('')
+}
 
 async function bancoInserts(el, tipo = 'inserts') {
   const [nomes, cods, est, ms] = await Promise.all([lista('biblioteca/banco'), codigos(), json('/api/estados', { midias: {}, motions: {} }), lerMotions()])
@@ -208,7 +217,14 @@ async function bancoInserts(el, tipo = 'inserts') {
   })
 
   for (const card of $$('.card-banco', el)) {
-    if (card.dataset.motion) continue
+    if (card.dataset.motion) {
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('a, summary, button')) return
+        const m = ms.find((x) => x.id === card.dataset.motion)
+        detalheMotion(m, estadoMotion(m), usosM[m.id], cods, () => bancoInserts(el, tipo))
+      })
+      continue
+    }
     card.addEventListener('click', (e) => !e.target.closest('a, summary') && detalheBanco(card.dataset.id, () => bancoInserts(el, tipo), cod, estados[card.dataset.id], cods))
     const v = $('video', card)
     if (!v) continue
@@ -982,15 +998,58 @@ async function lerMotions() {
     const r = await fetch(`/biblioteca/motions/presets/${n}`, { cache: 'no-store' })
     const doc = new DOMParser().parseFromString(await r.text(), 'text/html')
     let dados = {}
+    let campos = {}
     try {
       dados = JSON.parse(doc.getElementById('preset')?.textContent || '{}')
+      campos = JSON.parse(doc.getElementById('campos')?.textContent || '{}')
     } catch {}
     const data = r.headers.get('Last-Modified')
-    return { id: n.replace(/\.html$/, ''), criado_em: dados.criado_em || (data ? new Date(data).toISOString() : ''), ...dados }
+    return { id: n.replace(/\.html$/, ''), criado_em: dados.criado_em || (data ? new Date(data).toISOString() : ''), ...dados, campos }
   }))
 }
 
 /** Recusar um motion sugerido: vai para motions/presets/_recusados/<id>.html, com o motivo no JSON do topo. */
+/** O modal de um motion: a animação tocando grande, os dados (campos, duração, fundo), o selo com os usos e, se o Claude
+ *  o escreveu e ninguém aprovou ainda, Aprovar e Recusar. */
+function detalheMotion(m, estado, usos, cods, recarregar) {
+  const [rotulo, cor] = SELOS[estado] || []
+  const revisar = m.a_revisar && !usos?.length
+  const campos = Object.entries(m.campos || {})
+  const { el, fechar } = janela(`
+    <header class="janela-cabeca"><span class="selo-linha selo-amarelo">Motion</span>
+      <h2>${esc(m.nome || m.id)}</h2>${chipCodigo(cods.motion?.[m.id], m.nome || m.id)}<span class="dica">${esc(m.id)}</span>
+      <button class="botao-icone" data-fechar title="Fechar (Esc)">${ICONE.fechar}</button></header>
+    <div class="banco-detalhe">
+      <div class="banco-midia motion-midia fundo-${esc(m.fundo || 'escuro')}"><iframe src="/render/motion.html?preset=${encodeURIComponent(m.id)}&formato=vertical&tocar=1" title="${esc(m.nome || m.id)}"></iframe></div>
+      <div class="banco-campos">
+        ${m.descricao ? `<p>${esc(m.descricao)}</p>` : ''}
+        <dl class="dados">${m.duracao ? `<dt>Duração</dt><dd>${seg(m.duracao)} (estica até o fim do plano)</dd>` : ''}
+          ${m.fundo ? `<dt>Fundo</dt><dd>${esc(m.fundo)}</dd>` : ''}
+          ${m.criado_em ? `<dt>Entrou em</dt><dd>${dataHora(m.criado_em)}</dd>` : ''}</dl>
+        ${campos.length ? `<div class="bloco-lista"><span class="eyebrow">Campos · ${campos.length}</span><ul class="lista-simples">${campos.map(([k, c]) => `<li><span>${esc(c.rotulo || k)}</span><span class="apagado">${esc(c.tipo || 'texto')}${c.padrao ? ` · “${esc(String(c.padrao))}”` : ''}</span></li>`).join('')}</ul></div>` : ''}
+        <div class="bloco-lista"><span class="eyebrow">Selo</span>
+          <div class="acoes-linha">${rotulo ? `<span class="selo-linha ${cor}">${rotulo}</span>` : revisar ? '<span class="selo-linha selo-coral">A revisar</span>' : '<span class="dica">Sem selo</span>'}
+            ${revisar ? `<button class="botao pequeno" data-aprovar>${ICONE.check} Aprovar</button><button class="botao pequeno botao-perigo-contorno" data-recusar>${ICONE.fechar} Recusar</button>` : ''}</div>
+          ${usos?.length ? `<div class="estado-banco">${chipsDeUso(usos, cods)}</div>` : ''}</div>
+      </div>
+    </div>`, { classe: 'janela-banco' })
+  $('[data-aprovar]', el)?.addEventListener('click', async () => {
+    try {
+      await enviar('PUT', `/api/motions/${encodeURIComponent(m.id)}/aprovar`)
+      aviso('Motion aprovado')
+      fechar()
+      recarregar()
+    } catch (x) {
+      aviso(x.message, 'erro')
+    }
+  })
+  $('[data-recusar]', el)?.addEventListener('click', () => {
+    fechar()
+    recusarMotion(m, recarregar)
+  })
+  for (const a of $$('a.chip-uso', el)) a.addEventListener('click', () => fechar())
+}
+
 async function recusarMotion(m, recarregar) {
   const usos = await json(`/api/motions/${encodeURIComponent(m.id)}/usos`, {})
   const onde = Object.entries(usos || {}).map(([slug, planos]) => `${slug} (${planos.join(', ')})`)
