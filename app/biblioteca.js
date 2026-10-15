@@ -7,8 +7,8 @@ import { $, $$, ESTRELA_CHEIA, ICONE, ajuda, aviso, chipCodigo, codigos, confirm
 export const PAGINAS_BIBLIOTECA = ['presets', 'transicoes', 'banco', 'motions', 'trilhas']
 
 export async function abrirBiblioteca(tela, aba, resto = []) {
-  if (aba === 'motions') [aba, resto] = ['banco', ['motions']] // os motions moram no Banco (o endereço antigo continua)
-  tela.className = `pagina pagina-biblioteca pagina-${aba}`
+  if (aba === 'banco' && resto[0] === 'motions') aba = 'motions' // o endereço antigo dos motions (#/banco/motions)
+  tela.className = `pagina pagina-biblioteca pagina-${aba === 'motions' ? 'banco' : aba}`
   tela.innerHTML = '<p class="vazio">Carregando…</p>'
   const sair = await { banco, presets, transicoes, motions, trilhas }[aba](tela, resto)
   return () => {
@@ -47,11 +47,13 @@ const chip = (ativo, html, attrs = '') => `<button class="pilula pequena${ativo 
 
 // ---------- Banco ----------
 
-/** O Banco: as mídias dos inserts e os motions, juntos ou um de cada vez (chips Tudo · Inserts · Motions). */
-// os dois filtros do Banco, numa barra: o tipo (à esquerda) e o selo, com ícones
-const TIPOS_BANCO = { tudo: ['Tudo', 'grade'], inserts: ['Inserts', 'imagem'], motions: ['Motions', 'motion'] }
+/** O Banco (as mídias dos inserts) e os Motions (os presets de motion), cada um na sua aba da barra de cima, na mesma
+ *  grade e com os mesmos selos (o filtro por selo, com ícones). */
 async function banco(el) {
-  await bancoInserts(el)
+  await bancoInserts(el, 'inserts')
+}
+async function motions(el) {
+  await bancoInserts(el, 'motions')
 }
 
 
@@ -82,13 +84,13 @@ const chipsDeUso = (usos, cods) => (usos || []).map((u) => {
   return `<a class="chip-uso" href="#/p/${encodeURIComponent(u.projeto)}/v${u.versao}${t}" title="Abrir a v${u.versao} de ${esc(u.projeto)} no plano ${esc(u.plano)}">${esc(prj)}·${esc(u.plano)}</a>`
 }).join('')
 
-async function bancoInserts(el) {
+async function bancoInserts(el, tipo = 'inserts') {
   const [nomes, cods, est, ms] = await Promise.all([lista('biblioteca/banco'), codigos(), json('/api/estados', { midias: {}, motions: {} }), lerMotions()])
   const estados = est?.midias || {}
   const usosM = est?.motions || {}
   const estadoMotion = (m) => (usosM[m.id]?.length ? 'usado' : m.a_revisar ? 'sem' : 'aprovado')
-  let filtro = FILTROS_BANCO[preferencia('banco.filtro', 'todos')] ? preferencia('banco.filtro', 'todos') : 'todos'
-  const tipo = TIPOS_BANCO[preferencia('banco.tipo', 'tudo')] ? preferencia('banco.tipo', 'tudo') : 'tudo'
+  const chaveFiltro = tipo === 'motions' ? 'motions.filtro' : 'banco.filtro'
+  let filtro = FILTROS_BANCO[preferencia(chaveFiltro, 'todos')] ? preferencia(chaveFiltro, 'todos') : 'todos'
   const cod = cods.midia || {}
   const ids = nomes.filter((n) => n.endsWith('/')).map((n) => n.slice(0, -1))
   const itens = (await Promise.all(ids.map((id) => json(`/biblioteca/banco/${id}/item.json`).then((it) => it && { ...it, id: it.id || id })))).filter(Boolean)
@@ -135,17 +137,14 @@ async function bancoInserts(el) {
     </article>` }
   })
   const cards = [...(tipo === 'motions' ? [] : cardsMidia), ...(tipo === 'inserts' ? [] : cardsMotion)].sort((a, b) => b.criado.localeCompare(a.criado)).map((c) => c.html)
-  const contaTipo = (t) => (t === 'inserts' ? originais.length : t === 'motions' ? ms.length : originais.length + ms.length)
   const icone = (n) => (n ? ICONE[n] : '')
   const nRecusados = conta('recusado')
   el.innerHTML = `<div class="barra-banco">
-      <div class="alternar">${Object.entries(TIPOS_BANCO).map(([k, [n, ic]]) => `<button class="pilula${k === tipo ? ' ativa' : ''}" data-tipo-banco="${k}">${icone(ic)}${n} <span class="conta">${contaTipo(k)}</span></button>`).join('')}</div>
-      <span class="barra-sep"></span>
       ${Object.entries(FILTROS_BANCO).filter(([k]) => k === 'todos' || conta(k)).map(([k, [n, ic]]) => chip(k === filtro, `${icone(ic)}${n} <span class="conta">${conta(k)}</span>`, `data-filtro-banco="${k}"`)).join('')}
       <span class="barra-banco-acoes">
-        <label class="botao pequeno botao-subir" title="Vídeos e imagens, vários de uma vez (ou arraste para esta página): entram Aprovados e a IA descreve">${ICONE.subir} Subir mídia<input type="file" multiple accept="video/mp4,video/quicktime,video/webm,image/png,image/jpeg,image/webp" hidden data-subir></label>
-        ${nRecusados ? `<button class="botao pequeno botao-perigo-contorno" data-limpar-recusados title="Leva os recusados para a lixeira do banco (biblioteca/banco/_lixeira/), de onde dá para recuperar">${ICONE.lixo} Limpar recusados (${nRecusados})</button>` : ''}
-        ${ajuda('Inserts (vídeos e imagens) e motions. Usado em vídeo: entrou num vídeo aprovado (o chip abre o plano). Aprovado: bom, mesmo sem uso. Recusado: ficou de fora de um vídeo aprovado. Passe o mouse para tocar; clique num insert para editar, marcar trechos ou mudar o selo.')}</span></div>` +
+        ${tipo === 'motions' ? '' : `<label class="botao pequeno botao-subir" title="Vídeos e imagens, vários de uma vez (ou arraste para esta página): entram Aprovados e a IA descreve">${ICONE.subir} Subir mídia<input type="file" multiple accept="video/mp4,video/quicktime,video/webm,image/png,image/jpeg,image/webp" hidden data-subir></label>`}
+        ${nRecusados && tipo !== 'motions' ? `<button class="botao pequeno botao-perigo-contorno" data-limpar-recusados title="Leva os recusados para a lixeira do banco (biblioteca/banco/_lixeira/), de onde dá para recuperar">${ICONE.lixo} Limpar recusados (${nRecusados})</button>` : ''}
+        ${ajuda(tipo === 'motions' ? 'Os presets de motion. Usado em vídeo: entrou num vídeo aprovado (o chip abre o plano). A revisar: o Claude escreveu e você ainda não aprovou. Passe o mouse para tocar.' : 'Os inserts (vídeos e imagens). Usado em vídeo: entrou num vídeo aprovado (o chip abre o plano). Aprovado: bom, mesmo sem uso. Recusado: ficou de fora de um vídeo aprovado. Passe o mouse para tocar; clique num insert para editar, marcar trechos ou mudar o selo.')}</span></div>` +
     (cards.length ? `<div class="grade grade-banco">${cards.join('')}</div>` : '<p class="vazio">Nada com esses filtros.</p>')
   const subir = async (arquivos) => {
     const l = [...arquivos].filter((f) => /\.(mp4|mov|m4v|webm|png|jpe?g|webp)$/i.test(f.name))
@@ -163,7 +162,7 @@ async function bancoInserts(el) {
     }
     if (feitos) aviso(`${feitos} ${feitos === 1 ? 'mídia subiu' : 'mídias subiram'} · a IA descreve em segundo plano`)
     preferencia('banco.filtro', 'todos', 'todos')
-    bancoInserts(el)
+    bancoInserts(el, tipo)
   }
   $('[data-subir]', el)?.addEventListener('change', (e) => subir(e.target.files))
   if (!el.dataset.arrastar) {  // arrastar arquivos para a página (uma vez por página)
@@ -182,22 +181,18 @@ async function bancoInserts(el) {
     try {
       await enviar('PUT', `/api/motions/${encodeURIComponent(b.closest('[data-motion]').dataset.motion)}/aprovar`)
       aviso('Motion aprovado')
-      bancoInserts(el)
+      bancoInserts(el, tipo)
     } catch (x) {
       aviso(x.message, 'erro')
     }
   })
   for (const b of $$('[data-recusar-motion]', el)) b.addEventListener('click', (e) => {
     e.stopPropagation()
-    recusarMotion(ms.find((m) => m.id === b.closest('[data-motion]').dataset.motion), () => bancoInserts(el))
-  })
-  for (const b of $$('[data-tipo-banco]', el)) b.addEventListener('click', () => {
-    preferencia('banco.tipo', 'tudo', b.dataset.tipoBanco)
-    bancoInserts(el)
+    recusarMotion(ms.find((m) => m.id === b.closest('[data-motion]').dataset.motion), () => bancoInserts(el, tipo))
   })
   for (const b of $$('[data-filtro-banco]', el)) b.addEventListener('click', () => {
-    preferencia('banco.filtro', 'todos', b.dataset.filtroBanco)
-    bancoInserts(el)
+    preferencia(chaveFiltro, 'todos', b.dataset.filtroBanco)
+    bancoInserts(el, tipo)
   })
   $('[data-limpar-recusados]', el)?.addEventListener('click', async () => {
     const ok = await confirmar({ titulo: `Limpar ${nRecusados} ${nRecusados === 1 ? 'mídia recusada' : 'mídias recusadas'}?`,
@@ -206,7 +201,7 @@ async function bancoInserts(el) {
     try {
       const r = await enviar('POST', '/api/limpar-recusados')
       aviso(`${r.levados.length} ${r.levados.length === 1 ? 'mídia foi' : 'mídias foram'} para a lixeira`)
-      bancoInserts(el)
+      bancoInserts(el, tipo)
     } catch (x) {
       aviso(x.message, 'erro')
     }
@@ -214,7 +209,7 @@ async function bancoInserts(el) {
 
   for (const card of $$('.card-banco', el)) {
     if (card.dataset.motion) continue
-    card.addEventListener('click', (e) => !e.target.closest('a, summary') && detalheBanco(card.dataset.id, () => bancoInserts(el), cod, estados[card.dataset.id], cods))
+    card.addEventListener('click', (e) => !e.target.closest('a, summary') && detalheBanco(card.dataset.id, () => bancoInserts(el, tipo), cod, estados[card.dataset.id], cods))
     const v = $('video', card)
     if (!v) continue
     let trecho = null // [ini, fim] enquanto o mouse está num trecho
@@ -993,60 +988,6 @@ async function lerMotions() {
     const data = r.headers.get('Last-Modified')
     return { id: n.replace(/\.html$/, ''), criado_em: dados.criado_em || (data ? new Date(data).toISOString() : ''), ...dados }
   }))
-}
-
-async function motions(el) {
-  const nomes = (await lista('biblioteca/motions/presets')).filter((n) => n.endsWith('.html'))
-  const temRender = await fetch('/render/motion.html', { cache: 'no-store' }).then((r) => r.ok, () => false)
-  const ler = async (n) => {
-    const html = await fetch(`/biblioteca/motions/presets/${n}`, { cache: 'no-store' }).then((r) => r.text())
-    const doc = new DOMParser().parseFromString(html, 'text/html')
-    const dado = (id) => {
-      try {
-        return JSON.parse(doc.getElementById(id)?.textContent || 'null')
-      } catch {
-        return null
-      }
-    }
-    return { id: n.replace(/\.html$/, ''), ...(dado('preset') || {}), campos: dado('campos') || {} }
-  }
-  const [ms, cods, est] = await Promise.all([Promise.all(nomes.map(ler)), codigos(), json('/api/estados', { motions: {} })])
-  const usosM = est?.motions || {}
-  ms.sort((a, b) => (b.a_revisar ? 1 : 0) - (a.a_revisar ? 1 : 0) || (a.nome || a.id).localeCompare(b.nome || b.id, 'pt-BR'))
-  const sons = await nomesDosSons()
-  const nRevisar = ms.filter((m) => m.a_revisar).length
-  const cards = ms.map((m) => {
-    const campos = Object.values(m.campos).map((c) => c.rotulo).filter(Boolean)
-    const sonsM = Object.values(m.sons || {}).map((s) => sons[s.som] || s.som)
-    const dica = [m.descricao, campos.length && `Campos: ${campos.join(' · ')}`, sonsM.length && `Sons: ${sonsM.join(' · ')}`].filter(Boolean).join('\n')
-    const previa = temRender
-      ? `<iframe src="/render/motion.html?preset=${encodeURIComponent(m.id)}&formato=vertical&tocar=1" loading="lazy" tabindex="-1" title="${esc(m.nome)}"></iframe>`
-      : `<div class="sem-previa"><b>${esc(m.nome || m.id)}</b><span>a prévia vem da página de render</span></div>`
-    return `<article class="card-motion" data-id="${esc(m.id)}">
-      <div class="mini mini-916 fundo-${esc(m.fundo || 'escuro')}">${previa}${m.a_revisar ? '<span class="selo selo-coral">A revisar</span>' : ''}</div>
-      <div class="card-titulo"><h3 title="${esc(dica)}">${esc(m.nome || m.id)}</h3>${m.duracao ? `<span class="apagado">${seg(m.duracao)}</span>` : ''}</div>
-      ${usosM[m.id]?.length ? `<div class="estado-banco"><span class="selo-linha ${SELOS.usado[1]}">${SELOS.usado[0]}</span>${chipsDeUso(usosM[m.id], cods)}</div>` : ''}
-      <div class="card-pe">${chipCodigo(cods.motion?.[m.id], m.nome || m.id)}${m.a_revisar ? `<span class="acoes-pe"><button class="botao pequeno" data-aprovar title="Tira a marca “a revisar”">${ICONE.check} Aprovar</button>
-        <button class="botao pequeno botao-perigo-contorno" data-recusar title="Recusa a sugestão (vai para motions/presets/_recusados/)">${ICONE.fechar} Recusar</button></span>` : ''}</div>
-    </article>`
-  })
-  el.innerHTML = cabeca(`Motions · ${dois(ms.length)}${nRevisar ? ` · ${nRevisar} a revisar` : ''}`, temRender ? 'As animações de tela cheia e dividida, tocando em loop no formato vertical. Os novos chegam “a revisar”: aprove os que ficaram bons.' : 'As animações de tela cheia e dividida. A prévia tocando aparece quando a página de render (render/motion.html) existir.') +
-    `<div class="grade grade-motions">${cards.join('')}</div>`
-  el.onclick = async (e) => {
-    const r = e.target.closest('[data-recusar]')
-    if (r) return recusarMotion(ms.find((m) => m.id === r.closest('.card-motion').dataset.id), () => motions(el))
-    const b = e.target.closest('[data-aprovar]')
-    if (!b) return
-    const c = b.closest('.card-motion')
-    try {
-      await enviar('PUT', `/api/motions/${encodeURIComponent(c.dataset.id)}/aprovar`)
-      $('.selo-coral', c)?.remove()
-      b.closest('.acoes-pe').remove()
-      aviso('Motion aprovado')
-    } catch (x) {
-      aviso(x.message, 'erro')
-    }
-  }
 }
 
 /** Recusar um motion sugerido: vai para motions/presets/_recusados/<id>.html, com o motivo no JSON do topo. */
