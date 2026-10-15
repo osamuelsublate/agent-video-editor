@@ -10,10 +10,10 @@ criador dirige. Não mexe em mídia: só a "partitura visual". Inserts, motions,
 Cada categoria de vídeo (📱 Reels, 💰 Ad, 📺 VSL, 🎥 YouTube, 📚 Aula…) tem os seus exemplos. Descubra quais ler:
 
 ```bash
-uv run ferramentas/calibragem.py exemplos <slug>    # a categoria do projeto e a pasta (ou, sem referência revisada dela, todas)
+uv run ferramentas/calibragem.py exemplos <slug>    # a categoria do projeto e a pasta (ou, sem referência em uso dela, todas)
 ```
 Leia a pasta que ele indicar (`<categoria>` abaixo). Quando ele disser que a categoria ainda não tem referência
-revisada, leia as de todas as categorias e diga isso ao criador na entrega.
+em uso (o criador liga cada uma no card da Calibragem), leia as de todas as categorias e diga isso ao criador na entrega.
 
 1. Leia `biblioteca/exemplos/criador.md` (quem grava e do que o canal fala) e `biblioteca/exemplos/<categoria>/regras.md` inteiro. As **Regras do
    criador** são obrigatórias; as sugeridas são guia.

@@ -46,7 +46,8 @@ export async function abrirCalibragem(tela) {
       ${abrivel(r) ? `<a href="#/calibragem/${encodeURIComponent(r.id)}" title="Abrir a revisão">${mini}</a>` : mini}
       ${editando === r.id ? `<input class="renomear" value="${esc(r.nome)}" maxlength="120">` : `<div class="card-titulo"><h3 data-renomear title="Dois cliques para renomear">${esc(r.nome)}</h3>${chipCodigo(cod[r.id], r.nome)}</div>`}
       <p class="sub">${emAndamento(r) ? esc(passo || 'Na fila') : `${dataHora(r.criado_em)}${r.largura ? ` · ${r.largura}×${r.altura}` : ''}`}</p>
-      ${seletorCategoria(cats, r.tipo || 'reels')}
+      <div class="pe-ref">${abrivel(r) ? `<button class="uso-ref${r.usar ? ' ligado' : ''}" data-usar role="switch" aria-checked="${!!r.usar}" title="${r.usar ? 'Em uso: o roteiro dele ensina a direção (está na Heurística da categoria). Clique para tirar.' : 'Fora: clique para usar (o roteiro entra na Heurística da categoria).'}"><i></i>${r.usar ? 'Usar' : 'Não usar'}</button>` : ''}
+        ${seletorCategoria(cats, r.tipo || 'reels')}</div>
       ${r.status === 'erro' ? `<p class="erro-ref">${esc(r.erro || 'A análise falhou.')}</p><button class="botao pequeno" data-tentar>${ICONE.refazer} Tentar de novo</button>` : ''}
     </article>`
   }
@@ -156,6 +157,18 @@ export async function abrirCalibragem(tela) {
       try {
         await enviar('DELETE', `/api/referencias/${encodeURIComponent(id)}`)
         aviso('Referência apagada')
+      } catch (x) {
+        aviso(x.message, 'erro')
+      }
+      assinatura = ''
+      return carregar()
+    }
+    if (e.target.closest('[data-usar]')) {
+      e.preventDefault()
+      const r = refs.find((x) => x.id === id)
+      try {
+        await enviar('PUT', `/api/referencias/${encodeURIComponent(id)}/uso`, { usar: !r.usar })
+        aviso(r.usar ? 'Fora da Heurística' : 'Em uso: entrou na Heurística da categoria')
       } catch (x) {
         aviso(x.message, 'erro')
       }
