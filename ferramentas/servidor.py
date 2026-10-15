@@ -31,6 +31,9 @@ Rotas (JSON; um erro volta como {"erro": "…"}, com 422 numa validação):
 - Anexos da revisão: POST /api/revisao/<slug>/v<N>/anexo?comentario=<c3|geral> (a imagem ou o vídeo cru no corpo) →
   {caminho: "revisoes/anexos/c3-1.png"} · DELETE /api/revisao/<slug>/v<N>/anexo?caminho=revisoes/anexos/c3-1.png.
 - GET /api/codigos: {tipo: {id: código}} (ferramentas/codigo.py; dá o próximo número aos itens novos).
+- O provador de look da revisão: GET /api/projetos/<slug>/look (o look, os LUTs, as vinhetas e se há um render rodando)
+  · POST …/look/amostra {t, lut, intensidade, vinheta} → {video} (3 s do ator com aquele look; render.py amostra-look)
+  · PUT …/look {lut, intensidade, vinheta}: grava no edicao.json e renderiza a próxima versão em segundo plano.
 """
 import hashlib
 import json
@@ -178,6 +181,89 @@ def _versoes(h, q, slug):
     if not (PROJETOS / slug).is_dir():
         raise Erro('Projeto não encontrado', 404)
     return versoes_detalhe(slug)
+
+
+# ---- o provador de look: LUT, intensidade e vinheta do ator (montagem/look.py), testados em 3 s e aplicados num render
+
+def _look():
+    from montagem import look  # só biblioteca padrão na importação (numpy e Pillow só na máscara, que roda no render.py)
+    return look
+
+
+def _edicao(slug: str) -> Path:
+    arq = PROJETOS / slug / 'edicao.json'
+    if slug.startswith(('_', '.')) or not arq.is_file():
+        raise Erro('Projeto não encontrado', 404)
+    return arq
+
+
+def _render_rodando(slug: str) -> bool:
+    pid = ler_json(PROJETOS / slug / '.cache' / 'render.json', {}) or {}
+    if not pid.get('pid'):
+        return False
+    try:
+        os.kill(int(pid['pid']), 0)
+        return True
+    except (ProcessLookupError, ValueError):
+        return False
+    except PermissionError:
+        return True
+
+
+def _look_pedido(c: dict) -> dict:
+    look = _look()
+    lut = c.get('lut') or None
+    if lut is not None and lut not in look.NOMES:
+        raise Erro(f'LUT desconhecido: {lut}', 422)
+    if c.get('vinheta') not in look.VINHETAS:
+        raise Erro('Vinheta desconhecida', 422)
+    try:
+        k = round(min(max(float(c.get('intensidade', 1)), 0), 1), 2)
+    except (TypeError, ValueError):
+        raise Erro('Intensidade inválida', 422) from None
+    return {'lut': lut, 'intensidade': k, 'vinheta': c['vinheta']}
+
+
+@rota('GET', r'/api/projetos/([\w-]+)/look')
+def _ler_look(h, q, slug):
+    look = _look()
+    return {'look': look.do_projeto(ler_json(_edicao(slug), {}) or {}), 'luts': look.NOMES, 'vinhetas': list(look.VINHETAS),
+            'renderizando': _render_rodando(slug)}
+
+
+@rota('POST', r'/api/projetos/([\w-]+)/look/amostra')
+def _amostra_look(h, q, slug):
+    _edicao(slug)
+    c = h.corpo()
+    lk = _look_pedido(c)
+    r = subprocess.run([shutil.which('uv') or 'uv', 'run', '--quiet', str(Path(__file__).parent / 'render.py'), 'amostra-look', slug,
+                        f'{float(c.get("t") or 0):.2f}', lk['lut'] or '-', str(lk['intensidade']), lk['vinheta']],
+                       cwd=RAIZ, capture_output=True, text=True, timeout=180)
+    if r.returncode:
+        raise Erro(f'A amostra falhou: {(r.stderr or r.stdout).strip()[-300:]}', 500)
+    rel = r.stdout.strip().splitlines()[-1]
+    return {'video': f'/{rel}?{int((RAIZ / rel).stat().st_mtime)}'}  # o carimbo: o navegador nunca reaproveita uma amostra velha
+
+
+@rota('PUT', r'/api/projetos/([\w-]+)/look')
+def _aplicar_look(h, q, slug):
+    """Grava o look no projeto e renderiza a próxima versão em segundo plano (a camada dos inserts vem do cache: só a
+    montagem é refeita). Um render que já está rodando não é duplicado."""
+    arq = _edicao(slug)
+    lk = _look_pedido(h.corpo())
+    if _render_rodando(slug):
+        raise Erro('Já há um render deste projeto rodando: espere ele terminar.', 409)
+    edicao = ler_json(arq, {})
+    edicao['look'] = lk
+    gravar_json(arq, edicao)
+    cache = PROJETOS / slug / '.cache'
+    cache.mkdir(parents=True, exist_ok=True)
+    with open(cache / 'render.log', 'w') as log:
+        proc = subprocess.Popen([shutil.which('uv') or 'uv', 'run', '--quiet', str(Path(__file__).parent / 'render.py'), slug],
+                                cwd=RAIZ, stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
+    threading.Thread(target=proc.wait, daemon=True).start()
+    gravar_json(cache / 'render.json', {'pid': proc.pid, 'motivo': 'look'})
+    return {'ok': True, 'proxima': (versoes(PROJETOS / slug) or [0])[-1] + 1}
 
 
 @rota('DELETE', r'/api/projetos/([\w-]+)')

@@ -1,6 +1,6 @@
 // A revisão de uma versão: o player do proxy, a linha do tempo (planos, fala, comentários e dúvidas do Claude) e os
 // comentários do criador, gravados sozinhos em projetos/<slug>/revisoes/vN.json (o Claude responde no mesmo arquivo).
-import { $, $$, ICONE, abrirAba, agora, aviso, chipCodigo, codigos, confirmar, copiar, dataHora, esc, fecharAba, janela, json, mmss, modalAberto, nomePlano, num, PLANOS, preferencia, tempo } from './comum.js'
+import { $, $$, ICONE, abrirAba, agora, aviso, chipCodigo, codigos, confirmar, copiar, dataHora, enviar, esc, fecharAba, janela, json, mmss, modalAberto, nomePlano, num, PLANOS, preferencia, tempo } from './comum.js'
 
 const QUADRO = 1 / 24
 const VELOCIDADES = [0.5, 1, 1.5, 2]
@@ -124,6 +124,101 @@ class Revisao {
     this.relogio = setInterval(() => this.verDisco(), 4000)
   }
 
+  // ---------- o provador de look (LUT, intensidade e vinheta do ator; servidor.py, render.py amostra-look) ----------
+
+  /** O provador de look num modal: as opções à esquerda, as duas amostras (o atual e o testado) grandes ao lado. */
+  async abrirLook() {
+    this.video.pause()
+    const d = await json(`/api/projetos/${encodeURIComponent(this.slug)}/look`, null)
+    if (!d) return aviso('Não consegui ler o look do projeto', 'erro')
+    const { el, fechar } = janela('<div class="look-modal"></div>', { classe: 'janela-look', aoFechar: () => clearInterval(this.relogioRender) })
+    this.lk = { el, fechar, atual: d.look, teste: { ...d.look }, luts: d.luts, vinhetas: d.vinhetas, renderizando: d.renderizando, t: this.video.currentTime }
+    el.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-look]')
+      if (!b) return
+      const [campo, valor] = b.dataset.look.split(':')
+      if (campo === 'aplicar') return this.aplicarLook()
+      this.lk.teste[campo] = valor === '-' ? null : valor
+      this.renderLook()
+      this.provarLook(this.lk.t)
+    })
+    el.addEventListener('change', (e) => {
+      if (!e.target.matches('[data-look-intensidade]')) return
+      this.lk.teste.intensidade = +e.target.value / 100
+      this.renderLook()
+      this.provarLook(this.lk.t)
+    })
+    this.renderLook()
+    this.provarLook(this.lk.t)
+    if (d.renderizando) this.esperarRender()
+  }
+
+  renderLook() {
+    const lk = this.lk
+    const igual = JSON.stringify(lk.teste) === JSON.stringify(lk.atual)
+    const pilula = (campo, valor, nome) => `<button class="pilula pequena${(lk.teste[campo] ?? '-') === valor ? ' ativa' : ''}" data-look="${campo}:${valor}">${esc(nome)}</button>`
+    const nomeV = { sem: 'Sem', leve: 'Leve', normal: 'Normal', forte: 'Forte' }
+    if (!lk.el?.isConnected) return
+    $('.look-modal', lk.el).innerHTML = `<header class="janela-cabeca"><h2>Look do ator</h2><span class="dica">em ${tempo(lk.t)} · 3 s do bruto, sem inserts nem legenda</span>
+        <button class="botao-icone" data-fechar title="Fechar (Esc)">${ICONE.fechar}</button></header>
+      <div class="look-corpo"><div class="look-opcoes">
+      <div class="look-linha"><span class="dica">LUT</span>${pilula('lut', '-', 'Sem')}${Object.entries(lk.luts).map(([id, nome]) => pilula('lut', id, nome)).join('')}</div>
+      <label class="look-linha"><span class="dica">Intensidade</span><input type="range" min="0" max="100" step="5" value="${Math.round((lk.teste.intensidade ?? 1) * 100)}" data-look-intensidade ${lk.teste.lut ? '' : 'disabled'}><b>${Math.round((lk.teste.intensidade ?? 1) * 100)}%</b></label>
+      <div class="look-linha"><span class="dica">Vinheta</span>${lk.vinhetas.map((v) => pilula('vinheta', v, nomeV[v] || v)).join('')}</div>
+      <div class="look-acoes"><button class="botao pequeno botao-coral" data-look="aplicar" ${igual || lk.renderizando ? 'disabled' : ''} title="Grava o look no projeto e renderiza a próxima versão (~1 min)">${lk.renderizando ? 'Renderizando…' : `Aplicar · v${this.proj.ultima + 1}`}</button></div></div>
+        <div class="look-amostras">${['atual', 'teste'].map((k) => `<figure><video data-amostra="${k}" muted loop playsinline autoplay${lk.amostras?.[k] ? ` src="${lk.amostras[k]}"` : ''}></video><figcaption>${k === 'atual' ? 'Atual' : 'Testando'}</figcaption></figure>`).join('')}</div></div>`
+  }
+
+  async provarLook(t) {
+    const lk = this.lk
+    lk.t = t
+    const vez = (lk.vez = (lk.vez || 0) + 1)
+    const pedir = (look) => enviar('POST', `/api/projetos/${encodeURIComponent(this.slug)}/look/amostra`, { t, ...look }).then((r) => r.video)
+    const amostras = () => $$('[data-amostra]', lk.el)
+    for (const v of amostras()) v.closest('figure').classList.add('carregando')
+    try {
+      const [atual, teste] = await Promise.all([pedir(lk.atual), pedir(lk.teste)])
+      if (vez !== lk.vez || this.fechado) return
+      lk.amostras = { atual, teste }
+      for (const [k, src] of Object.entries(lk.amostras)) {
+        const v = $(`[data-amostra="${k}"]`, lk.el)
+        if (v) v.src = src
+      }
+    } catch (e) {
+      aviso(e.message, 'erro')
+    } finally {
+      for (const v of amostras()) v.closest('figure').classList.remove('carregando')
+    }
+  }
+
+  async aplicarLook() {
+    const lk = this.lk
+    try {
+      const r = await enviar('PUT', `/api/projetos/${encodeURIComponent(this.slug)}/look`, lk.teste)
+      lk.atual = { ...lk.teste }
+      lk.renderizando = true
+      this.renderLook()
+      aviso(`Renderizando a v${r.proxima} com o look novo: ela aparece aqui quando ficar pronta`)
+      this.esperarRender()
+    } catch (e) {
+      aviso(e.message, 'erro')
+    }
+  }
+
+  /** Enquanto o render do look roda, o botão fica em "Renderizando…" (a versão nova, quando chega, o `verDisco` avisa). */
+  esperarRender() {
+    clearInterval(this.relogioRender)
+    this.relogioRender = setInterval(async () => {
+      if (this.fechado) return clearInterval(this.relogioRender)
+      const d = await json(`/api/projetos/${encodeURIComponent(this.slug)}/look`, null)
+      if (d && !d.renderizando) {
+        clearInterval(this.relogioRender)
+        this.lk.renderizando = false
+        this.renderLook()
+      }
+    }, 3000)
+  }
+
   // ---------- a tela ----------
 
   montar() {
@@ -153,6 +248,7 @@ class Revisao {
         </div>
         <div class="grupo velocidades">${VELOCIDADES.map((x) => `<button class="pilula pequena${x === 1 ? ' ativa' : ''}" data-vel="${x}">${num(x, x % 1 ? 1 : 0)}×</button>`).join('')}</div>
         <div class="grupo">
+          <button class="botao" data-acao="look" title="Testar LUT, intensidade e vinheta do ator">${ICONE.ajustes} Look</button>
           <button class="botao" data-acao="entrada" id="b-entrada">Entrada <kbd>I</kbd></button>
           <button class="botao" data-acao="saida">Saída <kbd>O</kbd></button>
         </div>
@@ -1170,6 +1266,7 @@ class Revisao {
       tocar: () => this.alternar(),
       'quadro-': () => this.passo(-QUADRO),
       'quadro+': () => this.passo(QUADRO),
+      look: () => this.abrirLook(),
       'corte-': () => this.irAoCorte(-1),
       'corte+': () => this.irAoCorte(1),
       ajustar: () => this.zoom(0),
@@ -1249,6 +1346,7 @@ class Revisao {
     this.fechado = true
     if (this.sujo) this.salvar(true)
     clearInterval(this.relogio)
+    clearInterval(this.relogioRender)
     clearTimeout(this.timer)
     cancelAnimationFrame(this.raf)
     window.removeEventListener('keydown', this.teclas)

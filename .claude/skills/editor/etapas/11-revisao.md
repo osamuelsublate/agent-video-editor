@@ -47,3 +47,7 @@ Não grave aprendizados no meio das revisões: eles saem todos juntos quando o v
 as revisões de todas as versões. Aqui, só cuide de responder bem cada comentário (a resposta diz o que mudou: é o
 registro que a conclusão lê). Exceção: se o criador disser explicitamente que algo vale para sempre ("regra geral",
 "sempre", "nunca mais"), confirme com ele o texto e grave já, como manda o `14-concluir.md`.
+
+**O look é do criador.** Na revisão, o botão **Look** do app prova LUT, intensidade e vinheta em 3 s do bruto e, ao
+aplicar, grava `edicao.look` e renderiza uma versão nova sozinho (sem comentários). Não mude o look de volta: se uma
+versão chegou sem comentários e com o look diferente, foi ele.

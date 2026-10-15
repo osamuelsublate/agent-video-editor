@@ -6,6 +6,8 @@
 
     uv run ferramentas/render.py <slug>            → projetos/<slug>/versoes/vN/ (proxy.mp4 720×1280 H.264 + os JSONs da revisão)
     uv run ferramentas/render.py <slug> --final    → projetos/<slug>/final/<nome> · <AAAA-MM-DD HHhMM>.mp4 (2160×3840 HEVC)
+    uv run ferramentas/render.py amostra-look <slug> <t> <lut|-> <intensidade> <vinheta>
+        → um trecho de 3 s do ator (do bruto, no instante t do vídeo final) com aquele look: o provador da revisão
 
 Como a exportação do 18 (SPEC §13; a cola de backend/app/exportacao.py `_gravar`/`_trechos`, reescrita aqui): a página
 de render (`render/`, servida por `servidor.servir`) calcula no navegador o que a prévia calcula (`window.__render`) e é
@@ -451,7 +453,63 @@ def render(slug: str, final: bool = False) -> Path:
     return destino
 
 
+AMOSTRA = 3.0  # s do provador de look
+
+
+def amostra_look(slug: str, t: float, lk: dict) -> Path:
+    """O provador de look da revisão: um trecho de 3 s do ator, tirado do bruto no instante `t` do vídeo final (sem
+    inserts nem legenda: o look só vale no ator), recortado em 9:16 como no render e com o LUT, a intensidade e a
+    vinheta dados. Guardado em `.cache/look/` pelo look e pelo instante (pedir de novo é instantâneo). Devolve o arquivo."""
+    p = pasta(slug)
+    edicao = ler(slug)
+    clipes = v1_tocada(edicao)
+    if not clipes:
+        raise SystemExit('O projeto ainda não tem cortes.')
+    lk = {**look.PADRAO, **lk}
+    if lk.get('lut') and lk['lut'] not in look.NOMES:
+        raise SystemExit(f'LUT desconhecido: {lk["lut"]}')
+    if lk['vinheta'] not in look.VINHETAS:
+        raise SystemExit(f'Vinheta desconhecida: {lk["vinheta"]}')
+    acc, src = 0.0, clipes[0]['inicio']
+    for c in clipes:  # o instante do bruto que toca em t (a amostra segue o bruto dali: para ver a cor, basta)
+        d = dur_saida(c)
+        if t < acc + d:
+            src = c['inicio'] + max(t - acc, 0) * c.get('vel', 1)
+            break
+        acc += d
+    else:
+        src = clipes[-1]['inicio']
+    chave = hashlib.sha1(json.dumps([round(src, 2), lk], sort_keys=True).encode()).hexdigest()[:16]
+    destino = p / '.cache' / 'look' / f'{chave}.mp4'
+    if destino.exists():
+        return destino
+    fonte = next(f for f in edicao['fontes'] if f['papel'] == 'bruto')
+    w, h = PROXY[:2]
+    horizontal = (fonte.get('largura') or 0) > (fonte.get('altura') or 0)
+    x = (edicao.get('enquadramento') or {}).get('x', 0.5)
+    recorte = f'crop=w=trunc(ih*9/16/2)*2:h=ih:x=(iw-ow)*{x:.4f},' if horizontal else ''
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory() as tmp:
+        entradas = ['-ss', f'{src:.3f}', '-t', f'{AMOSTRA}', '-i', str(p / fonte['arquivo'])]
+        mascara = None
+        if look.VINHETAS[lk['vinheta']] > 0:
+            entradas += ['-i', str(look.mascara_vinheta(w, h, look.VINHETAS[lk['vinheta']], Path(tmp) / 'vinheta.png'))]
+            mascara = 1
+        grafo = [f'[0:v]{recorte}scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},setsar=1,fps={FPS}[ator_cru]']
+        grafo += look.filtros(lk, 'ator_cru', 'lk', mascara) if look.ativo(lk) else ['[ator_cru]null[lk]']
+        grafo.append('[lk]format=yuv420p[saida]')
+        parcial = destino.with_suffix(f'.{os.getpid()}.tmp.mp4')  # duas amostras iguais pedidas juntas não se atropelam
+        ffmpeg(*entradas, '-filter_complex', ';'.join(grafo), '-map', '[saida]', '-an', '-c:v', 'libx264', '-preset', 'veryfast',
+               '-crf', '20', '-movflags', '+faststart', str(parcial))
+        parcial.replace(destino)
+    return destino
+
+
 if __name__ == '__main__':
+    if sys.argv[1:2] == ['amostra-look']:
+        _, _, slug, t, lut, intensidade, vinheta = sys.argv
+        print(amostra_look(slug, float(t), {'lut': None if lut == '-' else lut, 'intensidade': float(intensidade), 'vinheta': vinheta}).relative_to(RAIZ))
+        sys.exit(0)
     args = [a for a in sys.argv[1:] if a != '--final']
     if len(args) != 1:
         raise SystemExit(__doc__)
