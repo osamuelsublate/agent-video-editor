@@ -3,13 +3,22 @@
 # dependencies = ["scenedetect>=0.7.1", "opencv-python-headless", "httpx"]
 # ///
 """Calibragem da direção (do 18: SPEC §8.11, docs/direcao.md §8.2.1; direcao.py, calibragem.py, referencias.py): os Reels
-já editados do criador viram os roteiros dirigidos de exemplo que a direção lê (`.claude/skills/editor/exemplos/`).
+já editados do criador viram os roteiros dirigidos de exemplo que a direção lê (`biblioteca/exemplos/`).
 
     uv run ferramentas/calibragem.py listar
     uv run ferramentas/calibragem.py analisar <vídeo> [--nome N]   # enfileira e roda já, mostrando o andamento
     uv run ferramentas/calibragem.py analisar --id <id>            # o trabalho de fundo (o app dispara)
-    uv run ferramentas/calibragem.py roteiros                      # reescreve exemplos/roteiros/*.md e favoritos.md
+    uv run ferramentas/calibragem.py roteiros                      # reescreve exemplos/<categoria>/roteiros/*.md e favoritos.md
     uv run ferramentas/calibragem.py de-projeto <slug> [vN]        # a versão aprovada de um projeto vira referência
+    uv run ferramentas/calibragem.py categorias                    # as categorias de vídeo (Reels, Ad, VSL, YouTube, Aula…)
+    uv run ferramentas/calibragem.py categoria <ref> <categoria>   # muda a categoria de uma referência
+    uv run ferramentas/calibragem.py categoria-projeto <slug> <categoria>
+    uv run ferramentas/calibragem.py exemplos <slug>               # a pasta de exemplos que a direção do projeto lê
+
+Categorias (Reels, Ad, VSL, YouTube, Aula; o criador cadastra mais no app): cada referência tem uma (`tipo` no
+referencia.json; as antigas são Reels), cada projeto também (`formato` no edicao.json), e cada categoria tem os seus
+exemplos (`exemplos/<categoria>/`: regras.md, roteiros/, favoritos.md). A direção de um projeto lê os da categoria dele;
+sem nenhuma referência revisada da categoria, os de todas.
 
 Uma pasta por referência em `biblioteca/referencias/<id>/` (o mesmo formato do 18): referencia.json (a fonte de verdade,
 com o andamento em `analise.passos`), video.<ext>, proxy.mp4, palavras.json, silencios.json, cenas.json, trechos/NNN.json
@@ -45,13 +54,20 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 import gemini  # noqa: E402
-from base import BIBLIOTECA, PROJETOS, RAIZ, env, ffmpeg, gravar_json, inspecionar, ler_json  # noqa: E402
+from base import BIBLIOTECA, EXEMPLOS, PROJETOS, RAIZ, env, ffmpeg, gravar_json, inspecionar, ler_json  # noqa: E402
 
 REFS = BIBLIOTECA / 'referencias'
 LIXEIRA = REFS / '_lixeira'
 FAVORITOS = REFS / '_favoritos.json'
-EXEMPLOS = RAIZ / '.claude' / 'skills' / 'editor' / 'exemplos'
-ROTEIROS = EXEMPLOS / 'roteiros'
+CATEGORIAS_ARQ = BIBLIOTECA / 'categorias-video.json'
+CATEGORIA_PADRAO = 'reels'  # das referências e dos projetos de antes das categorias
+CATEGORIAS = [
+    {'id': 'reels', 'nome': 'Reels', 'emoji': '📱'},
+    {'id': 'ad', 'nome': 'Ad', 'emoji': '💰'},
+    {'id': 'vsl', 'nome': 'VSL', 'emoji': '📺'},
+    {'id': 'youtube', 'nome': 'YouTube', 'emoji': '🎥'},
+    {'id': 'aula', 'nome': 'Aula', 'emoji': '📚'},
+]
 URL = '/biblioteca/referencias'  # como o servidor serve a pasta
 
 PLANOS = {'full_ator': 'Full ator', 'full_ator_lettering': 'Full ator com lettering', 'insert_tela_cheia': 'Insert tela cheia',
@@ -126,6 +142,89 @@ def novo_id(nome: str) -> str:
     return id
 
 
+# ---------------------------------------------------------------- categorias de vídeo
+
+def categorias() -> list[dict]:
+    """As categorias cadastradas (o painel Categorias do app); sem cadastro, as de fábrica. O Reels sempre existe."""
+    lista = ler_json(CATEGORIAS_ARQ, None) or [dict(c) for c in CATEGORIAS]
+    return lista if any(c['id'] == CATEGORIA_PADRAO for c in lista) else [dict(CATEGORIAS[0]), *lista]
+
+
+def categoria_de(x: dict, campo: str = 'tipo') -> str:
+    """A categoria de uma referência (`tipo`) ou de um projeto (`formato`); sem ela, Reels."""
+    return x.get(campo) or CATEGORIA_PADRAO
+
+
+def _checar_categoria(cat: str) -> str:
+    if cat not in {c['id'] for c in categorias()}:
+        raise ValueError(f'Categoria desconhecida: {cat} (cadastre no app, na Calibragem › Categorias)')
+    return cat
+
+
+def _em_uso() -> set[str]:
+    usadas = {categoria_de(r) for r in _todas()}
+    for p in PROJETOS.glob('*/edicao.json'):
+        if not p.parent.name.startswith(('_', '.')):
+            usadas.add(categoria_de(ler_json(p, {}) or {}, 'formato'))
+    return usadas
+
+
+def salvar_categorias(lista: list[dict]) -> list[dict]:
+    """Grava a lista inteira (nome e emoji editados; as novas ganham o id do nome). Uma categoria com referências ou
+    projetos não sai (ValueError com quais)."""
+    out, vistos = [], set()
+    for c in lista:
+        nome = str(c.get('nome') or '').strip()[:40]
+        cid = str(c.get('id') or '').strip() or slug(nome)
+        if not nome or cid in vistos:
+            continue
+        vistos.add(cid)
+        out.append({'id': cid, 'nome': nome, 'emoji': str(c.get('emoji') or '').strip()[:8]})
+    if CATEGORIA_PADRAO not in vistos:
+        out.insert(0, next(c for c in categorias() if c['id'] == CATEGORIA_PADRAO))
+    if saem := sorted(_em_uso() - {c['id'] for c in out}):
+        nomes = {c['id']: c['nome'] for c in categorias()}
+        raise ValueError(f'Ainda há referências ou projetos de {", ".join(nomes.get(x, x) for x in saem)}: mude a categoria deles antes')
+    gravar_json(CATEGORIAS_ARQ, out)
+    return out
+
+
+def pasta_exemplos(cat: str) -> Path:
+    return EXEMPLOS / cat
+
+
+def definir_categoria(id: str, cat: str) -> dict:
+    """Muda a categoria de uma referência; os roteiros de exemplo vão para a pasta da categoria nova."""
+    _checar_categoria(cat)
+    r = atualizar(id, lambda x: x.update(tipo=cat))
+    regenerar_exemplos()
+    return r
+
+
+def categoria_projeto(slug: str, cat: str) -> dict:
+    """Muda a categoria de um projeto (`formato` no edicao.json)."""
+    _checar_categoria(cat)
+    arq = PROJETOS / slug / 'edicao.json'
+    edicao = ler_json(arq, None)
+    if edicao is None:
+        raise FileNotFoundError(f'O projeto {slug} não existe')
+    edicao['formato'] = cat
+    gravar_json(arq, edicao)
+    return edicao
+
+
+def exemplos_para(slug: str) -> tuple[str, list[Path], bool]:
+    """O que a direção do projeto lê: (categoria, pastas de exemplos, se são as de todas as categorias). Sem nenhuma
+    referência revisada da categoria, as de todas."""
+    edicao = ler_json(PROJETOS / slug / 'edicao.json', None)
+    if edicao is None:
+        raise FileNotFoundError(f'O projeto {slug} não existe')
+    cat = categoria_de(edicao, 'formato')
+    if any(r['status'] == 'revisado' and categoria_de(r) == cat for r in _todas()):
+        return cat, [pasta_exemplos(cat)], False
+    return cat, sorted(p for p in EXEMPLOS.iterdir() if p.is_dir()), True
+
+
 def _vivo(pid) -> bool:
     try:
         os.kill(int(pid), 0)
@@ -181,7 +280,7 @@ def listar_referencias() -> list[dict]:
             'id': r['id'], 'nome': r['nome'], 'status': r['status'], 'erro': r.get('erro'),
             'duracao': v.get('duracao'), 'largura': v.get('largura'), 'altura': v.get('altura'), 'criado_em': r.get('criado_em'),
             'passo': atual, 'passo_rotulo': ROTULOS.get(atual), 'progresso': passos.get(atual, {}).get('progresso') if atual else None,
-            'passos': passos, 'origem': r.get('origem'),
+            'passos': passos, 'origem': r.get('origem'), 'tipo': categoria_de(r),
             'miniatura': f'{URL}/{r["id"]}/miniatura.jpg' if (base / 'miniatura.jpg').exists() else None,
             'video': f'{URL}/{r["id"]}/proxy.mp4' if (base / 'proxy.mp4').exists() else None,
         })
@@ -429,7 +528,7 @@ def clipes() -> dict:
     todos, origens = [], {}
     for r, itens, palavras in _analisadas():
         lista, origens[r['id']] = _clipes_de(r, itens, palavras)
-        todos += lista
+        todos += [{**c, 'tipo_video': categoria_de(r)} for c in lista]  # a categoria do vídeo de origem, para o filtro
     favoritos = ler_favoritos()
     for c in todos:
         c['favorito'] = any(mesmo_trecho(f, c['ref'], c['inicio'], c['fim']) for f in favoritos)
@@ -524,39 +623,44 @@ def _correcoes(r: dict) -> str:
 
 
 def regenerar_exemplos() -> dict:
-    """Reescreve `exemplos/roteiros/<id>.md` (um por referência analisada; com o mesmo nome, só uma: a revisada, ou a mais
-    nova; as de projeto só revisadas), apaga os das que não estão mais lá e escreve `exemplos/favoritos.md`. Devolve o que
-    mudou."""
-    escolhidas: dict[str, tuple] = {}
+    """Reescreve `exemplos/<categoria>/roteiros/<id>.md` (um por referência analisada, na pasta da categoria dela; com o
+    mesmo nome, só uma: a revisada, ou a mais nova; as de projeto só revisadas), apaga os das que não estão mais lá (ou
+    mudaram de categoria) e escreve o `favoritos.md` de cada categoria. Devolve o que mudou."""
+    escolhidas: dict[tuple, tuple] = {}
     for r, itens, palavras in _analisadas():  # das mais novas para as mais antigas: fica a primeira, salvo uma revisada depois
         if not ensina(r):
             continue
-        atual = escolhidas.get(r['nome'])
+        chave = (categoria_de(r), r['nome'])
+        atual = escolhidas.get(chave)
         if atual is None or (r['status'] == 'revisado' and atual[0]['status'] != 'revisado'):
-            escolhidas[r['nome']] = (r, itens, palavras)
-    mudou, apagados, ids = [], [], set()
-    for r, itens, palavras in escolhidas.values():
-        ids.add(r['id'])
+            escolhidas[chave] = (r, itens, palavras)
+    mudou, apagados, ficam = [], [], set()
+    for (cat, _), (r, itens, palavras) in escolhidas.items():
+        arq = pasta_exemplos(cat) / 'roteiros' / f"{r['id']}.md"
+        ficam.add(arq)
         texto = f"# {r['nome']}{' (revisado)' if r['status'] == 'revisado' else ''}\n\n" + '\n\n'.join(_bloco(x) for x in roteiro(itens, palavras)) + '\n' + _correcoes(r)
-        if _escrever(ROTEIROS / f"{r['id']}.md", texto):
+        if _escrever(arq, texto):
             mudou.append(r['id'])
-    for arq in ROTEIROS.glob('*.md'):
-        if arq.stem not in ids:
+    for arq in EXEMPLOS.glob('*/roteiros/*.md'):
+        if arq not in ficam:
             arq.unlink()
             apagados.append(arq.stem)
-    favoritos = _favoritos_md()
-    return {'roteiros': sorted(ids), 'mudaram': mudou, 'apagados': apagados, 'favoritos': favoritos}
+    # o favoritos.md de cada categoria que tem exemplos (uma categoria sem referências não ganha pasta)
+    cats = {cat for cat, _ in escolhidas} | {p.name for p in EXEMPLOS.iterdir() if p.is_dir()}
+    favoritos = sum(_favoritos_md(cat) for cat in sorted(cats))
+    return {'roteiros': sorted(r['id'] for r, _, _ in escolhidas.values()), 'mudaram': mudou, 'apagados': apagados, 'favoritos': favoritos}
 
 
-def _favoritos_md() -> int:
-    """`exemplos/favoritos.md`: os planos marcados com ★ na galeria, agrupados por categoria, cada um com o roteiro daquele
-    plano (do jeito que está agora; se o vídeo foi reanalisado e o plano mudou, a cópia guardada ao favoritar)."""
+def _favoritos_md(cat: str) -> int:
+    """`exemplos/<categoria>/favoritos.md`: os planos das referências da categoria marcados com ★ na galeria, agrupados
+    por tipo de plano, cada um com o roteiro daquele plano (do jeito que está agora; se o vídeo foi reanalisado e o plano
+    mudou, a cópia guardada ao favoritar)."""
     grupos: dict[str, list[tuple]] = {}
     for f in ler_favoritos():
         base = REFS / f['ref']
         r = ler_json(base / 'referencia.json')
         palavras = (ler_json(base / 'palavras.json') or {}).get('palavras')
-        if r is None or palavras is None or not ensina(r):
+        if r is None or palavras is None or not ensina(r) or categoria_de(r) != cat:
             continue
         itens = (ler_json(base / 'direcao.json') or {}).get('itens', []) if r['status'] in ANALISADAS else []
         linha = next((x for x in roteiro(itens, palavras) if abs(x['inicio'] - f['inicio']) < 0.05 and abs(x['fim'] - f['fim']) < 0.05), None)
@@ -577,7 +681,7 @@ def _favoritos_md() -> int:
             total += 1
     if not total:
         partes.append('(Nenhum plano marcado ainda.)')
-    _escrever(EXEMPLOS / 'favoritos.md', '\n\n'.join(partes) + '\n')
+    _escrever(pasta_exemplos(cat) / 'favoritos.md', '\n\n'.join(partes) + '\n')
     return total
 
 
@@ -681,7 +785,8 @@ def de_projeto(slug: str, versao: int | str | None = None) -> str:
             'id': id, 'nome': f"{edicao.get('nome') or slug} (aprovado)", 'criado_em': datetime.now().isoformat(timespec='seconds'),
             'formato': 'vertical', 'video': {'arquivo': 'proxy.mp4', 'nome_original': f'projetos/{slug}/versoes/v{n}/proxy.mp4', **info},
             'status': 'a_revisar', 'erro': None, 'analise': {'passos': {x: {'status': 'pronto'} for x in PASSOS}},
-            'origem': {'projeto': slug, 'versao': n, 'aprovado_em': aprovado_em}, 'revisoes': revisoes})
+            'origem': {'projeto': slug, 'versao': n, 'aprovado_em': aprovado_em}, 'revisoes': revisoes,
+            'tipo': categoria_de(edicao, 'formato')})  # a categoria do projeto: ensina a direção dos projetos da mesma
         for i in itens:
             _miniatura(base, i)
         gravar_json(base / 'direcao.json', {'itens': itens, 'itens_ia': itens_ia, 'cortes': cortes})
@@ -694,11 +799,12 @@ def de_projeto(slug: str, versao: int | str | None = None) -> str:
 
 # ---------------------------------------------------------------- a fila
 
-def _criar(arquivo: str, nome: str | None) -> str:
+def _criar(arquivo: str, nome: str | None, categoria: str = CATEGORIA_PADRAO) -> str:
     """Copia o vídeo para a pasta nova e cria o referencia.json "na fila". Recusa (ValueError) o que não serve."""
     origem = Path(arquivo).expanduser()
     if not origem.is_file():
         raise ValueError(f'Não achei o vídeo: {origem.name}')
+    _checar_categoria(categoria)
     nome = (nome or origem.stem).strip()[:120] or origem.stem
     with _trava():
         id = novo_id(nome)
@@ -721,7 +827,7 @@ def _criar(arquivo: str, nome: str | None) -> str:
         gravar_json(base / 'referencia.json', {
             'id': id, 'nome': nome, 'criado_em': datetime.now().isoformat(timespec='seconds'), 'formato': 'vertical',
             'video': {'arquivo': destino.name, 'nome_original': origem.name, **info},
-            'status': 'na_fila', 'erro': None, 'analise': {'passos': {p: {'status': 'pendente'} for p in PASSOS}}})
+            'status': 'na_fila', 'erro': None, 'analise': {'passos': {p: {'status': 'pendente'} for p in PASSOS}}, 'tipo': categoria})
     except Exception:
         shutil.rmtree(base, ignore_errors=True)
         raise
@@ -745,9 +851,9 @@ def _disparar(id: str) -> None:
     atualizar(id, lambda r: r.setdefault('analise', {}).update(pid=proc.pid))
 
 
-def enfileirar_analise(arquivo: str, nome: str | None = None) -> str:
+def enfileirar_analise(arquivo: str, nome: str | None = None, categoria: str = CATEGORIA_PADRAO) -> str:
     """Copia o vídeo para `biblioteca/referencias/<id>/`, põe na fila e dispara a análise em segundo plano. Devolve o id."""
-    id = _criar(arquivo, nome)
+    id = _criar(arquivo, nome, categoria)
     _disparar(id)
     return id
 
@@ -1266,7 +1372,17 @@ def main() -> None:
     an.add_argument('video', nargs='?')
     an.add_argument('--nome')
     an.add_argument('--id')
-    sub.add_parser('roteiros', help='reescreve exemplos/roteiros/*.md e exemplos/favoritos.md')
+    an.add_argument('--categoria', default=CATEGORIA_PADRAO, help='reels, ad, vsl, youtube, aula… (padrão: reels)')
+    sub.add_parser('roteiros', help='reescreve exemplos/<categoria>/roteiros/*.md e os favoritos.md')
+    sub.add_parser('categorias', help='as categorias de vídeo')
+    ca = sub.add_parser('categoria', help='muda a categoria de uma referência')
+    ca.add_argument('id')
+    ca.add_argument('categoria')
+    cp = sub.add_parser('categoria-projeto', help='muda a categoria de um projeto')
+    cp.add_argument('slug')
+    cp.add_argument('categoria')
+    ex = sub.add_parser('exemplos', help='a(s) pasta(s) de exemplos que a direção do projeto lê')
+    ex.add_argument('slug')
     pj = sub.add_parser('de-projeto', help='a versão aprovada de um projeto vira uma referência a revisar')
     pj.add_argument('slug')
     pj.add_argument('versao', nargs='?', help='vN (sem: a última aprovada, senão a última)')
@@ -1280,8 +1396,33 @@ def main() -> None:
             print(f"{r['id']:<32} {r['status']:<10}{andamento} {dur:>6}  {r['nome']}" + (f"\n    {r['erro']}" if r['erro'] else ''))
     elif a.comando == 'roteiros':
         r = regenerar_exemplos()
-        print(f"{len(r['roteiros'])} roteiros em {ROTEIROS.relative_to(RAIZ)}/ ({len(r['mudaram'])} reescritos"
-              + (f", apagados: {', '.join(r['apagados'])}" if r['apagados'] else '') + f"); {r['favoritos']} favoritos em favoritos.md")
+        print(f"{len(r['roteiros'])} roteiros em {EXEMPLOS.relative_to(RAIZ)}/<categoria>/roteiros/ ({len(r['mudaram'])} reescritos"
+              + (f", apagados: {', '.join(r['apagados'])}" if r['apagados'] else '') + f"); {r['favoritos']} favoritos")
+    elif a.comando == 'categorias':
+        usadas = {}
+        for r in _todas():
+            usadas[categoria_de(r)] = usadas.get(categoria_de(r), 0) + 1
+        for c in categorias():
+            print(f"{c['id']:<12} {c['emoji']} {c['nome']}  ({usadas.get(c['id'], 0)} referências)")
+    elif a.comando in ('categoria', 'categoria-projeto'):
+        try:
+            if a.comando == 'categoria':
+                definir_categoria(a.id, a.categoria)
+            else:
+                categoria_projeto(a.slug, a.categoria)
+        except (FileNotFoundError, ValueError) as e:
+            raise SystemExit(str(e)) from None
+        print(f'categoria: {a.categoria}')
+    elif a.comando == 'exemplos':
+        try:
+            cat, pastas, de_todas = exemplos_para(a.slug)
+        except FileNotFoundError as e:
+            raise SystemExit(str(e)) from None
+        print(f'Categoria do projeto: {cat}')
+        if de_todas:
+            print(f'Nenhuma referência revisada de {cat}: leia os exemplos de todas as categorias (e avise o criador na entrega).')
+        for p in pastas:
+            print(f'  {p.relative_to(RAIZ)}/  (regras.md, favoritos.md, roteiros/)')
     elif a.comando == 'de-projeto':
         try:
             id = de_projeto(a.slug, a.versao)
@@ -1302,7 +1443,7 @@ def main() -> None:
         env('OPENROUTER_API_KEY')  # sem as chaves, nem começa
         env('ELEVENLABS_API_KEY')
         try:
-            id = _criar(a.video, a.nome)
+            id = _criar(a.video, a.nome, a.categoria)
         except ValueError as e:
             raise SystemExit(str(e)) from None
         atualizar(id, lambda x: x.setdefault('analise', {}).update(pid=os.getpid()))

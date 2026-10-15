@@ -71,7 +71,7 @@ export const definirRelogio = (t: number) => void (relogio = t)
 // ---------------------------------------------------------------- os fundos (do 18: frontend/src/inserts/Fundo.tsx)
 
 /** Os fundos atrás dos inserts com moldura (SPEC §8.4): 3 claros e 2 escuros. A **chuva** é o fundo do Overview do design
- *  system da Asimov, que toca como vídeo (`biblioteca/fundos/aura/chuva.mp4`, um loop de 12 s gravado da cena ao vivo). */
+ *  system da Asimov, que toca como vídeo (`render/fundos/aura/chuva.mp4`, um loop de 12 s gravado da cena ao vivo). */
 export const FUNDOS: { id: string; nome: string; claro: boolean; amostra: string }[] = [
   { id: 'verde_claro', nome: 'Verde claro', claro: true, amostra: 'linear-gradient(180deg,#dfe8e1 0%,#a9c6b3 55%,#6f9c84 100%)' },
   { id: 'papel', nome: 'Papel', claro: true, amostra: 'radial-gradient(120% 90% at 50% 40%,#f1ecdd 0%,#e4dcc7 70%,#d6ccb3 100%)' },
@@ -99,7 +99,7 @@ export function fundo(id: string, chave = 'fundo'): V {
         chave: 'chuva',
         tag: 'video',
         classe: 'absolute inset-0 size-full object-cover',
-        atributos: { src: '/biblioteca/fundos/aura/chuva.mp4', preload: 'auto' },
+        atributos: { src: '/render/fundos/aura/chuva.mp4', preload: 'auto' },
         criar: (el) => {
           const v = el as HTMLVideoElement
           v.muted = v.loop = v.playsInline = true

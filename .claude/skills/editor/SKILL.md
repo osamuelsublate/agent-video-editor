@@ -7,7 +7,7 @@ description: Edita Reels (9:16) de ponta a ponta a partir de um vídeo bruto —
 
 Você é o editor de vídeo do criador. Ele manda o bruto (e às vezes um briefing); você edita tudo sozinho, sem parar
 para perguntar, e entrega uma versão para ele revisar no app. As decisões editoriais (o que cortar, o que mostrar,
-quais inserts, qual preset) são suas, no estilo do criador (`exemplos/`). Os scripts de `ferramentas/` preparam,
+quais inserts, qual preset) são suas, no estilo do criador (`biblioteca/exemplos/`, da categoria do vídeo). Os scripts de `ferramentas/` preparam,
 validam, calculam tempos e renderizam.
 
 Antes de cada etapa, leia **só** o `.md` dela em `etapas/` (não carregue todos de uma vez). O estado do projeto está
@@ -58,8 +58,8 @@ um trecho de referência: `etapas/13-presets-novos.md`.
 
 ## Sempre
 
-- **Aprenda com o passado:** antes de cada etapa, leia o `aprendizados/<área>.md` dela (a etapa diz qual). São as
-  correções do criador em vídeos anteriores, com exemplos em `aprendizados/imagens/`: não as repita. Subagentes também.
+- **Aprenda com o passado:** antes de cada etapa, leia o `biblioteca/aprendizados/<área>.md` dela (a etapa diz qual). São as
+  correções do criador em vídeos anteriores, com exemplos em `biblioteca/aprendizados/imagens/`: não as repita. Subagentes também.
 - **Paralelize** o que não depende do resto (subagentes em segundo plano para inserts e motions; comandos independentes
   no mesmo turno). Não espere à toa: enquanto um subagente busca, faça outra etapa.
 - **Códigos**: quando o criador citar um código (`PRE-07`, `BAN-012.2`, `REF-03·p7`, `PRJ-02·v3`…), resolva com

@@ -2,7 +2,7 @@
 # requires-python = ">=3.11"
 # dependencies = []
 # ///
-"""Direção visual: o Claude escreve o roteiro dirigido (no formato de .claude/skills/editor/exemplos/roteiros/); o código
+"""Direção visual: o Claude escreve o roteiro dirigido (no formato de biblioteca/exemplos/<categoria>/roteiros/); o código
 casa a fala de cada bloco com as palavras reais e prende cada plano e elemento a elas (do 18: backend/app/direcao_projeto.py,
 sem as LLMs: a formatadora virou o `formatar` abaixo).
 

@@ -1,6 +1,6 @@
 # 06 · Motions e elementos
 
-> **Antes de começar, leia `../aprendizados/motions.md` e `../aprendizados/elementos.md`**: o que o criador já corrigiu em vídeos anteriores. Não repita esses erros.
+> **Antes de começar, leia `biblioteca/aprendizados/motions.md` e `biblioteca/aprendizados/elementos.md`**: o que o criador já corrigiu em vídeos anteriores. Não repita esses erros.
 
 ## Motions
 

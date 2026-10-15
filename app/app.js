@@ -1,12 +1,13 @@
 // O app de revisão: roteamento pelo endereço e o início (os projetos). As páginas: #/ (projetos), #/p/<slug>[/vN] (a
 // revisão de uma versão), #/calibragem[/<id>], #/referencias, #/heuristica, #/aprendizados[/<área>] e as da biblioteca
-// (#/presets, #/transicoes[/<de>><para>], #/banco[/inserts|/motions], #/trilhas).
+// (#/presets, #/transicoes[/<de>><para>], #/banco (os inserts), #/motions, #/trilhas).
 import { $, $$, ICONE, abasAbertas, aviso, preferencia, chipCodigo, codigos, confirmar, copiar, enviar, esc, fecharAba, json, mmss } from './comum.js'
 import { abrirRevisao } from './revisao.js'
 import { abrirCtas } from './ctas.js'
 import { abrirBiblioteca, PAGINAS_BIBLIOTECA } from './biblioteca.js'
 import { abrirCalibragem, abrirRevisaoReferencia } from './calibragem.js'
 import { abrirAprendizados, abrirHeuristica, abrirReferencias } from './referencias.js'
+import { botaoCategorias, carregarCategorias, editarCategorias, pilulasCategoria, rotuloCategoria, seletorCategoria } from './categorias.js'
 
 const ESTADOS = {
   em_revisao: ['Em revisão', 'selo-coral'],
@@ -14,8 +15,6 @@ const ESTADOS = {
   aprovado: ['Aprovado', 'selo-menta'],
 }
 
-// o formato do conteúdo (edicao.formato), com o emoji do vault
-const FORMATOS = { reels: ['📱', 'Reels'], ad: ['💰', 'Ad'], youtube: ['🎥', 'YouTube'], vsl: ['📺', 'VSL'], aula: ['📚', 'Aula'] }
 
 // a ordem dos projetos (lembrada neste navegador)
 const ORDENS = { recentes: 'Recentes', antigos: 'Antigos', nome: 'A–Z' }
@@ -55,6 +54,10 @@ function grupo(ts) {
 async function inicio(tela) {
   tela.className = 'pagina pagina-inicio'
   const [projetos, cods] = await Promise.all([json('/api/projetos', []), codigos()])
+  // a categoria do projeto (edicao.formato: Reels, Ad…): filtra a lista e troca no card
+  let cats = await carregarCategorias()
+  let filtro = preferencia('projetos.categoria', '')
+  if (filtro && !cats.some((c) => c.id === filtro)) filtro = ''
   let ordem = ORDENS[lembrar('projetos.ordem')] ? lembrar('projetos.ordem') : 'recentes'
   const card = (p) => {
     const [estado, cor] = ESTADOS[p.estado] || ESTADOS.em_revisao
@@ -65,13 +68,13 @@ async function inicio(tela) {
       <a class="card-projeto" href="#/p/${encodeURIComponent(p.slug)}">
       <div class="mini mini-916"><video muted playsinline preload="metadata" src="${proxy}#t=1.5"></video>
         <span class="selo ${cor}">${estado}</span>${p.duracao ? `<span class="duracao">${mmss(p.duracao)}</span>` : ''}
-        <span class="chip-formato">${(FORMATOS[p.formato] || [p.formato ? '🎬' : '📱', p.formato || 'Reels']).map(esc).join(' ')}</span></div>
+        <span class="chip-formato">${esc(rotuloCategoria(cats, p.formato || 'reels'))}</span></div>
       <div class="card-titulo"><h3>${esc(p.nome)}</h3>${chipCodigo(cods.projeto?.[p.slug], p.nome)}</div>
       <p class="sub" title="${esc(p.slug)}">${quandoFoi(p.atualizado)} · v${p.ultima}${n > 1 ? ` · ${n} versões` : ''}${p.comentarios ? ` · ${p.comentarios} ${p.comentarios === 1 ? 'comentário' : 'comentários'}` : ''}</p>
-    </a></div>`
+    </a>${seletorCategoria(cats, p.formato || 'reels')}</div>`
   }
   const lista = () => {
-    const l = projetos.slice()
+    const l = projetos.filter((p) => !filtro || (p.formato || 'reels') === filtro)
     if (ordem === 'nome') return [['', l.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))]]
     l.sort((a, b) => (ordem === 'antigos' ? a.atualizado - b.atualizado : b.atualizado - a.atualizado))
     const grupos = []
@@ -83,6 +86,7 @@ async function inicio(tela) {
     return grupos
   }
   const desenhar = () => {
+    $('.filtro-categorias', tela).innerHTML = pilulasCategoria(cats, filtro, { contar: (id) => projetos.filter((p) => !id || (p.formato || 'reels') === id).length }) + botaoCategorias()
     $('.lista-projetos', tela).innerHTML = projetos.length
       ? lista().map(([g, ps]) => `${g ? `<h4 class="grupo-data">${g}</h4>` : ''}<div class="grade grade-projetos">${ps.map(card).join('')}</div>`).join('')
       : '<p class="vazio">Nenhum projeto com versão ainda. Mande um vídeo bruto ao Claude Code: quando ele entregar a v1, ela aparece aqui.</p>'
@@ -98,9 +102,21 @@ async function inicio(tela) {
     }
   }
   tela.innerHTML = `<div class="cabeca-secao"><span class="eyebrow">Projetos · ${String(projetos.length).padStart(2, '0')}</span>
+      <div class="filtro-categorias"></div>
       <div class="ordens">${Object.entries(ORDENS).map(([k, nome]) => `<button class="pilula pequena" data-ordem="${k}">${nome}</button>`).join('')}</div></div>
     <div class="lista-projetos"></div>`
   desenhar()
+  tela.addEventListener('change', async (e) => {
+    if (!e.target.matches('[data-mudar-categoria]')) return
+    const p = projetos.find((x) => x.slug === e.target.closest('.caixa-projeto').dataset.slug)
+    try {
+      await enviar('PUT', `/api/projetos/${encodeURIComponent(p.slug)}/categoria`, { categoria: e.target.value })
+      p.formato = e.target.value
+      desenhar()
+    } catch (err) {
+      aviso(err.message, 'erro')
+    }
+  })
   // apagar (como no 18): a pasta vai para a lixeira (projetos/_lixeira/), de onde dá para recuperar
   tela.addEventListener('click', async (e) => {
     const o = e.target.closest('[data-ordem]')
@@ -109,6 +125,16 @@ async function inicio(tela) {
       lembrar('projetos.ordem', ordem)
       return desenhar()
     }
+    const f = e.target.closest('[data-categoria]')
+    if (f) {
+      filtro = preferencia('projetos.categoria', '', f.dataset.categoria)
+      return desenhar()
+    }
+    if (e.target.closest('[data-editar-categorias]'))
+      return editarCategorias(cats, async () => {
+        cats = await carregarCategorias()
+        desenhar()
+      })
     const b = e.target.closest('[data-apagar]')
     if (!b) return
     const caixa = b.closest('.caixa-projeto')
@@ -169,7 +195,8 @@ async function rotear() {
   velha.replaceWith(tela)
   $('#barra-versao').innerHTML = ''
   desenharAbas()
-  const aba = partes[0] === 'motions' ? 'banco' : partes[0] // os projetos abrem pela marca; num projeto, acende a aba dele
+  // os projetos abrem pela marca; num projeto, acende a aba dele; o endereço antigo dos motions (#/banco/motions) acende Motions
+  const aba = partes[0] === 'banco' && partes[1] === 'motions' ? 'motions' : partes[0]
   for (const a of $$('.abas a')) a.classList.toggle('ativa', a.dataset.aba === aba)
   document.body.classList.toggle('em-revisao', (partes[0] === 'p' || partes[0] === 'calibragem') && !!partes[1])
   let s

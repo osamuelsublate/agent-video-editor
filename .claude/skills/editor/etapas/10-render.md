@@ -1,6 +1,6 @@
 # 10 · Render e autorrevisão
 
-> **Antes de começar, leia `../aprendizados/render.md` e, na autorrevisão, confira o vídeo contra os aprendizados de todas as áreas**: o que o criador já corrigiu em vídeos anteriores. Não repita esses erros.
+> **Antes de começar, leia `biblioteca/aprendizados/render.md` e, na autorrevisão, confira o vídeo contra os aprendizados de todas as áreas**: o que o criador já corrigiu em vídeos anteriores. Não repita esses erros.
 
 ## Render do proxy
 

@@ -6,13 +6,16 @@ Também importado pelo render (`servir(0)` sobe numa porta livre, numa thread). 
 
 Rotas (JSON; um erro volta como {"erro": "…"}, com 422 numa validação):
 - GET /api/lista?pasta=… (nomes numa pasta pública) · GET /api/projetos (o início do app) · GET /api/motions/fonte/<pro|
-  rounded|mono> (as SF da Apple, lidas do Mac: o biblioteca/motions/fonts.css as pede) · PUT /api/revisao/<slug>/v<N> (a
+  rounded|mono> (as SF da Apple, lidas do Mac: o render/motion/fonts.css as pede) · PUT /api/revisao/<slug>/v<N> (a
   revisão inteira; as respostas do Claude no arquivo são mantidas).
 - Calibragem (chama ferramentas/calibragem.py): GET|POST /api/referencias (POST: o vídeo cru no corpo, o nome do arquivo
   no cabeçalho X-Nome) · GET /api/referencias/clipes · GET /api/referencias/<id>/revisao · PUT …/<id>/direcao {itens} ·
   PUT …/<id>/status {revisado} · PUT …/<id>/nome {nome} · PUT …/<id>/favorito {inicio, fim, favorito} · POST
   …/<id>/reanalisar · POST …/<id>/tentar · DELETE /api/referencias/<id>.
-- GET|PUT /api/heuristica: as regras da direção (exemplos/regras.md) e os roteiros de exemplo, com os tempos dos planos.
+- GET|PUT /api/heuristica?categoria=<id>: as regras da direção da categoria (exemplos/<categoria>/regras.md) e os
+  roteiros de exemplo dela, com os tempos dos planos. · GET|PUT /api/categorias {categorias} (as categorias de vídeo:
+  Reels, Ad…; uma em uso não sai) · PUT /api/referencias/<id>/categoria {categoria} · PUT /api/projetos/<slug>/categoria
+  {categoria} · o POST /api/referencias aceita a categoria no cabeçalho X-Categoria.
 - GET /api/aprendizados (as áreas, com os bullets "Do criador") · GET|PUT /api/aprendizados/<área> {texto} (o
   aprendizados/<área>.md) · GET /api/aprendizados/imagens/<nome> (as imagens que os .md mostram).
 - GET /api/presets/amostras (o ator e as mídias do banco da simulação dos presets, render/preset.html)
@@ -44,13 +47,11 @@ from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
 sys.path.insert(0, str(Path(__file__).parent))
-from base import BIBLIOTECA, PROJETOS, RAIZ, gravar_json, ler_json  # noqa: E402
+from base import APRENDIZADOS, BIBLIOTECA, EXEMPLOS, PROJETOS, RAIZ, gravar_json, ler_json, preparar_biblioteca  # noqa: E402
 
 PORTA = 8719
 PUBLICOS = ('app', 'render', 'projetos', 'biblioteca')
 FONTES_DO_MAC = {'pro': 'SFNS.ttf', 'rounded': 'SFNSRounded.ttf', 'mono': 'SFNSMono.ttf'}  # não vão para o git
-EXEMPLOS = RAIZ / '.claude' / 'skills' / 'editor' / 'exemplos'
-APRENDIZADOS = RAIZ / '.claude' / 'skills' / 'editor' / 'aprendizados'
 AREAS = {'cortes': 'Cortes', 'inserts': 'Inserts', 'enriquecimento': 'Enriquecimento', 'motions': 'Motions', 'elementos': 'Elementos',
          'transicoes': 'Transições', 'audio': 'Áudio', 'legenda': 'Legenda', 'render': 'Render'}
 IMAGEM = re.compile(r'^[\w.-]+\.(png|jpe?g|webp|gif)$', re.I)
@@ -281,7 +282,8 @@ def _subir_referencia(h, q):
                 resta -= len(bloco)
         if resta:
             raise Erro('O envio parou no meio.', 400)
-        return {'id': calibragem().enfileirar_analise(str(destino), Path(nome).stem)}
+        cat = unquote(h.headers.get('X-Categoria') or '') or 'reels'
+        return {'id': calibragem().enfileirar_analise(str(destino), Path(nome).stem, cat)}
     finally:
         shutil.rmtree(pasta, ignore_errors=True)
 
@@ -311,6 +313,27 @@ def _renomear(h, q, id_):
     return calibragem().renomear(id_, str(h.corpo().get('nome') or '').strip()[:120]) or {'ok': True}
 
 
+@rota('PUT', f'/api/referencias/{ID}/categoria')
+def _categoria_referencia(h, q, id_):
+    return calibragem().definir_categoria(id_, str(h.corpo().get('categoria') or ''))
+
+
+@rota('PUT', r'/api/projetos/([\w-]+)/categoria')
+def _categoria_projeto(h, q, slug):
+    calibragem().categoria_projeto(slug, str(h.corpo().get('categoria') or ''))
+    return {'ok': True}
+
+
+@rota('GET', '/api/categorias')
+def _categorias(h, q):
+    return {'categorias': calibragem().categorias()}
+
+
+@rota('PUT', '/api/categorias')
+def _salvar_categorias(h, q):
+    return {'categorias': calibragem().salvar_categorias(h.corpo().get('categorias') or [])}
+
+
 @rota('PUT', f'/api/referencias/{ID}/favorito')
 def _favoritar(h, q, id_):
     c = h.corpo()
@@ -334,11 +357,20 @@ def _apagar_referencia(h, q, id_):
 
 # ---- heurística: as regras (Markdown) e os roteiros de exemplo
 
-def roteiros() -> list[dict]:
-    """Os roteiros de exemplo (exemplos/roteiros/<ref>.md), linha a linha: a marcação entre [ ] e a fala. A linha k é o
-    plano k da direção da referência (os roteiros são escritos dela, um bloco por plano): daí vêm o tipo e os tempos."""
+def _categoria(q) -> str:
+    """A categoria pedida (?categoria=…), entre as cadastradas; sem ela, Reels."""
+    cat = q.get('categoria', ['reels'])[0] or 'reels'
+    if cat not in {c['id'] for c in calibragem().categorias()}:
+        raise Erro(f'Categoria desconhecida: {cat}', 422)
+    return cat
+
+
+def roteiros(cat: str = 'reels') -> list[dict]:
+    """Os roteiros de exemplo da categoria (exemplos/<categoria>/roteiros/<ref>.md), linha a linha: a marcação entre [ ]
+    e a fala. A linha k é o plano k da direção da referência (os roteiros são escritos dela, um bloco por plano): daí vêm
+    o tipo e os tempos."""
     out = []
-    for md in sorted((EXEMPLOS / 'roteiros').glob('*.md')):
+    for md in sorted((EXEMPLOS / cat / 'roteiros').glob('*.md')):
         base = REFERENCIAS / md.stem
         info = ler_json(base / 'referencia.json', {}) or {}
         itens = (ler_json(base / 'direcao.json', {}) or {}).get('itens') or []
@@ -362,8 +394,9 @@ def roteiros() -> list[dict]:
 
 @rota('GET', '/api/heuristica')
 def _heuristica(h, q):
-    arq = EXEMPLOS / 'regras.md'
-    return {'regras': arq.read_text(encoding='utf-8') if arq.is_file() else '', 'roteiros': roteiros()}
+    cat = _categoria(q)
+    arq = EXEMPLOS / cat / 'regras.md'
+    return {'categoria': cat, 'regras': arq.read_text(encoding='utf-8') if arq.is_file() else '', 'roteiros': roteiros(cat)}
 
 
 @rota('PUT', '/api/heuristica')
@@ -373,7 +406,9 @@ def _salvar_heuristica(h, q):
         raise Erro('As regras não podem ficar vazias.', 422)
     if len(regras) > 20000:
         raise Erro('As regras passaram de 20.000 caracteres.', 422)
-    (EXEMPLOS / 'regras.md').write_text(regras.rstrip() + '\n', encoding='utf-8')
+    arq = EXEMPLOS / _categoria(q) / 'regras.md'
+    arq.parent.mkdir(parents=True, exist_ok=True)
+    arq.write_text(regras.rstrip() + '\n', encoding='utf-8')
     return {'ok': True}
 
 
@@ -1029,6 +1064,7 @@ def servir(porta: int = 0) -> ThreadingHTTPServer:
 
 
 if __name__ == '__main__':
+    preparar_biblioteca()  # uma instalação nova: a biblioteca inicial e a pasta dos projetos
     porta = int(sys.argv[1]) if len(sys.argv) > 1 else int(os.environ.get('PORTA', PORTA))
     print(f'Editor: http://localhost:{porta}/app/')
     ThreadingHTTPServer(('127.0.0.1', porta), Handler).serve_forever()

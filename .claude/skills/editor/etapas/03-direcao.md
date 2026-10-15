@@ -3,15 +3,23 @@
 Você escreve o **roteiro dirigido** do vídeo já cortado: o que aparece na tela em cada momento da fala, do jeito que o
 criador dirige. Não mexe em mídia: só a "partitura visual". Inserts, motions, transições e legenda partem dela.
 
-> **Antes de começar, leia `../aprendizados/elementos.md` (lettering e elementos); os de direção estão nas Regras do criador, em `exemplos/regras.md`**: o que o criador já corrigiu em vídeos anteriores. Não repita esses erros.
+> **Antes de começar, leia `biblioteca/aprendizados/elementos.md` (lettering e elementos); os de direção estão nas Regras do criador, em `biblioteca/exemplos/<categoria>/regras.md`**: o que o criador já corrigiu em vídeos anteriores. Não repita esses erros.
 
 ## Antes de escrever: aprenda o estilo
 
-1. Leia `exemplos/criador.md` (quem grava e do que o canal fala) e `exemplos/regras.md` inteiro. As **Regras do
+Cada categoria de vídeo (📱 Reels, 💰 Ad, 📺 VSL, 🎥 YouTube, 📚 Aula…) tem os seus exemplos. Descubra quais ler:
+
+```bash
+uv run ferramentas/calibragem.py exemplos <slug>    # a categoria do projeto e a pasta (ou, sem referência revisada dela, todas)
+```
+Leia a pasta que ele indicar (`<categoria>` abaixo). Quando ele disser que a categoria ainda não tem referência
+revisada, leia as de todas as categorias e diga isso ao criador na entrega.
+
+1. Leia `biblioteca/exemplos/criador.md` (quem grava e do que o canal fala) e `biblioteca/exemplos/<categoria>/regras.md` inteiro. As **Regras do
    criador** são obrigatórias; as sugeridas são guia.
-2. Leia `exemplos/favoritos.md`: os planos que o criador marcou com ★ na galeria de Referências do app. São os melhores
+2. Leia `biblioteca/exemplos/<categoria>/favoritos.md`: os planos que o criador marcou com ★ na galeria de Referências do app. São os melhores
    exemplos dele: quando um momento do vídeo novo se parece com um deles, siga aquele padrão.
-3. Leia **todos** os roteiros de `exemplos/roteiros/` como um editor novo lê os roteiros anotados do chefe: entenda, pela
+3. Leia **todos** os roteiros de `biblioteca/exemplos/<categoria>/roteiros/` como um editor novo lê os roteiros anotados do chefe: entenda, pela
    fala, por que cada coisa aparece onde aparece. O que está sendo dito manda. Os marcados "(revisado)" foram corrigidos
    pelo criador e valem mais que os outros.
 

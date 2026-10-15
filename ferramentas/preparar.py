@@ -28,7 +28,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 import enquadramento  # noqa: E402
 import rosto  # noqa: E402
 import voz  # noqa: E402
-from base import PROJETOS, env, gravar_json, inspecionar  # noqa: E402
+from base import PROJETOS, env, gravar_json, inspecionar, preparar_biblioteca  # noqa: E402
 from transcricao import extrair_audio, silencios, transcrever  # noqa: E402
 
 ROTULOS = {'enquadramento': 'enquadramento 9:16', 'proxy': 'proxy 720p e rosto', 'audio': 'áudio e silêncios',
@@ -147,7 +147,7 @@ class Execucao:
         return r
 
 
-def preparar(video: Path, nome: str, pasta: Path, briefing: str | None) -> None:
+def preparar(video: Path, nome: str, pasta: Path, briefing: str | None, categoria: str = 'reels') -> None:
     t0 = time.perf_counter()
     midia = pasta / 'midia'
     bruto = midia / f'bruto{video.suffix.lower()}'
@@ -228,7 +228,7 @@ def preparar(video: Path, nome: str, pasta: Path, briefing: str | None) -> None:
 
     edicao = {
         'id': pasta.name, 'nome': nome, 'criado_em': datetime.now().isoformat(timespec='seconds'),
-        'formato': 'reels', 'saida': {'largura': 1080, 'altura': 1920},
+        'formato': categoria, 'saida': {'largura': 1080, 'altura': 1920},  # formato: a categoria (Reels, Ad…; calibragem.py)
         'fontes': [fonte],
         'enquadramento': res['enquadramento'],
         'look': LOOK,
@@ -257,7 +257,12 @@ def main() -> None:
     ap.add_argument('--nome', help='o nome do projeto (padrão: o nome do arquivo)')
     ap.add_argument('--slug', help='a pasta em projetos/ (padrão: do nome)')
     ap.add_argument('--briefing', help='o briefing: o texto ou o caminho de um arquivo')
+    ap.add_argument('--categoria', default='reels', help='reels, ad, vsl, youtube, aula… (calibragem.py categorias); padrão: reels')
     a = ap.parse_args()
+    preparar_biblioteca()
+    import calibragem
+    if a.categoria not in {c['id'] for c in calibragem.categorias()}:
+        raise SystemExit(f'Categoria desconhecida: {a.categoria} (calibragem.py categorias)')
     video = Path(a.video).expanduser().resolve()
     if not video.is_file():
         raise SystemExit(f'Não achei o vídeo: {a.video}')
@@ -269,7 +274,7 @@ def main() -> None:
     pasta = pasta_livre(slug(a.slug or nome))
     pasta.mkdir(parents=True)
     try:
-        preparar(video, nome, pasta, briefing)
+        preparar(video, nome, pasta, briefing, a.categoria)
     except (Exception, KeyboardInterrupt) as e:
         shutil.rmtree(pasta, ignore_errors=True)
         if isinstance(e, Recusa):

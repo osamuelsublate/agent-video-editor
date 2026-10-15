@@ -1,8 +1,8 @@
 Escreva um preset de motion novo em {raiz}/biblioteca/motions/presets/{preset}.html (id: {preset}) para o editor de
 Reels em {raiz}.
-Leia antes: {raiz}/.claude/skills/editor/aprendizados/motions.md (o que o criador já corrigiu); os recusados em
+Leia antes: {raiz}/biblioteca/aprendizados/motions.md (o que o criador já corrigiu); os recusados em
 {raiz}/biblioteca/motions/presets/_recusados/ (o JSON do topo tem o `motivo`), para não repetir; 2 presets existentes
-(prompt.html e lettering.html) e {raiz}/biblioteca/motions/runtime.js: copie a estrutura (o JSON <script id="preset">
+(prompt.html e lettering.html) e {raiz}/render/motion/runtime.js: copie a estrutura (o JSON <script id="preset">
 com nome, descricao, fundo, duracao, sons e "a_revisar": true; o <script id="campos">; o <style>; a timeline do GSAP
 pausada entregue com motion.pronto(tl); motion.som/motion.digitar/motion.curva/motion.aCada).
 Pedido: {pedido}

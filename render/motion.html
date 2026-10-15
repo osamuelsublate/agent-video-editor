@@ -6,10 +6,9 @@
     ?preset=<id>&formato=vertical|dividida&duracao=<s>&valores=<json>&fala=<json>[&exportacao=1]
     ?video=<id do banco>&formato=…&duracao=…[&exportacao=1]    um vídeo do banco ocupando o palco
     &tocar=1[&fundo=<id>]   toca sozinho em loop, cabendo na janela, com o fundo (o do preset) atrás: a galeria
-  Quem manda no tempo é quem abre: window.__ir(t) e window.__sons() do runtime (biblioteca/motions/runtime.js).
-  As fontes da Apple (SF Pro, Rounded, Mono) o Chrome não acha pelo nome (local()): vêm do próprio Mac, por links que
-  não vão para o git, como no 18:
-    ln -s /System/Library/Fonts/SFNS{,Rounded,Mono}.ttf biblioteca/motions/fonts/
+  Quem manda no tempo é quem abre: window.__ir(t) e window.__sons() do runtime (render/motion/runtime.js).
+  As fontes da Apple (SF Pro, Rounded, Mono) o Chrome não acha pelo nome (local()): vêm do próprio Mac, pelo servidor
+  (GET /api/motions/fonte/<pro|rounded|mono>), como no 18. O runtime, o GSAP e as fontes livres ficam em render/motion/.
 -->
 <html><head><meta charset="utf-8">
 <script>
@@ -105,18 +104,18 @@
   var tocar = q.get('tocar') === '1'
   var fundo = FUNDOS[q.get('fundo')] ? q.get('fundo') : FUNDOS[info.fundo] ? info.fundo : 'gradiente'
   document.write(
-    '<link rel="icon" href="data:,"><link rel="stylesheet" href="/biblioteca/motions/fonts.css">' +
-    // as da Apple, do Mac (o fonts.css do 18 as pedia à API dele)
+    '<link rel="icon" href="data:,"><link rel="stylesheet" href="/render/motion/fonts.css">' +
+    // as da Apple, do Mac, pela API do servidor
     '<style>' +
-    '@font-face { font-family: "SF Pro"; font-weight: 100 900; font-display: block; src: url("/biblioteca/motions/fonts/SFNS.ttf") format("truetype"); }' +
-    '@font-face { font-family: "SF Pro Rounded"; font-weight: 100 900; font-display: block; src: url("/biblioteca/motions/fonts/SFNSRounded.ttf") format("truetype"); }' +
-    '@font-face { font-family: "SF Mono"; font-weight: 100 900; font-display: block; src: url("/biblioteca/motions/fonts/SFNSMono.ttf") format("truetype"); }' +
+    '@font-face { font-family: "SF Pro"; font-weight: 100 900; font-display: block; src: url("/api/motions/fonte/pro") format("truetype"); }' +
+    '@font-face { font-family: "SF Pro Rounded"; font-weight: 100 900; font-display: block; src: url("/api/motions/fonte/rounded") format("truetype"); }' +
+    '@font-face { font-family: "SF Mono"; font-weight: 100 900; font-display: block; src: url("/api/motions/fonte/mono") format("truetype"); }' +
     'html,body{margin:0;padding:0;background:transparent;overflow:hidden}#palco{position:relative;width:' + w + 'px;height:' + h + 'px;overflow:hidden;font-family:Inter,sans-serif}' +
     (tocar ? 'html,body{width:100%;height:100%;background:' + FUNDOS[fundo] + '}#palco{transform-origin:0 0}#fundo{position:fixed;inset:0;overflow:hidden}' : '') +
     '</style>' +
     '<script>window.MOTION=' + dados + '</' + 'script>' +
-    '<script src="/biblioteca/motions/gsap.min.js"></' + 'script>' +
-    '<script src="/biblioteca/motions/runtime.js"></' + 'script>' +
+    '<script src="/render/motion/gsap.min.js"></' + 'script>' +
+    '<script src="/render/motion/runtime.js"></' + 'script>' +
     '</head><body>' +
     (tocar && q.get('video') == null ? fundoDaGaleria(fundo) : '') +
     '<div id="palco">\n' + fragmento + '\n</div>' +
@@ -125,7 +124,7 @@
 
   // a chuva toca o loop gravado; a névoa tem as manchas desfocadas (como em Fundo.tsx)
   function fundoDaGaleria(id) {
-    if (id === 'chuva') return '<div id="fundo"><video src="/biblioteca/fundos/aura/chuva.mp4" autoplay loop muted playsinline style="width:100%;height:100%;object-fit:cover"></video></div>'
+    if (id === 'chuva') return '<div id="fundo"><video src="/render/fundos/aura/chuva.mp4" autoplay loop muted playsinline style="width:100%;height:100%;object-fit:cover"></video></div>'
     if (id === 'nevoa') return '<div id="fundo"><div style="position:absolute;top:-10%;left:-20%;height:55%;width:90%;border-radius:9999px;background:#eae6f0;opacity:.7;filter:blur(64px)"></div>' +
       '<div style="position:absolute;top:40%;right:-25%;height:45%;width:80%;border-radius:9999px;background:#6f7f99;opacity:.5;filter:blur(64px)"></div></div>'
     return ''

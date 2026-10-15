@@ -3,7 +3,7 @@
 Você decide **quais palavras ficam**, pelo ID. O código transforma isso em trechos, com as bordas caindo em pausas reais
 do áudio (margens de 100 ms; pausas maiores que 2 s dentro de um trecho são cortadas). Nada é reescrito nem inventado.
 
-> **Antes de começar, leia `../aprendizados/cortes.md`**: o que o criador já corrigiu em vídeos anteriores. Não repita esses erros.
+> **Antes de começar, leia `biblioteca/aprendizados/cortes.md`**: o que o criador já corrigiu em vídeos anteriores. Não repita esses erros.
 
 ## Rodar
 

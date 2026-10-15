@@ -673,7 +673,7 @@
           chave: "chuva",
           tag: "video",
           classe: "absolute inset-0 size-full object-cover",
-          atributos: { src: "/biblioteca/fundos/aura/chuva.mp4", preload: "auto" },
+          atributos: { src: "/render/fundos/aura/chuva.mp4", preload: "auto" },
           criar: (el) => {
             const v = el;
             v.muted = v.loop = v.playsInline = true;
@@ -709,8 +709,12 @@
       depois: (el) => {
         const v = el;
         const fim = Math.min(item.fim ?? Infinity, Number.isFinite(v.duration) ? v.duration : Infinity);
-        const destino = Math.min(alvo, fim);
-        if (Math.abs(v.currentTime - destino) > 1e-3) v.currentTime = destino;
+        const destino = Math.min((Math.floor(Math.min(alvo, fim) * 24 + 1e-6) + 0.5) / 24, fim - 1e-3);
+        if (Math.abs(v.currentTime - destino) > 1e-3) {
+          v.dataset.quadro = "0";
+          v.requestVideoFrameCallback?.(() => v.dataset.quadro = "1");
+          v.currentTime = destino;
+        }
         if (!v.paused) v.pause();
       }
     };

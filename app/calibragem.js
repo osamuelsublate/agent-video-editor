@@ -1,7 +1,8 @@
 // A Calibragem: os Reels já editados do criador (as referências). A IA descobre como cada um foi dirigido; aqui ele sobe
 // os vídeos, acompanha a análise e revisa a direção de cada um (planos-base, elementos, marcação). Cada referência
 // revisada vira um roteiro de exemplo que o Claude lê antes de dirigir (ferramentas/calibragem.py regenera sozinho).
-import { $, $$, ELEMENTOS, ICONE, PLANOS, ajuda, aviso, chipCodigo, codigos, confirmar, dataHora, enviar, esc, modalAberto, mmss, nomePlano, num, tempo, tocarTrecho, urlRef } from './comum.js'
+import { $, $$, ELEMENTOS, ICONE, PLANOS, ajuda, aviso, chipCodigo, codigos, confirmar, dataHora, enviar, esc, modalAberto, mmss, nomePlano, num, preferencia, tempo, tocarTrecho, urlRef } from './comum.js'
+import { botaoCategorias, carregarCategorias, editarCategorias, pilulasCategoria, seletorCategoria } from './categorias.js'
 
 const STATUS = {
   na_fila: ['Na fila', 'selo-amarelo'],
@@ -29,6 +30,9 @@ export async function abrirCalibragem(tela) {
   let enviando = null // "2/3" enquanto sobe
   let editando = null // o id sendo renomeado (a grade não se redesenha por cima)
   let cod = {}
+  // a categoria de vídeo (Reels, Ad…): filtra a grade, e os vídeos que sobem entram nela
+  let cats = []
+  let filtro = preferencia('calibragem.categoria', '')
 
   const card = (r) => {
     const [rotulo, cor] = STATUS[r.status] || [r.status, 'selo-coral']
@@ -42,19 +46,22 @@ export async function abrirCalibragem(tela) {
       ${abrivel(r) ? `<a href="#/calibragem/${encodeURIComponent(r.id)}" title="Abrir a revisão">${mini}</a>` : mini}
       ${editando === r.id ? `<input class="renomear" value="${esc(r.nome)}" maxlength="120">` : `<div class="card-titulo"><h3 data-renomear title="Dois cliques para renomear">${esc(r.nome)}</h3>${chipCodigo(cod[r.id], r.nome)}</div>`}
       <p class="sub">${emAndamento(r) ? esc(passo || 'Na fila') : `${dataHora(r.criado_em)}${r.largura ? ` · ${r.largura}×${r.altura}` : ''}`}</p>
+      ${seletorCategoria(cats, r.tipo || 'reels')}
       ${r.status === 'erro' ? `<p class="erro-ref">${esc(r.erro || 'A análise falhou.')}</p><button class="botao pequeno" data-tentar>${ICONE.refazer} Tentar de novo</button>` : ''}
     </article>`
   }
 
   const desenhar = () => {
-    const n = (s) => refs.filter((r) => r.status === s).length
+    const visiveis = refs.filter((r) => !filtro || (r.tipo || 'reels') === filtro)
+    const n = (s) => visiveis.filter((r) => r.status === s).length
     const numeros = [[n('revisado'), 'revisada', 'revisadas'], [n('a_revisar'), 'a revisar', 'a revisar'], [n('analisando'), 'analisando', 'analisando'], [n('na_fila'), 'na fila', 'na fila'], [n('erro'), 'com erro', 'com erro']]
       .filter(([q]) => q).map(([q, um, varios]) => `${q} ${q === 1 ? um : varios}`).join(' · ')
-    tela.innerHTML = `<div class="cabeca-secao"><span class="eyebrow">Calibragem · ${String(refs.length).padStart(2, '0')} vídeos${numeros ? ` <span class="numeros">· ${numeros}</span>` : ''}</span>
+    tela.innerHTML = `<div class="cabeca-secao"><span class="eyebrow">Calibragem · ${String(visiveis.length).padStart(2, '0')} vídeos${numeros ? ` <span class="numeros">· ${numeros}</span>` : ''}</span>
+        ${pilulasCategoria(cats, filtro, { contar: (id) => refs.filter((r) => !id || (r.tipo || 'reels') === id).length })}${botaoCategorias()}
         ${ajuda('Seus Reels já editados: a IA descobre como cada um foi dirigido, você corrige e marca como revisado. Cada um vira um roteiro de exemplo que o Claude lê antes de dirigir.')}
         <label class="botao botao-coral"><input type="file" accept="video/*,.mp4,.mov,.m4v,.webm" multiple hidden>${enviando ? `Enviando ${enviando}…` : `${ICONE.subir} Adicionar vídeos`}</label></div>
       ${recusadas.length ? `<div class="caixa-erro"><b>${recusadas.length} ${recusadas.length === 1 ? 'vídeo não entrou' : 'vídeos não entraram'}:</b><ul>${recusadas.map((x) => `<li><b>${esc(x.nome)}</b> — ${esc(x.motivo)}</li>`).join('')}</ul><button class="botao pequeno" data-ok>ok</button></div>` : ''}
-      ${refs.length ? `<div class="grade grade-projetos">${refs.map(card).join('')}</div>` : '<p class="vazio">Nenhuma referência ainda. Comece com 5 a 10 Reels editados que você considera bons: arraste os vídeos para cá.</p>'}
+      ${visiveis.length ? `<div class="grade grade-projetos">${visiveis.map(card).join('')}</div>` : refs.length ? '<p class="vazio">Nenhum vídeo desta categoria ainda: os que você subir agora entram nela.</p>' : '<p class="vazio">Nenhuma referência ainda. Comece com 5 a 10 Reels editados que você considera bons: arraste os vídeos para cá.</p>'}
       <div class="soltar-aqui">Solte os vídeos para analisar</div>`
     const campo = $('.renomear', tela)
     if (campo) {
@@ -86,7 +93,7 @@ export async function abrirCalibragem(tela) {
       enviando = `${k + 1}/${videos.length}`
       desenhar()
       try {
-        const r = await fetch('/api/referencias', { method: 'POST', headers: { 'X-Nome': encodeURIComponent(f.name), 'Content-Type': 'application/octet-stream' }, body: f })
+        const r = await fetch('/api/referencias', { method: 'POST', headers: { 'X-Nome': encodeURIComponent(f.name), 'X-Categoria': encodeURIComponent(filtro || 'reels'), 'Content-Type': 'application/octet-stream' }, body: f })
         const d = await r.json().catch(() => ({}))
         if (!r.ok) throw new Error(d.erro || `Erro ${r.status}`)
       } catch (e) {
@@ -125,6 +132,16 @@ export async function abrirCalibragem(tela) {
       recusadas = []
       return desenhar()
     }
+    const f = e.target.closest('[data-categoria]')
+    if (f) {
+      filtro = preferencia('calibragem.categoria', '', f.dataset.categoria)
+      return desenhar()
+    }
+    if (e.target.closest('[data-editar-categorias]'))
+      return editarCategorias(cats, async () => {
+        cats = await carregarCategorias()
+        desenhar()
+      })
     if (!c) return
     if (e.target.closest('.acoes-card [data-renomear]')) {
       e.preventDefault()
@@ -175,7 +192,19 @@ export async function abrirCalibragem(tela) {
     const campo = e.target.closest('.renomear')
     if (campo && editando) renomear(editando, campo.value.trim())
   })
-  tela.addEventListener('change', (e) => e.target.type === 'file' && subir(e.target.files))
+  tela.addEventListener('change', async (e) => {
+    if (e.target.type === 'file') return subir(e.target.files)
+    if (!e.target.matches('[data-mudar-categoria]')) return
+    const id = e.target.closest('.card-ref').dataset.id
+    try {
+      await enviar('PUT', `/api/referencias/${encodeURIComponent(id)}/categoria`, { categoria: e.target.value })
+      aviso('Categoria mudada: os roteiros de exemplo dela foram para a pasta da categoria')
+    } catch (x) {
+      aviso(x.message, 'erro')
+    }
+    assinatura = ''
+    carregar()
+  })
   // arrastar arquivos para qualquer lugar da página
   let dentro = 0
   const temArquivos = (e) => [...(e.dataTransfer?.types || [])].includes('Files')
@@ -195,6 +224,8 @@ export async function abrirCalibragem(tela) {
   })
 
   tela.innerHTML = '<p class="vazio">Carregando…</p>'
+  cats = await carregarCategorias()
+  if (filtro && !cats.some((c) => c.id === filtro)) filtro = ''
   await carregar()
   // a cada 2 s enquanto alguma está na fila ou analisando (e logo depois de subir)
   const relogio = setInterval(() => !document.hidden && (enviando || refs.some(emAndamento)) && carregar(), 2000)

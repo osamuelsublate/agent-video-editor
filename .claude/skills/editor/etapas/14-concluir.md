@@ -13,7 +13,7 @@ criador corrigiu num vídeo não pode se repetir no próximo.
    - Um gosto que pode se repetir ("lettering demais", "esse tipo de motion fica poluído", "música alta") é.
    - Um **defeito** técnico (palavra cortada no meio, captura com tela branca, som estourado) é aprendizado **e** pede
      correção na ferramenta, se der: corrija o script e anote "corrigido em <script>".
-   - Antes, leia o `aprendizados/<área>.md`: se o aprendizado já existe, reforce (some a origem nova) em vez de repetir.
+   - Antes, leia o `biblioteca/aprendizados/<área>.md`: se o aprendizado já existe, reforce (some a origem nova) em vez de repetir.
 3. **Mostre ao criador antes de gravar**, numa lista curta por área:
    ```text
    Aprendizados do PRJ-03 (v3 aprovada):
@@ -29,26 +29,26 @@ criador corrigiu num vídeo não pode se repetir no próximo.
      _PRJ-03·v2 c2, PRJ-05·v1 c1 · 2026-10-14_ · ![exemplo](imagens/prj03-c2.png)
    ```
    - Um print ajuda quando o texto sozinho é ambíguo ("poluído", "card grande demais"): copie o anexo do comentário
-     (`projetos/<slug>/revisoes/anexos/…`) ou um quadro do vídeo (ffmpeg) para `aprendizados/imagens/<prj>-<cN>.png`
+     (`projetos/<slug>/revisoes/anexos/…`) ou um quadro do vídeo (ffmpeg) para `biblioteca/aprendizados/imagens/<prj>-<cN>.png`
      e mostre-o no bullet (um "certo" e um "errado" lado a lado é o melhor exemplo).
    - Aprendizados de **direção** (que plano, quando, abertura, ritmo, lettering como decisão de roteiro) vão para as
-     **Regras do criador** em `exemplos/regras.md` (o criador também as edita na página Heurística do app), não para
+     **Regras do criador** em `biblioteca/exemplos/<categoria>/regras.md` (o criador também as edita na página Heurística do app), não para
      esta pasta.
    - Preset, transição, motion ou trilha que o criador não quer mais: tire das favoritas/recomendados (`ordem.json`) ou
      recuse (página Presets/Motions do app) — e anote o porquê no arquivo da área.
 
 | Área | Arquivo | Lido em |
 |---|---|---|
-| Cortes | `aprendizados/cortes.md` | `02-cortes.md` |
-| Direção | `exemplos/regras.md` (Regras do criador) | `03-direcao.md` |
-| Inserts (busca, captura de tela, escolha da mídia) | `aprendizados/inserts.md` | `04-inserts.md` e o prompt dos subagentes |
-| Enriquecimento (presets, Full ator, fundo) | `aprendizados/enriquecimento.md` | `05-enriquecimento.md` |
-| Motions | `aprendizados/motions.md` | `06-…` e o prompt do subagente de motion |
-| Elementos (lettering, ManyChat, caixinha, print) | `aprendizados/elementos.md` | `06-…` e `03-direcao.md` |
-| Transições | `aprendizados/transicoes.md` | `07-transicoes.md` |
-| Áudio | `aprendizados/audio.md` | `08-audio.md` |
-| Legenda | `aprendizados/legenda.md` | `09-legenda.md` |
-| Render e autorrevisão | `aprendizados/render.md` | `10-render.md` |
+| Cortes | `biblioteca/aprendizados/cortes.md` | `02-cortes.md` |
+| Direção | `biblioteca/exemplos/<categoria>/regras.md` (Regras do criador) | `03-direcao.md` |
+| Inserts (busca, captura de tela, escolha da mídia) | `biblioteca/aprendizados/inserts.md` | `04-inserts.md` e o prompt dos subagentes |
+| Enriquecimento (presets, Full ator, fundo) | `biblioteca/aprendizados/enriquecimento.md` | `05-enriquecimento.md` |
+| Motions | `biblioteca/aprendizados/motions.md` | `06-…` e o prompt do subagente de motion |
+| Elementos (lettering, ManyChat, caixinha, print) | `biblioteca/aprendizados/elementos.md` | `06-…` e `03-direcao.md` |
+| Transições | `biblioteca/aprendizados/transicoes.md` | `07-transicoes.md` |
+| Áudio | `biblioteca/aprendizados/audio.md` | `08-audio.md` |
+| Legenda | `biblioteca/aprendizados/legenda.md` | `09-legenda.md` |
+| Render e autorrevisão | `biblioteca/aprendizados/render.md` | `10-render.md` |
 
 ## 2. Faxina do banco
 

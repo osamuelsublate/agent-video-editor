@@ -9,8 +9,33 @@ import tempfile
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[1]
+# fora do git: a biblioteca (o que serve a qualquer vídeo; copia-se entre máquinas, por cima) e os projetos de cada um
 BIBLIOTECA = RAIZ / 'biblioteca'
 PROJETOS = RAIZ / 'projetos'
+# na biblioteca, o que o Claude lê para editar: os exemplos da direção (criador.md e uma pasta por categoria de vídeo,
+# gerados pela Calibragem) e os aprendizados (um .md por área, as correções do criador)
+EXEMPLOS = BIBLIOTECA / 'exemplos'
+APRENDIZADOS = BIBLIOTECA / 'aprendizados'
+# no git: o que uma biblioteca nova recebe (os aprendizados técnicos e motions de exemplo)
+INICIAL = Path(__file__).resolve().parent / 'inicial'
+
+
+def preparar_biblioteca() -> None:
+    """Cria `projetos/` e completa a biblioteca com o que falta dela em `ferramentas/inicial/` (cada pasta ou arquivo de
+    primeiro nível que não existe; o que já existe, mesmo vazio, nunca é tocado). O servidor chama ao subir; o preparar,
+    ao criar um projeto."""
+    import shutil
+
+    PROJETOS.mkdir(parents=True, exist_ok=True)
+    BIBLIOTECA.mkdir(parents=True, exist_ok=True)
+    for x in sorted(INICIAL.iterdir()) if INICIAL.is_dir() else ():
+        alvo = BIBLIOTECA / x.name
+        if x.name.startswith('.') or alvo.exists():
+            continue
+        if x.is_dir():
+            shutil.copytree(x, alvo)
+        else:
+            shutil.copy2(x, alvo)
 
 
 def pasta(slug: str) -> Path:

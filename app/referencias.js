@@ -3,6 +3,7 @@
 // área, com as correções do criador vídeo a vídeo).
 import { $, $$, ESTRELA_CHEIA, ICONE, PLANOS, ajuda, aviso, chipCodigo, codigos, enviar, esc, janela, markdown, nomePlano, num, preferencia, seg, tempo, tocarTrecho, urlRef } from './comum.js'
 import { jsons } from './biblioteca.js'
+import { botaoCategorias, carregarCategorias, editarCategorias, pilulasCategoria, rotuloCategoria } from './categorias.js'
 
 // o ícone de cada grupo nos chips (o IconeGrupo do 18)
 const ICONE_GRUPO = { todos: 'grade', dividida: 'duasFaixas', cheia: 'celular', lettering: 'letra', ator: 'pessoa', comentario: 'balaoTexto' }
@@ -34,8 +35,11 @@ export async function abrirReferencias(tela) {
     tela.innerHTML = `<p class="vazio">${esc(e.message)}</p>`
     return null
   }
-  const [presets, cods] = await Promise.all([jsons('biblioteca/presets', ['ordem.json']), codigos()])
+  const [presets, cods, cats] = await Promise.all([jsons('biblioteca/presets', ['ordem.json']), codigos(), carregarCategorias()])
   const clipes = dados.clipes
+  // a categoria do vídeo de origem (Reels, Ad…), numa lista compacta (a barra já tem muitos chips)
+  let categoria = preferencia('refCategoria', '')
+  if (categoria && !cats.some((c) => c.id === categoria)) categoria = ''
   const codigoDo = (c) => (cods.referencia?.[c.ref] ? `${cods.referencia[c.ref]}·${c.id}` : null)
   const chipDo = (c) => chipCodigo(codigoDo(c), `${nomePlano(c.tipo)} · ${c.ref_nome} ${tempo(c.inicio)}`)
   for (const c of clipes) {
@@ -51,7 +55,8 @@ export async function abrirReferencias(tela) {
   let ordem = 'video' // alfabética: pelo nome do vídeo, e na ordem dentro dele
   let visiveis = []
 
-  const base = () => clipes.filter((c) => (!semAtor || !SO_ATOR.includes(c.tipo)) && (conteudo === 'todos' || conteudoDo(c.tipo) === conteudo))
+  const base = () => clipes.filter((c) => (!semAtor || !SO_ATOR.includes(c.tipo)) && (conteudo === 'todos' || conteudoDo(c.tipo) === conteudo)
+    && (!categoria || (c.tipo_video || 'reels') === categoria))
   const card = (c, k) => `<article class="card-clipe" data-k="${k}">
       <div class="mini mini-916">${c.miniatura ? `<img src="${c.miniatura}" alt="" loading="lazy">` : ''}
         <span class="selo tipo-${esc(c.tipo)}">${esc(nomePlano(c.tipo))}</span>
@@ -84,7 +89,8 @@ export async function abrirReferencias(tela) {
         ${chip('favoritos', `${filtro === 'favoritos' ? ESTRELA_CHEIA : ICONE.estrela} Favoritos <span class="conta">${nFav}</span>`, ' chip-favoritos')}
         ${chip('todos', `${icone('todos')} Todos <span class="conta">${l.length}</span>`)}
         ${ativos.map(([id, nome, tipos]) => chip(id, `${icone(id)} ${esc(nome)} <span class="conta">${contar(tipos)}</span>`)).join('')}
-        <span class="filtros-dir"><span class="alternar">${Object.entries(CONTEUDOS).map(([k, n]) => `<button class="pilula${k === conteudo ? ' ativa' : ''}" data-conteudo="${k}">${n}</button>`).join('')}</span>
+        <span class="filtros-dir"><label class="caixa">Categoria <select data-categoria-ref><option value="">Todas</option>${cats.map((c) => `<option value="${esc(c.id)}"${c.id === categoria ? ' selected' : ''}>${esc(rotuloCategoria(cats, c.id))}</option>`).join('')}</select></label>
+          <span class="alternar">${Object.entries(CONTEUDOS).map(([k, n]) => `<button class="pilula${k === conteudo ? ' ativa' : ''}" data-conteudo="${k}">${n}</button>`).join('')}</span>
           <label class="caixa"><input type="checkbox" data-sem-ator ${semAtor ? 'checked' : ''}> Ignorar Full ator</label>
           <label class="caixa">Ordenar <select data-ordem>${Object.entries(ORDENS).map(([k, n]) => `<option value="${k}"${k === ordem ? ' selected' : ''}>${n}</option>`).join('')}</select></label></span></div>
       ${!clipes.length ? '<p class="vazio">Nenhum clipe ainda. Suba vídeos editados na <a href="#/calibragem">Calibragem</a>: quando a análise terminar, cada plano aparece aqui.</p>'
@@ -160,6 +166,7 @@ export async function abrirReferencias(tela) {
   tela.addEventListener('change', (e) => {
     if (e.target.matches('[data-sem-ator]')) semAtor = preferencia('semFullAtor', true, e.target.checked)
     if (e.target.matches('[data-ordem]')) ordem = e.target.value
+    if (e.target.matches('[data-categoria-ref]')) categoria = preferencia('refCategoria', '', e.target.value)
     desenhar()
   })
 
@@ -295,16 +302,20 @@ function falaComLettering(fala) {
 
 export async function abrirHeuristica(tela) {
   tela.className = 'pagina pagina-heuristica'
+  // uma heurística por categoria de vídeo (Reels, Ad…), escolhida nas pílulas do topo
+  let cats = await carregarCategorias()
+  let categoria = preferencia('heuristica.categoria', 'reels')
+  if (!cats.some((c) => c.id === categoria)) categoria = 'reels'
   let h
+  const ler = async () => (h = await enviar('GET', `/api/heuristica?categoria=${encodeURIComponent(categoria)}`))
   try {
-    h = await enviar('GET', '/api/heuristica')
+    await ler()
   } catch (e) {
     tela.innerHTML = `<p class="vazio">${esc(e.message)}</p>`
     return null
   }
   let modo = 'ler'
   const abertos = new Set()
-  const linhas = h.roteiros.reduce((n, r) => n + r.linhas.length, 0)
   const regras = () =>
     modo === 'ler' ? `<div class="markdown">${markdown(h.regras)}</div>` : `<textarea class="editor-regras" spellcheck="false">${esc(h.regras)}</textarea>`
   const roteiro = (r) => `<details class="sanfona" data-ref="${esc(r.ref)}" ${abertos.has(r.ref) ? 'open' : ''}>
@@ -315,7 +326,8 @@ export async function abrirHeuristica(tela) {
           <span class="fala-roteiro">${l.fala ? falaComLettering(l.fala) : '<i class="apagado">(sem fala)</i>'}</span></button>`).join('')}</div>
     </details>`
   const desenhar = () => {
-    tela.innerHTML = `<div class="cabeca-secao"><span class="eyebrow">Heurística da direção</span>${ajuda('O Claude lê esta página inteira antes de dirigir cada vídeo: as regras e, embaixo, os roteiros dos seus vídeos — a fala com a marcação do que aparecia na tela em cada momento. Ele aprende a dirigir olhando os roteiros. As regras você edita aqui (as do criador são obrigatórias; as sugeridas pela IA são guia). Os roteiros vêm da Calibragem: para corrigir uma marcação, abra a revisão do vídeo.')}<span class="salvo" id="salvo-h"></span></div>
+    const linhas = h.roteiros.reduce((n, r) => n + r.linhas.length, 0)
+    tela.innerHTML = `<div class="cabeca-secao"><span class="eyebrow">Heurística da direção</span>${pilulasCategoria(cats, categoria, { todas: false })}${botaoCategorias()}${ajuda('O Claude lê esta página inteira antes de dirigir cada vídeo: as regras e, embaixo, os roteiros dos seus vídeos — a fala com a marcação do que aparecia na tela em cada momento. Ele aprende a dirigir olhando os roteiros. As regras você edita aqui (as do criador são obrigatórias; as sugeridas pela IA são guia). Os roteiros vêm da Calibragem: para corrigir uma marcação, abra a revisão do vídeo.')}<span class="salvo" id="salvo-h"></span></div>
       <section class="bloco-heuristica"><div class="titulo-bloco"><span class="eyebrow">Regras</span>
           <div class="alternar">${['ler', 'editar'].map((m) => `<button class="pilula pequena${modo === m ? ' ativa' : ''}" data-modo="${m}">${m === 'ler' ? 'Ler' : 'Editar'}</button>`).join('')}</div>
           ${modo === 'editar' ? '<span class="dica">Grava ao sair da caixa.</span>' : ''}</div>
@@ -331,7 +343,18 @@ export async function abrirHeuristica(tela) {
     el.innerHTML = texto
     if (!erro) setTimeout(() => el.textContent === 'Salvo' && (el.innerHTML = ''), 1800)
   }
-  tela.addEventListener('click', (e) => {
+  tela.addEventListener('click', async (e) => {
+    const c = e.target.closest('[data-categoria]')
+    if (c) {
+      categoria = preferencia('heuristica.categoria', 'reels', c.dataset.categoria)
+      await ler().catch((x) => aviso(x.message, 'erro'))
+      return desenhar()
+    }
+    if (e.target.closest('[data-editar-categorias]'))
+      return editarCategorias(cats, async () => {
+        cats = await carregarCategorias()
+        desenhar()
+      })
     const m = e.target.closest('[data-modo]')
     if (m) {
       modo = m.dataset.modo
@@ -363,7 +386,7 @@ export async function abrirHeuristica(tela) {
     if (texto.trim() === h.regras.trim()) return
     salvo('Salvando…')
     try {
-      await enviar('PUT', '/api/heuristica', { regras: texto })
+      await enviar('PUT', `/api/heuristica?categoria=${encodeURIComponent(categoria)}`, { regras: texto })
       h.regras = texto.trimEnd() + '\n'
       salvo('Salvo')
     } catch (x) {

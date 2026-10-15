@@ -1149,3 +1149,7 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 .cta-titulo { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .cta-titulo .cta-nome { flex: 1; min-width: 0; }
 .cta-titulo .codigo { flex: none; }
+
+/* a categoria de vídeo (Reels, Ad…) de um projeto ou de uma referência, embaixo do card (app/categorias.js) */
+.caixa-projeto > .cta-categoria, .card-ref > .cta-categoria { margin-top: 6px; }
+.filtro-categorias { display: flex; align-items: center; gap: 8px; }

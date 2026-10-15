@@ -5,7 +5,7 @@ vídeos e imagens que mostrem o que a marcação pede. Você não busca nada no 
 grupos de 3 pedidos, todos de uma vez, em segundo plano** (modelo `sonnet`), com **até 3 min por insert**, e segue para
 outras etapas enquanto eles trabalham.
 
-> **Antes de começar, leia `../aprendizados/inserts.md` (e mande cada subagente ler também)**: o que o criador já corrigiu em vídeos anteriores. Não repita esses erros.
+> **Antes de começar, leia `biblioteca/aprendizados/inserts.md` (e mande cada subagente ler também)**: o que o criador já corrigiu em vídeos anteriores. Não repita esses erros.
 
 ## Rodar
 

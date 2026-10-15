@@ -942,12 +942,12 @@
           classe: "absolute flex centrado items-start bg-white text-black sombra-comentario select-none",
           estilo: { left: `${pos.x}%`, top: `${pos.y}%`, fontFamily: FONTE_IG, gap: u(2.6), padding: `${u(2.6)} ${u(3.2)}`, borderRadius: u(3), width: `${Math.min(75 * c.escala, 96)}%` },
           filhos: [
-            // 5 fotos de perfil de pessoas que não existem (rostos gerados por IA), em biblioteca/avatares/
+            // 5 fotos de perfil de pessoas que não existem (rostos gerados por IA), em render/avatares/
             {
               chave: "avatar",
               tag: "img",
               classe: "rounded-full object-cover shrink-0",
-              atributos: { src: `/biblioteca/avatares/${c.avatar % 5 + 1}.jpg`, alt: "", draggable: "false" },
+              atributos: { src: `/render/avatares/${c.avatar % 5 + 1}.jpg`, alt: "", draggable: "false" },
               estilo: { filter: "blur(2.5px)", width: u(8.2), height: u(8.2) }
             },
             {
@@ -1241,7 +1241,7 @@
           chave: "chuva",
           tag: "video",
           classe: "absolute inset-0 size-full object-cover",
-          atributos: { src: "/biblioteca/fundos/aura/chuva.mp4", preload: "auto" },
+          atributos: { src: "/render/fundos/aura/chuva.mp4", preload: "auto" },
           criar: (el) => {
             const v = el;
             v.muted = v.loop = v.playsInline = true;
