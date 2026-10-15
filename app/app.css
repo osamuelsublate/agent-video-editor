@@ -1203,3 +1203,5 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
   font-size: 11px; font-weight: 600; color: var(--color-cream); vertical-align: 1px; white-space: nowrap; }
 .pagina-aprendizados .filtro-produtos { margin: 0 0 12px; }
 .card-ref .mini .selo-origem { max-width: calc(100% - 118px); } /* não encosta no Usar / Não usar */
+[data-ver-ocultos] svg { width: 12px; height: 12px; vertical-align: -1px; margin-right: 2px; }
+.acoes-card [data-ocultar] svg { width: 14px; height: 14px; }

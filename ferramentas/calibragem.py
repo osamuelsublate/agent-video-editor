@@ -293,7 +293,7 @@ def listar_referencias() -> list[dict]:
             'id': r['id'], 'nome': r['nome'], 'status': r['status'], 'erro': r.get('erro'),
             'duracao': v.get('duracao'), 'largura': v.get('largura'), 'altura': v.get('altura'), 'criado_em': r.get('criado_em'),
             'passo': atual, 'passo_rotulo': ROTULOS.get(atual), 'progresso': passos.get(atual, {}).get('progresso') if atual else None,
-            'passos': passos, 'origem': r.get('origem'), 'tipo': categoria_de(r), 'usar': ensina(r),
+            'passos': passos, 'origem': r.get('origem'), 'tipo': categoria_de(r), 'usar': ensina(r), 'oculto': bool(r.get('oculto')),
             'miniatura': f'{URL}/{r["id"]}/miniatura.jpg' if (base / 'miniatura.jpg').exists() else None,
             'video': f'{URL}/{r["id"]}/proxy.mp4' if (base / 'proxy.mp4').exists() else None,
         })
@@ -625,9 +625,20 @@ def ensina(r: dict) -> bool:
     """Se a referência entra nos exemplos (a Heurística da categoria dela): o "Usar / Não usar" do card da Calibragem
     (`usar`). As novas nascem desligadas; as de antes do botão seguem a regra antiga (ensinam, menos as de projeto ainda
     não revisadas)."""
+    if r.get('oculto'):  # oculta na Calibragem: fora de tudo
+        return False
     if 'usar' in r:
         return bool(r['usar'])
     return r['status'] == 'revisado' or not (r.get('origem') or {}).get('projeto')
+
+
+def definir_oculto(id: str, oculto: bool) -> dict:
+    """Oculta (ou mostra de volta) um vídeo da Calibragem: oculto, ele sai da grade principal (fica na vista Ocultos) e
+    não ensina a direção; mostrado de volta, volta desligado (Não usar)."""
+    pasta(id)
+    r = atualizar(id, lambda x: x.update(oculto=bool(oculto), usar=False))
+    regenerar_exemplos()
+    return r
 
 
 def definir_uso(id: str, usar: bool) -> dict:

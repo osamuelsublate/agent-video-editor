@@ -1,7 +1,7 @@
 // A Calibragem: os Reels já editados do criador (as referências). A IA descobre como cada um foi dirigido; aqui ele sobe
 // os vídeos, acompanha a análise e revisa a direção de cada um (planos-base, elementos, marcação). Cada referência
 // revisada vira um roteiro de exemplo que o Claude lê antes de dirigir (ferramentas/calibragem.py regenera sozinho).
-import { $, $$, ELEMENTOS, ICONE, PLANOS, ajuda, aviso, chipCodigo, codigos, confirmar, dataHora, enviar, esc, modalAberto, mmss, nomePlano, num, preferencia, tempo, tocarTrecho, urlRef } from './comum.js'
+import { $, $$, ELEMENTOS, ICONE, ICONE_ATALHO, PLANOS, barraDaLinha, ajuda, aviso, chipCodigo, codigos, confirmar, dataHora, enviar, esc, modalAberto, mmss, nomePlano, num, preferencia, tempo, tocarTrecho, urlRef } from './comum.js'
 import { botaoCategorias, carregarCategorias, editarCategorias, pilulasCategoria, seletorCategoria } from './categorias.js'
 
 const STATUS = {
@@ -22,6 +22,9 @@ const seloOrigem = (o, classe) => (o?.projeto
 
 // ---------- a grade ----------
 
+const OLHO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.06 12.35a1 1 0 0 1 0-.7 10.75 10.75 0 0 1 19.88 0 1 1 0 0 1 0 .7 10.75 10.75 0 0 1-19.88 0"/><circle cx="12" cy="12" r="3"/></svg>'
+const OLHO_FECHADO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.53 13.53 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/><path d="m2 2 20 20"/></svg>'
+
 export async function abrirCalibragem(tela) {
   tela.className = 'pagina pagina-calibragem'
   let refs = []
@@ -33,6 +36,7 @@ export async function abrirCalibragem(tela) {
   // a categoria de vídeo (Reels, Ad…): filtra a grade, e os vídeos que sobem entram nela
   let cats = []
   let filtro = preferencia('calibragem.categoria', '')
+  let verOcultos = false // a vista dos ocultos (os vídeos que não quer usar por ora)
 
   const card = (r) => {
     const [rotulo, cor] = STATUS[r.status] || [r.status, 'selo-coral']
@@ -40,8 +44,9 @@ export async function abrirCalibragem(tela) {
     const mini = `<div class="mini mini-916">${r.miniatura ? `<img src="${r.miniatura}" alt="" loading="lazy">` : ''}
         <span class="selo ${cor}">${rotulo}</span>${r.duracao ? `<span class="duracao">${mmss(r.duracao)}</span>` : ''}${seloOrigem(r.origem, 'selo selo-azul')}
         ${r.status === 'analisando' || r.status === 'na_fila' ? `<span class="progresso"><i style="width:${Math.round((r.progresso ?? 0) * 100)}%"></i></span>` : ''}
-        ${abrivel(r) ? `<button class="uso-ref${r.usar ? ' ligado' : ''}" data-usar role="switch" aria-checked="${!!r.usar}" title="${r.usar ? 'Em uso: o roteiro dele ensina a direção (está na Heurística da categoria). Clique para tirar.' : 'Fora: clique para usar (o roteiro entra na Heurística da categoria).'}"><i></i>${r.usar ? 'Usar' : 'Não usar'}</button>` : ''}
-        <span class="acoes-card"><button class="botao-icone pequeno" data-renomear title="Renomear">${ICONE.lapis}</button>
+        ${abrivel(r) && !r.oculto ? `<button class="uso-ref${r.usar ? ' ligado' : ''}" data-usar role="switch" aria-checked="${!!r.usar}" title="${r.usar ? 'Em uso: o roteiro dele ensina a direção (está na Heurística da categoria). Clique para tirar.' : 'Fora: clique para usar (o roteiro entra na Heurística da categoria).'}"><i></i>${r.usar ? 'Usar' : 'Não usar'}</button>` : ''}
+        <span class="acoes-card"><button class="botao-icone pequeno" data-ocultar title="${r.oculto ? 'Mostrar de novo (volta para a grade, desligado)' : 'Ocultar (sai da grade e não ensina a direção)'}">${r.oculto ? OLHO : OLHO_FECHADO}</button>
+          <button class="botao-icone pequeno" data-renomear title="Renomear">${ICONE.lapis}</button>
           <button class="botao-icone pequeno" data-apagar title="Apagar">${ICONE.lixo}</button></span></div>`
     return `<article class="card-ref${abrivel(r) ? ' abrivel' : ''}" data-id="${esc(r.id)}">
       ${abrivel(r) ? `<a href="#/calibragem/${encodeURIComponent(r.id)}" title="Abrir a revisão">${mini}</a>` : mini}
@@ -53,16 +58,19 @@ export async function abrirCalibragem(tela) {
   }
 
   const desenhar = () => {
-    const visiveis = refs.filter((r) => !filtro || (r.tipo || 'reels') === filtro)
+    const naVista = refs.filter((r) => !!r.oculto === verOcultos)
+    const visiveis = naVista.filter((r) => !filtro || (r.tipo || 'reels') === filtro)
+    const nOcultos = refs.filter((r) => r.oculto).length
     const n = (s) => visiveis.filter((r) => r.status === s).length
     const numeros = [[n('revisado'), 'revisada', 'revisadas'], [n('a_revisar'), 'a revisar', 'a revisar'], [n('analisando'), 'analisando', 'analisando'], [n('na_fila'), 'na fila', 'na fila'], [n('erro'), 'com erro', 'com erro']]
       .filter(([q]) => q).map(([q, um, varios]) => `${q} ${q === 1 ? um : varios}`).join(' · ')
     tela.innerHTML = `<div class="cabeca-secao"><span class="eyebrow">Calibragem · ${String(visiveis.length).padStart(2, '0')} vídeos${numeros ? ` <span class="numeros">· ${numeros}</span>` : ''}</span>
-        ${pilulasCategoria(cats, filtro, { contar: (id) => refs.filter((r) => !id || (r.tipo || 'reels') === id).length })}${botaoCategorias()}
+        ${pilulasCategoria(cats, filtro, { contar: (id) => naVista.filter((r) => !id || (r.tipo || 'reels') === id).length })}
+        <button class="pilula pequena${verOcultos ? ' ativa' : ''}" data-ver-ocultos title="Os vídeos que você ocultou">${OLHO_FECHADO} Ocultos <span class="conta">${nOcultos}</span></button>${botaoCategorias()}
         ${ajuda('Seus Reels já editados: a IA descobre como cada um foi dirigido, você corrige e marca como revisado. Cada um vira um roteiro de exemplo que o Claude lê antes de dirigir.')}
         <label class="botao botao-coral"><input type="file" accept="video/*,.mp4,.mov,.m4v,.webm" multiple hidden>${enviando ? `Enviando ${enviando}…` : `${ICONE.subir} Adicionar vídeos`}</label></div>
       ${recusadas.length ? `<div class="caixa-erro"><b>${recusadas.length} ${recusadas.length === 1 ? 'vídeo não entrou' : 'vídeos não entraram'}:</b><ul>${recusadas.map((x) => `<li><b>${esc(x.nome)}</b> — ${esc(x.motivo)}</li>`).join('')}</ul><button class="botao pequeno" data-ok>ok</button></div>` : ''}
-      ${visiveis.length ? `<div class="grade grade-projetos">${visiveis.map(card).join('')}</div>` : refs.length ? '<p class="vazio">Nenhum vídeo desta categoria ainda: os que você subir agora entram nela.</p>' : '<p class="vazio">Nenhuma referência ainda. Comece com 5 a 10 Reels editados que você considera bons: arraste os vídeos para cá.</p>'}
+      ${visiveis.length ? `<div class="grade grade-projetos">${visiveis.map(card).join('')}</div>` : verOcultos ? '<p class="vazio">Nenhum vídeo oculto.</p>' : refs.length ? '<p class="vazio">Nenhum vídeo desta categoria ainda: os que você subir agora entram nela.</p>' : '<p class="vazio">Nenhuma referência ainda. Comece com 5 a 10 Reels editados que você considera bons: arraste os vídeos para cá.</p>'}
       <div class="soltar-aqui">Solte os vídeos para analisar</div>`
     const campo = $('.renomear', tela)
     if (campo) {
@@ -133,6 +141,10 @@ export async function abrirCalibragem(tela) {
       recusadas = []
       return desenhar()
     }
+    if (e.target.closest('[data-ver-ocultos]')) {
+      verOcultos = !verOcultos
+      return desenhar()
+    }
     const f = e.target.closest('[data-categoria]')
     if (f) {
       filtro = preferencia('calibragem.categoria', '', f.dataset.categoria)
@@ -157,6 +169,18 @@ export async function abrirCalibragem(tela) {
       try {
         await enviar('DELETE', `/api/referencias/${encodeURIComponent(id)}`)
         aviso('Referência apagada')
+      } catch (x) {
+        aviso(x.message, 'erro')
+      }
+      assinatura = ''
+      return carregar()
+    }
+    if (e.target.closest('[data-ocultar]')) {
+      e.preventDefault()
+      const r = refs.find((x) => x.id === id)
+      try {
+        await enviar('PUT', `/api/referencias/${encodeURIComponent(id)}/oculto`, { oculto: !r.oculto })
+        aviso(r.oculto ? 'De volta à Calibragem (desligado)' : 'Ocultado: está em Ocultos')
       } catch (x) {
         aviso(x.message, 'erro')
       }
@@ -247,6 +271,12 @@ export async function abrirCalibragem(tela) {
 
 // ---------- a revisão de uma referência ----------
 
+// a barra acima da linha do tempo da direção (comum.js): os atalhos da revisão do vídeo e os desta tela
+const ATALHOS_REF = () => [
+  ['R', 'plano', ICONE_ATALHO.plano], ['S', 'dividir', ICONE.tesoura], ['E', 'elemento', ICONE.mais], ['⌘Z', 'desfazer', ICONE.desfazer],
+  ['Espaço', 'tocar', ICONE.tocar], ['← →', 'quadro', ICONE.quadroDepois], ['⇧ ← →', 'corte', ICONE.segDepois], ['⌘ rolar', 'zoom', ICONE_ATALHO.zoom],
+]
+
 const MIN_PLANO = 0.101 // um pouco acima do mínimo do servidor (0,1 s): a conta em ponto flutuante não pode ficar abaixo
 const MIN_ELEMENTO = 0.051
 const IMA_PX = 6
@@ -311,20 +341,16 @@ class RevisaoReferencia {
         <div class="video-caixa"><video id="video" src="${urlRef(this.id, 'proxy.mp4')}" preload="auto" playsinline></video>
           <button class="video-tocar" aria-label="Tocar">${ICONE.tocar}</button></div>
         <div class="lado lado-dir">${this.htmlCorrecoes()}
-          <div class="bloco"><span class="eyebrow">Atalhos</span>
-            <dl class="atalhos"><dt><kbd>Espaço</kbd></dt><dd>tocar / pausar</dd><dt><kbd>←</kbd> <kbd>→</kbd></dt><dd>0,1 s (<kbd>Shift</kbd> 1 s)</dd>
-            <dt><kbd>S</kbd></dt><dd>dividir o plano no cursor</dd><dt><kbd>E</kbd></dt><dd>novo elemento no cursor</dd>
-            <dt><kbd>Delete</kbd></dt><dd>juntar / excluir o selecionado</dd><dt><kbd>⌘Z</kbd></dt><dd>desfazer</dd></dl></div>
           <div class="bloco"><span class="eyebrow">Arrastar</span><p class="dica">A borda entre dois planos muda o momento da troca; as pontas de um elemento, a duração. O ímã gruda nas palavras e nos cortes de cena (tracejados); <kbd>Alt</kbd> solta.</p></div>
         </div>
       </section>
       <div class="controles">
         <div class="grupo">
-          <button class="botao-icone" data-acao="seg-" title="−1 s (Shift+←)">${ICONE.segAntes}</button>
-          <button class="botao-icone" data-acao="passo-" title="−0,1 s (←)">${ICONE.quadroAntes}</button>
+          <button class="botao-icone" data-acao="corte-" title="O corte anterior (Shift+←)">${ICONE.segAntes}</button>
+          <button class="botao-icone" data-acao="passo-" title="−1 quadro (←)">${ICONE.quadroAntes}</button>
           <button class="botao-icone botao-tocar" data-acao="tocar" id="b-tocar" title="Tocar / pausar (Espaço)">${ICONE.tocar}</button>
-          <button class="botao-icone" data-acao="passo+" title="+0,1 s (→)">${ICONE.quadroDepois}</button>
-          <button class="botao-icone" data-acao="seg+" title="+1 s (Shift+→)">${ICONE.segDepois}</button>
+          <button class="botao-icone" data-acao="passo+" title="+1 quadro (→)">${ICONE.quadroDepois}</button>
+          <button class="botao-icone" data-acao="corte+" title="O próximo corte (Shift+→)">${ICONE.segDepois}</button>
           <span class="tempo"><b id="t-atual">0:00,0</b> / <span>${tempo(this.dur)}</span></span>
         </div>
         <div class="grupo velocidades">${[0.5, 1, 2].map((x) => `<button class="pilula pequena${x === 1 ? ' ativa' : ''}" data-vel="${x}">${num(x, x % 1 ? 1 : 0)}×</button>`).join('')}</div>
@@ -335,7 +361,8 @@ class RevisaoReferencia {
         </div>
       </div>
       <section class="linha linha-ref">
-        <div class="linha-rotulos"><span class="r-regua"><button class="botao-icone pequeno" data-acao="zoom-" title="Afastar">${ICONE.menos}</button><button class="botao-icone pequeno" data-acao="zoom+" title="Aproximar (⌘ + rolagem)">${ICONE.mais}</button></span><span class="r-planos">Planos</span><span id="r-elementos">Elementos</span><span>Fala</span></div>
+        ${barraDaLinha(ATALHOS_REF())}
+        <div class="linha-rotulos"><span class="r-regua"></span><span class="r-planos">Planos</span><span id="r-elementos">Elementos</span><span>Fala</span></div>
         <div class="linha-rolo" id="rolo"><div class="linha-conteudo" id="conteudo">
           <div class="regua" id="regua"></div>
           <div class="faixa faixa-planos" id="f-planos"></div>
@@ -875,10 +902,11 @@ class RevisaoReferencia {
     }
     const a = {
       tocar: () => this.alternar(),
-      'passo-': () => this.passo(-0.1),
-      'passo+': () => this.passo(0.1),
-      'seg-': () => this.passo(-1),
-      'seg+': () => this.passo(1),
+      'passo-': () => this.passo(-1 / 24),
+      'passo+': () => this.passo(1 / 24),
+      'corte-': () => this.irAoCorte(-1),
+      'corte+': () => this.irAoCorte(1),
+      ajustar: () => this.zoom(0),
       'zoom-': () => this.zoom(1 / 1.6),
       'zoom+': () => this.zoom(1.6),
       dividir: () => this.dividir(),
@@ -894,7 +922,28 @@ class RevisaoReferencia {
 
   passo(dt) {
     this.video.pause()
-    this.buscar(this.video.currentTime + dt)
+    const t = this.video.currentTime + dt
+    this.buscar(Math.abs(dt) < 0.5 ? (Math.round(t * 24) + 0.001) / 24 : t) // um quadro: no grid de 24 por segundo
+  }
+
+  /** Shift + setas (como na revisão): o começo do plano seguinte ou anterior (o corte). */
+  irAoCorte(dir) {
+    this.video.pause()
+    const t = this.video.currentTime
+    const inicios = this.planos().map((p) => p.inicio)
+    const alvo = dir > 0 ? inicios.find((x) => x > t + 0.02) : inicios.filter((x) => x < t - 0.02).at(-1)
+    this.buscar(alvo ?? (dir > 0 ? this.dur : 0))
+  }
+
+  /** R (como na revisão): toca o plano do cursor de novo, do começo; logo em seguida de novo, o plano anterior. */
+  replano() {
+    const t = this.video.currentTime
+    const inicios = this.planos().map((p) => p.inicio)
+    let ini = inicios.filter((x) => x <= t + 0.001).at(-1) ?? 0
+    if (t - ini < 0.35 && Date.now() - (this.ultimoR || 0) < 1500) ini = inicios.filter((x) => x < ini - 0.001).at(-1) ?? 0
+    this.ultimoR = Date.now()
+    this.buscar(ini + 0.001)
+    this.video.play().catch(() => {})
   }
 
   tecla(e) {
@@ -915,8 +964,9 @@ class RevisaoReferencia {
     const k = e.key.length === 1 ? e.key.toLowerCase() : e.key
     const f = {
       ' ': () => this.alternar(),
-      ArrowLeft: () => this.passo(e.shiftKey ? -1 : -0.1),
-      ArrowRight: () => this.passo(e.shiftKey ? 1 : 0.1),
+      ArrowLeft: () => (e.shiftKey ? this.irAoCorte(-1) : this.passo(-1 / 24)),
+      ArrowRight: () => (e.shiftKey ? this.irAoCorte(1) : this.passo(1 / 24)),
+      r: () => this.replano(),
       s: () => this.dividir(),
       e: () => this.novoElemento(),
       Delete: () => this.excluir(),

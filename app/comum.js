@@ -342,3 +342,20 @@ export const ICONE = {
 }
 /** A estrela cheia (favorito ligado). */
 export const ESTRELA_CHEIA = `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg>`
+
+// ---------- a barra acima das linhas do tempo (revisão do vídeo e revisão da direção de uma referência) ----------
+
+const SVG_ATALHO = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`
+export const ICONE_ATALHO = {
+  plano: SVG_ATALHO('<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>'),
+  trecho: SVG_ATALHO('<path d="M16 3h3v18h-3"/><path d="M8 21H5V3h3"/>'),
+  zoom: SVG_ATALHO('<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M11 8v6"/><path d="M8 11h6"/>'),
+}
+
+/** A barra (como a do 18): "Linha do tempo", os atalhos [tecla, ação, ícone] no estilo do "Cortar D" e, à direita, o
+ *  zoom (− +) e o Ajustar (data-acao zoom-, zoom+ e ajustar). */
+export const barraDaLinha = (atalhos) => `<div class="linha-barra"><span class="eyebrow">Linha do tempo</span>
+    <div class="linha-atalhos">${atalhos.map(([tecla, acao, icone]) => `<span>${icone}${acao}<kbd>${tecla}</kbd></span>`).join('')}</div>
+    <button class="botao-icone pequeno" data-acao="zoom-" title="Afastar">${ICONE.menos}</button>
+    <button class="botao-icone pequeno" data-acao="zoom+" title="Aproximar (⌘ + rolagem)">${ICONE.mais}</button>
+    <button class="botao pequeno botao-ajustar" data-acao="ajustar" title="O vídeo inteiro na largura">${ICONE.expandir} Ajustar</button></div>`

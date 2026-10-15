@@ -1,6 +1,6 @@
 // A revisão de uma versão: o player do proxy, a linha do tempo (planos, fala, comentários e dúvidas do Claude) e os
 // comentários do criador, gravados sozinhos em projetos/<slug>/revisoes/vN.json (o Claude responde no mesmo arquivo).
-import { $, $$, ICONE, abrirAba, agora, aviso, chipCodigo, codigos, confirmar, copiar, dataHora, enviar, esc, fecharAba, janela, json, mmss, modalAberto, nomePlano, num, PLANOS, preferencia, tempo } from './comum.js'
+import { $, $$, ICONE, ICONE_ATALHO, abrirAba, barraDaLinha, agora, aviso, chipCodigo, codigos, confirmar, copiar, dataHora, enviar, esc, fecharAba, janela, json, mmss, modalAberto, nomePlano, num, PLANOS, preferencia, tempo } from './comum.js'
 
 const QUADRO = 1 / 24
 const VELOCIDADES = [0.5, 1, 1.5, 2]
@@ -30,16 +30,10 @@ const crescer = (el) => {
   el.style.height = `${Math.min(el.scrollHeight + 2, Math.round(innerHeight * 0.4))}px`
 }
 /** O botão de clipe de uma caixa de comentário (`alvo`: nova ou editor). */
-// a barra de atalhos acima da linha do tempo (como a do 18, no estilo do "Cortar D"): o ícone, a ação e a tecla
-const SVG = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`
-const ICONES_ATALHO = {
-  plano: SVG('<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>'),
-  trecho: SVG('<path d="M16 3h3v18h-3"/><path d="M8 21H5V3h3"/>'),
-  zoom: SVG('<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M11 8v6"/><path d="M8 11h6"/>'),
-}
+// a barra acima da linha do tempo (comum.js): os atalhos da revisão
 const ATALHOS = () => [
-  ['R', 'plano', ICONES_ATALHO.plano], ['I O', 'trecho', ICONES_ATALHO.trecho], ['C', 'geral', ICONE.balao], ['⌘V', 'anexo', ICONE.clipe],
-  ['Espaço', 'tocar', ICONE.tocar], ['← →', 'quadro', ICONE.quadroDepois], ['⇧ ← →', 'corte', ICONE.segDepois], ['⌘ rolar', 'zoom', ICONES_ATALHO.zoom],
+  ['R', 'plano', ICONE_ATALHO.plano], ['I O', 'trecho', ICONE_ATALHO.trecho], ['C', 'geral', ICONE.balao], ['⌘V', 'anexo', ICONE.clipe],
+  ['Espaço', 'tocar', ICONE.tocar], ['← →', 'quadro', ICONE.quadroDepois], ['⇧ ← →', 'corte', ICONE.segDepois], ['⌘ rolar', 'zoom', ICONE_ATALHO.zoom],
 ]
 
 const clipe = (alvo) =>
@@ -254,11 +248,7 @@ class Revisao {
         </div>
       </div>
       <section class="linha">
-        <div class="linha-barra"><span class="eyebrow">Linha do tempo</span>
-          <div class="linha-atalhos">${ATALHOS().map(([tecla, acao, icone]) => `<span>${icone}${acao}<kbd>${tecla}</kbd></span>`).join('')}</div>
-          <button class="botao-icone pequeno" data-acao="zoom-" title="Afastar">${ICONE.menos}</button>
-          <button class="botao-icone pequeno" data-acao="zoom+" title="Aproximar (⌘ + rolagem)">${ICONE.mais}</button>
-          <button class="botao pequeno botao-ajustar" data-acao="ajustar" title="O vídeo inteiro na largura">${ICONE.expandir} Ajustar</button></div>
+        ${barraDaLinha(ATALHOS())}
         <div class="linha-rotulos"><span class="r-regua"></span><span>Planos</span><span>Fala</span><span>Você</span><span>Claude</span></div>
         <div class="linha-rolo" id="rolo"><div class="linha-conteudo" id="conteudo">
           <div class="regua" id="regua"></div>
