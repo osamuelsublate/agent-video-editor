@@ -58,7 +58,8 @@ um trecho de referência: `etapas/13-presets-novos.md`.
 
 ## Sempre
 
-- **Aprenda com o passado:** antes de cada etapa, leia o `biblioteca/aprendizados/<área>.md` dela (a etapa diz qual). São as
+- **Aprenda com o passado:** antes de cada etapa, leia o `biblioteca/aprendizados/<área>.md` dela (a etapa diz qual);
+  os itens marcados `[só <Categoria>]` valem só para os vídeos daquela categoria (pule os de outra). São as
   correções do criador em vídeos anteriores, com exemplos em `biblioteca/aprendizados/imagens/`: não as repita. Subagentes também.
 - **Paralelize** o que não depende do resto (subagentes em segundo plano para inserts e motions; comandos independentes
   no mesmo turno). Não espere à toa: enquanto um subagente busca, faça outra etapa.

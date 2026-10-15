@@ -28,6 +28,10 @@ criador corrigiu num vídeo não pode se repetir no próximo.
    - **[gosto]** Prefira gravação de tela rolando a print parado quando a fala cita um site.
      _PRJ-03·v2 c2, PRJ-05·v1 c1 · 2026-10-14_ · ![exemplo](imagens/prj03-c2.png)
    ```
+   - **Só para uma categoria de vídeo?** Se a correção só vale para a categoria deste vídeo (ex.: um VSL pede um ritmo
+     que o Reels não pede), marque o item com `[só <Categoria>]`, pelo nome dela (`calibragem.py categorias`):
+     `- **[gosto]** [só VSL] Deixe o preço na tela até o fim do plano.` Sem a marca, vale para todas. Na dúvida,
+     pergunte ao criador ao mostrar a lista.
    - Um print ajuda quando o texto sozinho é ambíguo ("poluído", "card grande demais"): copie o anexo do comentário
      (`projetos/<slug>/revisoes/anexos/…`) ou um quadro do vídeo (ffmpeg) para `biblioteca/aprendizados/imagens/<prj>-<cN>.png`
      e mostre-o no bullet (um "certo" e um "errado" lado a lado é o melhor exemplo).

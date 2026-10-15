@@ -226,6 +226,13 @@ def _briefs(slug: str) -> Path:
     return d
 
 
+def _categoria(edicao: dict) -> str:
+    """O nome da categoria do vídeo (Reels, VSL…), para os subagentes pularem os aprendizados de outra categoria."""
+    cat = edicao.get('formato') or 'reels'
+    lista = ler_json(BIBLIOTECA / 'categorias-video.json', None) or []
+    return next((c['nome'] for c in lista if c.get('id') == cat), cat)
+
+
 def _contexto(slug: str, extra: str | None) -> str:
     edicao = ler(slug)
     partes = [f'Reels do criador: "{edicao.get("nome") or slug}".']
@@ -266,7 +273,8 @@ def briefs(slug: str, grupo: int, contexto: str | None, todos: bool) -> None:
                           + (f' «{pl["texto"]}»' if pl.get('texto') else '')
                           + (f'\n  (já tem: {", ".join(m["banco"] for m in x["midias"])})' if x.get('midias') else ''))
         arq = destino / f'inserts-{n}.md'
-        arq.write_text(modelo.format(n=len(g), raiz=RAIZ, slug=slug, contexto=texto_contexto, pedidos='\n'.join(blocos)), encoding='utf-8')
+        arq.write_text(modelo.format(n=len(g), raiz=RAIZ, slug=slug, contexto=texto_contexto, pedidos='\n'.join(blocos),
+                                     categoria=_categoria(edicao)), encoding='utf-8')
         print(f'{arq}  ({", ".join(x["plano"] for x in g)})')
 
 
@@ -286,6 +294,7 @@ def motion_brief(slug: str, plano: str, preset: str, duracao: float | None, pedi
     dividida = pl['tipo'].startswith('tela_dividida')
     texto = (ETAPAS / '06-brief-motion.md').read_text(encoding='utf-8').format(
         raiz=RAIZ, preset=preset, pedido=pl.get('descricao') or pedido_extra or '—', formato='dividida' if dividida else 'vertical',
+        categoria=_categoria(edicao),
         palco='1080×960, a metade de cima; o ator fica embaixo' if dividida else '1080×1920, a tela toda',
         duracao=num(duracao or (b - a), 1), fala=fala, extra=f'Mais: {pedido_extra}' if pedido_extra else '')
     arq = _briefs(slug) / f'motion-{plano}.md'

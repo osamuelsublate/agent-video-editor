@@ -404,9 +404,38 @@ const imagemAprendizado = (src) => {
   return m ? `/api/aprendizados/imagens/${encodeURIComponent(m[1])}` : null
 }
 
+// a marca de categoria num aprendizado ("[só VSL]"): o item vale só para os vídeos daquela categoria; sem marca, para todos
+const MARCA_CATEGORIA = /\[só ([^\]]+)\]/i
+const daCategoria = (cats, rotulo) => cats.find((c) => [c.id, c.nome].some((x) => x.toLowerCase() === rotulo.trim().toLowerCase()))
+
+/** Depois do markdown: a marca vira o selo da categoria, e o filtro esconde os itens de outra categoria. */
+function marcarCategorias(raiz, cats, filtro) {
+  for (const li of $$('li', raiz)) {
+    const m = li.textContent.match(MARCA_CATEGORIA)
+    if (!m) continue
+    const c = daCategoria(cats, m[1])
+    li.dataset.categoria = c?.id || m[1]
+    li.hidden = !!filtro && li.dataset.categoria !== filtro
+    const caminho = document.createTreeWalker(li, NodeFilter.SHOW_TEXT)
+    for (let n = caminho.nextNode(); n; n = caminho.nextNode()) {
+      const k = n.textContent.search(MARCA_CATEGORIA)
+      if (k < 0) continue
+      const resto = n.splitText(k)
+      resto.textContent = resto.textContent.replace(MARCA_CATEGORIA, '')
+      const selo = document.createElement('span')
+      selo.className = 'selo-categoria'
+      selo.textContent = c ? `só ${c.emoji ? `${c.emoji} ` : ''}${c.nome}` : `só ${m[1]}`
+      n.after(selo)
+      break
+    }
+  }
+}
+
 export async function abrirAprendizados(tela, area) {
   tela.className = 'pagina pagina-aprendizados'
   let areas, a
+  const cats = await carregarCategorias()
+  let filtro = preferencia('aprendizados.categoria', '')
   try {
     areas = await enviar('GET', '/api/aprendizados')
     a = await enviar('GET', `/api/aprendizados/${encodeURIComponent(area || areas[0].area)}`)
@@ -425,7 +454,10 @@ export async function abrirAprendizados(tela, area) {
         <div class="alternar">${['ler', 'editar'].map((m) => `<button class="pilula pequena${modoAprendizado === m ? ' ativa' : ''}" data-modo="${m}">${m === 'ler' ? 'Ler' : 'Editar'}</button>`).join('')}</div>
         ${modoAprendizado === 'editar' ? '<span class="dica">Grava ao sair da caixa.</span>' : ''}<span class="salvo" id="salvo-a"></span>
         <a class="link link-regras" href="#/heuristica" title="Os aprendizados de direção (que plano, quando, abertura, ritmo) ficam nas Regras do criador, na Heurística">Direção → Regras do criador</a></div>
+      ${modoAprendizado === 'ler' ? pilulasCategoria(cats, filtro) : ''}
       ${corpo}</div></div>`
+    const md = $('.markdown', tela)
+    if (md) marcarCategorias(md, cats, filtro)
   }
   const salvo = (texto, erro = false) => {
     const el = $('#salvo-a', tela)
@@ -435,6 +467,11 @@ export async function abrirAprendizados(tela, area) {
     if (!erro) setTimeout(() => el.textContent === 'Salvo' && (el.innerHTML = ''), 1800)
   }
   tela.addEventListener('click', (e) => {
+    const f = e.target.closest('[data-categoria]:not(li)')
+    if (f) {
+      filtro = preferencia('aprendizados.categoria', '', f.dataset.categoria)
+      return desenhar()
+    }
     const m = e.target.closest('[data-modo]')
     if (m) {
       modoAprendizado = m.dataset.modo
