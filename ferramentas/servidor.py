@@ -17,6 +17,7 @@ Rotas (JSON; um erro volta como {"erro": "…"}, com 422 numa validação):
   roteiros de exemplo dela, com os tempos dos planos. · GET|PUT /api/categorias {categorias} (as categorias de vídeo:
   Reels, Ad…; uma em uso não sai) · PUT /api/referencias/<id>/categoria {categoria} · PUT /api/projetos/<slug>/categoria
   {categoria} · o POST /api/referencias aceita a categoria no cabeçalho X-Categoria.
+- POST /api/projetos/<slug>/abrir-final: abre no Finder a pasta dos exports (final/, com as saídas em final/saidas/).
 - GET /api/aprendizados (as áreas, com os bullets "Do criador") · GET|PUT /api/aprendizados/<área> {texto} (o
   aprendizados/<área>.md) · GET /api/aprendizados/imagens/<nome> (as imagens que os .md mostram).
 - GET /api/presets/amostras (o ator e as mídias do banco da simulação dos presets, render/preset.html)
@@ -97,6 +98,7 @@ def projetos() -> list[dict]:
         lista.append({'slug': p.name, 'nome': ed.get('nome') or p.name, 'formato': ed.get('formato') or 'reels',
                       'versoes': vs, 'ultima': ultima, 'duracao': info.get('duracao'), 'estado': estado,
                       'comentarios': len(rev.get('comentarios', [])),
+                      'saidas': len(ed.get('saidas') or []), 'tem_final': any((p / 'final').rglob('*.mp4')) if (p / 'final').is_dir() else False,
                       'atualizado': (p / 'versoes' / f'v{ultima}' / 'proxy.mp4').stat().st_mtime})
     return sorted(lista, key=lambda x: -x['atualizado'])
 
@@ -417,6 +419,16 @@ def _renomear(h, q, id_):
 @rota('PUT', f'/api/referencias/{ID}/categoria')
 def _categoria_referencia(h, q, id_):
     return calibragem().definir_categoria(id_, str(h.corpo().get('categoria') or ''))
+
+
+@rota('POST', r'/api/projetos/([\w-]+)/abrir-final')
+def _abrir_final(h, q, slug):
+    """Abre no Finder a pasta dos exports do projeto (final/, com as saídas encaixadas em final/saidas/)."""
+    alvo = PROJETOS / slug / 'final'
+    if not alvo.is_dir():
+        raise Erro('Este projeto ainda não tem export final.', 404)
+    subprocess.run(['open', str(alvo)], check=False)
+    return {'ok': True}
 
 
 @rota('PUT', r'/api/projetos/([\w-]+)/nome')

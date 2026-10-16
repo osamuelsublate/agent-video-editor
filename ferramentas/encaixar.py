@@ -6,7 +6,11 @@
 com uma transição destacada no ponto da emenda (a luz colorida, TRA-04, ou o brilho branco). Usa os finais em 4K de
 cada um (`render.py <slug> --final`) e não mexe neles.
 
-    uv run ferramentas/encaixar.py <corpo> <cta> <saida.mp4> [--transicao luz-colorida|brilho-branco]
+    uv run ferramentas/encaixar.py <corpo> <cta> --tipo <Reels|VSL|LP|ISCA|Captura|Carrinho> [--transicao brilho-branco]
+
+Sai em `projetos/<corpo>/final/saidas/<nome do corpo> - <tipo>.mp4` (a pasta que o app abre pelo botão dos exports) e
+fica registrada em `edicao.json` → `saidas` do corpo: `[{tipo, cta, arquivo, transicao, criado_em}]` (a publicação
+acrescenta `drive` e `notion`). Assim o app mostra que o projeto tem várias saídas.
 
 Antes de montar, confere se os dois lados casam: a sonoridade (LUFS) dos últimos 4 s do corpo e dos primeiros 4 s do CTA
 e a luminância/saturação do último quadro do corpo e do primeiro do CTA. Uma diferença grande (o susto na troca) é avisada.
@@ -15,19 +19,21 @@ entra o som da transição.
 """
 import argparse
 import json
+from datetime import datetime
 import re
 import subprocess
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from base import BIBLIOTECA, pasta  # noqa: E402
+from base import BIBLIOTECA, gravar_json, ler_json, pasta  # noqa: E402
 from montagem import sons, transicoes  # noqa: E402
 
 FPS = 24
 JANELA = 4.0  # s de cada lado para comparar o áudio
 LIMITE_DB = 2.0  # diferença de sonoridade que vira aviso
 LIMITE_LUMA = 12  # diferença de luminância média (0–255) que vira aviso
+RAMPA = 6.0  # s: o CTA entra no nível do fim do corpo e volta ao dele aos poucos (sem susto na emenda)
 
 
 def final_de(slug: str) -> Path:
@@ -62,20 +68,34 @@ def cor(arq: Path, t: float) -> tuple[float, float]:
     return valor('YAVG'), valor('SATAVG')
 
 
-def conferir(corpo: Path, cta: Path, dc: float) -> list[str]:
+def conferir(corpo: Path, cta: Path, dc: float) -> tuple[list[str], float]:
+    """Os avisos e o ajuste de volume do começo do CTA (dB): a diferença entre o fim do corpo e o começo do CTA."""
     avisos = []
     a, b = lufs(corpo, dc - JANELA, JANELA), lufs(cta, 0, JANELA)
-    print(f'  áudio: fim do corpo {a:.1f} LUFS · começo do CTA {b:.1f} LUFS (Δ {abs(a - b):.1f} dB)')
-    if abs(a - b) > LIMITE_DB:
-        avisos.append(f'o volume muda {abs(a - b):.1f} dB na emenda')
+    ajuste = round(a - b, 1) if abs(a - b) > 1.0 else 0.0
+    print(f'  áudio: fim do corpo {a:.1f} LUFS · começo do CTA {b:.1f} LUFS (Δ {abs(a - b):.1f} dB)'
+          + (f' → o CTA entra com {ajuste:+.1f} dB e volta ao nível dele em {RAMPA:.0f} s' if ajuste else ''))
+    if abs(a - b) > LIMITE_DB + 4:
+        avisos.append(f'o volume muda {abs(a - b):.1f} dB na emenda (a rampa compensa, mas confira)')
     (ya, sa), (yb, sb) = cor(corpo, dc - 0.1), cor(cta, 0.05)
     print(f'  cor: último quadro do corpo luma {ya:.0f} sat {sa:.0f} · primeiro do CTA luma {yb:.0f} sat {sb:.0f}')
     if abs(ya - yb) > LIMITE_LUMA:
         avisos.append(f'a luminância muda {abs(ya - yb):.0f} na emenda (look diferente?)')
-    return avisos
+    return avisos, ajuste
 
 
-def encaixar(corpo_slug: str, cta_slug: str, saida: Path, transicao: str) -> None:
+def registrar(corpo_slug: str, cta_slug: str, tipo: str, saida: Path, transicao: str) -> None:
+    """A saída no edicao.json do corpo (uma por tipo: encaixar de novo substitui o registro, nunca o arquivo antigo)."""
+    arq = pasta(corpo_slug) / 'edicao.json'
+    ed = ler_json(arq, {}) or {}
+    rel = saida.relative_to(pasta(corpo_slug)) if saida.is_relative_to(pasta(corpo_slug)) else saida
+    velhas = [x for x in ed.get('saidas') or [] if x.get('tipo') != tipo]
+    ed['saidas'] = [*velhas, {'tipo': tipo, 'cta': cta_slug, 'arquivo': str(rel), 'transicao': transicao,
+                              'criado_em': datetime.now().isoformat(timespec='seconds')}]
+    gravar_json(arq, ed)
+
+
+def encaixar(corpo_slug: str, cta_slug: str, saida: Path, transicao: str, tipo: str) -> None:
     if saida.exists():
         raise SystemExit(f'{saida} já existe: escolha outro nome (nunca sobrescrevemos vídeo).')
     corpo, cta = final_de(corpo_slug), final_de(cta_slug)
@@ -83,7 +103,7 @@ def encaixar(corpo_slug: str, cta_slug: str, saida: Path, transicao: str) -> Non
     if (a['w'], a['h']) != (b['w'], b['h']):
         raise SystemExit(f'Os finais têm tamanhos diferentes ({a["w"]}×{a["h"]} e {b["w"]}×{b["h"]}).')
     print(f'Corpo: {corpo.name} ({a["dur"]:.2f} s) · CTA: {cta.name} ({b["dur"]:.2f} s)')
-    avisos = conferir(corpo, cta, a['dur'])
+    avisos, ajuste = conferir(corpo, cta, a['dur'])
     tr = json.loads((BIBLIOTECA / 'transicoes' / f'{transicao}.json').read_text())
     t = a['dur']
     w, h = a['w'], a['h']
@@ -93,7 +113,9 @@ def encaixar(corpo_slug: str, cta_slug: str, saida: Path, transicao: str) -> Non
     # o som da transição no ponto da emenda, no nível dos sons de apoio
     som = tr.get('som') or {}
     idx_som = 2 + ent_t.count('-i')
-    f.append('[0:a][1:a]concat=n=2:v=0:a=1[acat]')
+    rampa = (f"volume='if(lt(t,{RAMPA}),pow(10,({ajuste})*(1-t/{RAMPA})/20),1)':eval=frame" if ajuste else 'anull')
+    f.append(f'[1:a]{rampa}[acta]')
+    f.append('[0:a][acta]concat=n=2:v=0:a=1[acat]')
     if som.get('som'):
         entradas += ['-i', str(sons.arquivo(som['som']))]
         ganho = sons.INTENSIDADES.get(som.get('intensidade', 'medio'), 0.5)
@@ -103,11 +125,12 @@ def encaixar(corpo_slug: str, cta_slug: str, saida: Path, transicao: str) -> Non
     else:
         f.append('[acat]anull[afim]')
     saida.parent.mkdir(parents=True, exist_ok=True)
-    cmd = ['ffmpeg', '-y', '-loglevel', 'error', *entradas, '-filter_complex', ';'.join(f), '-map', '[vfim]', '-map', '[afim]',
+    cmd = ['ffmpeg', '-loglevel', 'error', *entradas, '-filter_complex', ';'.join(f), '-map', '[vfim]', '-map', '[afim]',
            '-c:v', 'hevc_videotoolbox', '-q:v', '65', '-tag:v', 'hvc1', '-r', str(FPS), '-pix_fmt', 'yuv420p',
            '-c:a', 'aac', '-b:a', '320k', '-ar', '48000', '-movflags', '+faststart', '-n', str(saida)]
     subprocess.run(cmd, check=True)
     s = sonda(saida)
+    registrar(corpo_slug, cta_slug, tipo, saida, transicao)
     print(f'Pronto: {saida} ({s["w"]}×{s["h"]}, {s["dur"]:.2f} s, emenda em {t:.2f} s com {tr["nome"]})')
     for x in avisos:
         print(f'Aviso: {x}')
@@ -117,10 +140,13 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=(__doc__ or '').split('\n\n')[0])
     ap.add_argument('corpo')
     ap.add_argument('cta')
-    ap.add_argument('saida', type=Path)
+    ap.add_argument('--tipo', required=True, help='o tipo da saída: Reels, VSL, LP, ISCA, Captura, Carrinho…')
+    ap.add_argument('--saida', type=Path, help='outro destino (padrão: projetos/<corpo>/final/saidas/)')
     ap.add_argument('--transicao', default='luz-colorida', choices=['luz-colorida', 'brilho-branco'])
     x = ap.parse_args()
-    encaixar(x.corpo, x.cta, x.saida.expanduser(), x.transicao)
+    nome = (ler_json(pasta(x.corpo) / 'edicao.json', {}) or {}).get('nome') or x.corpo
+    saida = x.saida.expanduser() if x.saida else pasta(x.corpo) / 'final' / 'saidas' / f'{nome} - {x.tipo}.mp4'
+    encaixar(x.corpo, x.cta, saida, x.transicao, x.tipo)
 
 
 if __name__ == '__main__':

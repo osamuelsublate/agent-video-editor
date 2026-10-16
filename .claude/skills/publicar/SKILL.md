@@ -26,12 +26,14 @@ Exemplo (mvi-0719, 16/10): corpo + CTA ManyChat → **Reels**; + CTA VSL → **P
 2. Final de cada projeto (corpo e CTAs), 4K 2160×3840, 24 fps, HEVC, −14 LUFS: `uv run ferramentas/render.py <slug> --final`.
 3. Encaixe (corpo + CTA), com a transição destacada na emenda — **TRA-04 Luz colorida** (padrão) ou **brilho branco**:
    ```bash
-   uv run ferramentas/encaixar.py <corpo> <cta> "<saida.mp4>" [--transicao brilho-branco]
+   uv run ferramentas/encaixar.py <corpo> <cta> --tipo <Reels|VSL|LP|ISCA|Captura|Carrinho> [--transicao brilho-branco]
    ```
-   Ele confere áudio (LUFS do fim do corpo × começo do CTA) e cor (luma/saturação dos quadros da emenda) e avisa se a
-   troca vai assustar. Com aviso, corrija (nível da voz, look) e encaixe de novo antes de subir.
-4. Os arquivos ficam em `~/Movies/<pasta do bruto>/editados/`, com nomes claros (`3 níveis de IA - Reels.mp4`,
-   `3 níveis de IA - VSL.mp4`…). Se houver saídas por plataforma (Instagram, TikTok, Shorts), uma por arquivo.
+   Ele confere áudio (LUFS do fim do corpo × começo do CTA: se o CTA começa mais alto ou mais baixo, entra no nível do
+   corpo e volta ao dele numa rampa de 6 s) e cor (luma/saturação dos quadros da emenda), e avisa se a troca vai
+   assustar. Com aviso de cor, corrija o look e encaixe de novo antes de subir.
+4. As saídas ficam no próprio projeto, em `projetos/<corpo>/final/saidas/<nome> - <tipo>.mp4` (nunca em `~/Movies`), e
+   registradas no `edicao.json` → `saidas` do corpo; no app, o card mostra "N saídas" e o botão de pasta abre os exports
+   no Finder. Se houver saídas por plataforma (Instagram, TikTok, Shorts), uma por arquivo.
 
 ## 3. Drive
 

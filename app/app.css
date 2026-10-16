@@ -1143,6 +1143,7 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 /* a categoria de vídeo (Reels, Ad…) de um projeto ou de uma referência, embaixo do card (app/categorias.js) */
 .pe-projeto { display: flex; align-items: center; gap: 8px; margin-top: 6px; min-width: 0; }
 .pe-projeto .codigo { margin-left: auto; flex: none; }
+.chip-saidas { position: absolute; left: 10px; bottom: 38px; z-index: 2; padding: 2px 8px; border-radius: var(--radius-full); background: var(--color-green); color: var(--color-ink); font-size: 10px; font-weight: 600; }
 .filtro-categorias { display: flex; align-items: center; gap: 8px; }
 
 /* os usos agrupados por projeto (um chip "PRJ-07 · 12 planos" que abre os planos) e o modal do motion */
