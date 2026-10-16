@@ -1222,3 +1222,14 @@ button.tag:hover { background: rgba(185, 166, 242, 0.26); }
 .campo-nome { flex: 1; min-width: 0; font: inherit; font-size: 18px; font-weight: 500; color: var(--color-cream); background: var(--color-deeper);
   border: 1px solid var(--color-line-strong); border-radius: 8px; padding: 2px 8px; outline: none; }
 .campo-nome:focus { border-color: var(--color-cream); }
+
+/* editar as tags pela barra lateral do banco: lápis e x no hover de cada tag */
+.tag-acoes { display: none; gap: 2px; margin-left: 2px; }
+.tag-linha:hover .tag-acoes { display: inline-flex; }
+.tag-linha:hover .conta { display: none; }
+.tag-linha.editando .conta, .tag-linha.editando .tag-acoes { display: none; }
+.tag-acao { width: 20px; height: 20px; display: inline-grid; place-items: center; padding: 0; border: 0; border-radius: 6px; background: none; color: inherit; opacity: 0.6; cursor: pointer; }
+.tag-acao:hover { opacity: 1; background: rgba(250, 247, 238, 0.1); }
+.tag-linha.ativa .tag-acao:hover { background: rgba(24, 45, 42, 0.12); }
+.tag-acao svg { width: 13px; height: 13px; }
+.tag-campo-barra { flex: 1; width: auto; min-width: 0; height: 24px; }

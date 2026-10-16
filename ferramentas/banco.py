@@ -142,7 +142,8 @@ def usos_aprovados() -> tuple[dict[str, list[dict]], dict[str, list[dict]], set[
         e = ler_json(p / 'versoes' / f'v{v}' / 'edicao.json', {}) or {}
         pl = ler_json(p / 'versoes' / f'v{v}' / 'planos.json', []) or []
         ini = {x.get('id'): x.get('ini') for x in (pl if isinstance(pl, list) else pl.get('planos', []))}
-        uso = lambda plano: {'projeto': p.name, 'versao': v, 'plano': plano, 't': ini.get(plano)}  # noqa: E731
+        quando = (ler_json(p / 'versoes' / f'v{v}' / 'info.json', {}) or {}).get('criado_em')  # para ordenar pelo uso mais recente
+        uso = lambda plano: {'projeto': p.name, 'versao': v, 'plano': plano, 't': ini.get(plano), 'quando': quando}  # noqa: E731
         for x in (e.get('inserts') or {}).get('pedidos') or []:
             for m in x.get('midias') or []:
                 if m.get('banco'):
@@ -184,6 +185,28 @@ def estados() -> dict[str, dict]:
             estado = None
         out[i['id']] = {'estado': estado, 'usos': us}
     return out
+
+
+def renomear_tag(de: str, para: str) -> int:
+    """Troca a tag `de` (e as de dentro dela: "fia" leva "fia/reels") por `para` em todas as mídias; `para` vazio apaga.
+    Devolve quantas mídias mudaram."""
+    n = 0
+    for i in todos():
+        tags = i.get('tags') or []
+        novas = []
+        for t in tags:
+            if t == de or t.startswith(f'{de}/'):
+                t = f'{para}{t[len(de):]}' if para else ''
+            if t and t not in novas:
+                novas.append(t)
+        if novas != tags:
+            if novas:
+                i['tags'] = novas
+            else:
+                i.pop('tags', None)
+            salvar_item(i)
+            n += 1
+    return n
 
 
 def limpar_recusados() -> list[str]:

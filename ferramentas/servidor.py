@@ -797,6 +797,17 @@ def _estados(h, q):
     return {'midias': b.estados(), 'motions': motions}
 
 
+@rota('POST', '/api/banco-tags')
+def _renomear_tag(h, q):
+    """Renomeia (ou, com `para` vazio, apaga) uma tag em todas as mídias do banco, com as tags de dentro dela."""
+    c = h.corpo()
+    limpa = lambda t: re.sub(r'/+', '/', re.sub(r'\s+', '-', str(t or '').strip().lstrip('#').strip())).strip('/')  # noqa: E731
+    de, para = limpa(c.get('de')), limpa(c.get('para'))
+    if not de:
+        raise Erro('Qual tag?', 422)
+    return {'mudaram': _banco().renomear_tag(de, para)}
+
+
 @rota('POST', '/api/limpar-recusados')
 def _limpar_recusados(h, q):
     return {'levados': _banco().limpar_recusados()}

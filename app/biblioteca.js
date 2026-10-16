@@ -120,7 +120,8 @@ function htmlArvore(no, abertas, ativa, nivel = 0) {
     const aberta = abertas.includes(f.caminho) || (ativa || '').startsWith(`${f.caminho}/`)
     return `<li><div class="tag-linha${f.caminho === ativa ? ' ativa' : ''}" data-tag="${esc(f.caminho)}" style="--nivel:${nivel}" title="#${esc(f.caminho)}">
         ${temFilhos ? `<button class="tag-seta${aberta ? ' aberta' : ''}" data-abrir-tag="${esc(f.caminho)}" aria-label="${aberta ? 'Recolher' : 'Expandir'}">›</button>` : '<span class="tag-seta"></span>'}
-        <span class="tag-nome">${esc(f.nome)}</span><span class="conta">${f.ids.size}</span></div>
+        <span class="tag-nome">${esc(f.nome)}</span><span class="conta">${f.ids.size}</span>
+        <span class="tag-acoes"><button class="tag-acao" data-renomear-tag="${esc(f.caminho)}" title="Renomear #${esc(f.caminho)} em todas as mídias">${ICONE.lapis}</button><button class="tag-acao" data-apagar-tag="${esc(f.caminho)}" title="Tirar #${esc(f.caminho)} de todas as mídias">${ICONE.fechar}</button></span></div>
       ${temFilhos && aberta ? `<ul>${htmlArvore(f, abertas, ativa, nivel + 1)}</ul>` : ''}</li>`
   }).join('')
 }
@@ -128,12 +129,11 @@ function htmlArvore(no, abertas, ativa, nivel = 0) {
 /** A barra lateral do banco: Todas, a árvore e "Sem tag". */
 function barraDeTags(itens, ativa) {
   const arvore = arvoreDeTags(itens)
-  const semTag = itens.filter((it) => !(it.tags || []).length).length
   const linha = (tag, nome, n) => `<div class="tag-linha tag-fixa${ativa === tag ? ' ativa' : ''}" data-tag="${tag}"><span class="tag-seta"></span><span class="tag-nome">${nome}</span><span class="conta">${n}</span></div>`
   return `<aside class="tags-banco"><span class="eyebrow">Tags</span>
     ${linha('', 'Todas', itens.length)}
     ${Object.keys(arvore.filhos).length ? `<ul class="tags-arvore">${htmlArvore(arvore, preferencia('banco.tags.abertas', []), ativa)}</ul>` : '<p class="dica">Nenhuma tag ainda: abra uma mídia e escreva <b>#tag</b> ou <b>#grupo/tag</b>.</p>'}
-    ${semTag && semTag < itens.length ? linha('__sem', 'Sem tag', semTag) : ''}</aside>`
+    </aside>`
 }
 
 async function bancoInserts(el, tipo = 'inserts') {
@@ -146,7 +146,8 @@ async function bancoInserts(el, tipo = 'inserts') {
   const cod = cods.midia || {}
   const ids = nomes.filter((n) => n.endsWith('/')).map((n) => n.slice(0, -1))
   const itens = (await Promise.all(ids.map((id) => json(`/biblioteca/banco/${id}/item.json`).then((it) => it && { ...it, id: it.id || id })))).filter(Boolean)
-  const originais = itens.filter((i) => !i.pai).sort((a, b) => (b.criado_em || '').localeCompare(a.criado_em || ''))
+  const recente = (it) => (estados[it.id]?.usos || []).reduce((m, u) => (u.quando > m ? u.quando : m), '') || it.criado_em || ''
+  const originais = itens.filter((i) => !i.pai).sort((a, b) => recente(b).localeCompare(recente(a)))
   const trechos = {}
   for (const t of itens.filter((i) => i.pai)) (trechos[t.pai] ||= []).push(t)
   for (const l of Object.values(trechos)) l.sort((a, b) => a.inicio - b.inicio)
@@ -155,8 +156,8 @@ async function bancoInserts(el, tipo = 'inserts') {
   tagsConhecidas = [...new Set(originais.flatMap((it) => it.tags || []))].sort()
   const comTags = tipo !== 'motions'
   let tagAtiva = comTags ? preferencia('banco.tag', '') : ''
-  if (tagAtiva && tagAtiva !== '__sem' && !originais.some((it) => temTag(it, tagAtiva))) tagAtiva = '' // a tag sumiu
-  const passaTag = (it) => !tagAtiva || (tagAtiva === '__sem' ? !(it.tags || []).length : temTag(it, tagAtiva))
+  if (tagAtiva && !originais.some((it) => temTag(it, tagAtiva))) tagAtiva = '' // a tag sumiu (ou era o antigo "Sem tag")
+  const passaTag = (it) => !tagAtiva || temTag(it, tagAtiva)
   const midiasT = tipo === 'motions' ? [] : originais.filter(passaTag)
   const motionsT = tipo === 'inserts' ? [] : ms
   const conta = (k) => (k === 'todos' ? midiasT.length + motionsT.length : midiasT.filter((it) => estadoDe(it) === k).length + motionsT.filter((m) => estadoMotion(m) === k).length)
@@ -183,7 +184,7 @@ async function bancoInserts(el, tipo = 'inserts') {
     </article>`
   }).map((html, k) => ({ html, criado: '' }))
   // os motions na mesma grade: a prévia em pé no meio do card, o chip "Motion" e os selos do mesmo jeito
-  cardsMidia.forEach((c, k) => (c.criado = visiveis[k].criado_em || ''))
+  cardsMidia.forEach((c, k) => (c.criado = recente(visiveis[k])))
   const cardsMotion = ms.filter((m) => filtro === 'todos' || estadoMotion(m) === filtro).map((m) => {
     const [rotulo, cor] = SELOS[estadoMotion(m)] || []
     return { criado: m.criado_em || '', html: `<article class="card-banco card-banco-motion" data-motion="${esc(m.id)}">
@@ -252,8 +253,51 @@ async function bancoInserts(el, tipo = 'inserts') {
     e.stopPropagation()
     recusarMotion(ms.find((m) => m.id === b.closest('[data-motion]').dataset.motion), () => bancoInserts(el, tipo))
   })
+  const mudarTag = async (de, para) => {
+    try {
+      const r = await enviar('POST', '/api/banco-tags', { de, para })
+      aviso(para ? `#${de} virou #${tagLimpa(para)} em ${r.mudaram} ${r.mudaram === 1 ? 'mídia' : 'mídias'}` : `#${de} saiu de ${r.mudaram} ${r.mudaram === 1 ? 'mídia' : 'mídias'}`)
+      if (tagAtiva === de || tagAtiva.startsWith(`${de}/`)) preferencia('banco.tag', '', para ? tagLimpa(para) + tagAtiva.slice(de.length) : '')
+      bancoInserts(el, tipo)
+    } catch (x) {
+      aviso(x.message, 'erro')
+    }
+  }
+  for (const b of $$('[data-apagar-tag]', el)) b.addEventListener('click', async (e) => {
+    e.stopPropagation()
+    const de = b.dataset.apagarTag
+    const ok = await confirmar({ titulo: `Tirar #${de} de todas as mídias?`, texto: 'As tags de dentro dela saem junto. As mídias ficam no banco.', ok: 'Tirar', perigo: true })
+    if (ok) mudarTag(de, '')
+  })
+  for (const b of $$('[data-renomear-tag]', el)) b.addEventListener('click', (e) => {
+    e.stopPropagation()
+    const de = b.dataset.renomearTag
+    const linha = b.closest('.tag-linha')
+    const nome = $('.tag-nome', linha)
+    const campo = document.createElement('input')
+    campo.className = 'tag-campo tag-campo-barra'
+    campo.value = de
+    nome.replaceWith(campo)
+    linha.classList.add('editando')
+    campo.focus()
+    campo.select()
+    let feito = false
+    const concluir = (gravar) => {
+      if (feito) return
+      feito = true
+      const para = tagLimpa(campo.value)
+      if (gravar && para && para !== de) mudarTag(de, para)
+      else bancoInserts(el, tipo)
+    }
+    campo.addEventListener('keydown', (k) => {
+      if (k.key === 'Enter') { k.preventDefault(); concluir(true) }
+      if (k.key === 'Escape') { k.preventDefault(); k.stopPropagation(); concluir(false) }
+    })
+    campo.addEventListener('blur', () => concluir(true))
+    campo.addEventListener('click', (k) => k.stopPropagation())
+  })
   for (const b of $$('[data-tag]', el)) b.addEventListener('click', (e) => {
-    if (e.target.closest('[data-abrir-tag]')) return
+    if (e.target.closest('[data-abrir-tag], .tag-acoes, .tag-campo')) return
     preferencia('banco.tag', '', b.dataset.tag)
     bancoInserts(el, tipo)
   })
