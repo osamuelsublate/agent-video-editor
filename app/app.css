@@ -26,6 +26,7 @@
   --color-sage: #bacdab;
   --color-fog: #b9c6ba;       /* texto apagado sobre verde */
   --color-confirm: #47794b;
+  --color-green: #7ccf86;      /* o selo Aprovado */
   --color-line: rgba(24, 45, 42, 0.16);
   --color-line-dark: #d9ebd72f;
 
@@ -224,6 +225,7 @@ kbd {
 .selo-coral { background: var(--color-coral); color: var(--color-cream); }
 .selo-menta { background: var(--color-mint); }
 .selo-amarelo { background: var(--color-yellow); }
+.selo-verde { background: var(--color-green); color: var(--color-ink); }
 .selo-azul { background: var(--color-blue); color: var(--color-cream); top: auto; bottom: 10px; text-transform: none; letter-spacing: 0; }
 .duracao {
   position: absolute; top: 10px; right: 10px; z-index: 2; padding: 2px 8px; border-radius: var(--radius-full); background: var(--color-ink-85);
@@ -661,7 +663,7 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 .selo-erro { background: var(--color-error); color: var(--color-cream); }
 .selo-linha { padding: 2px 8px; border-radius: var(--radius-full); font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-ink); }
 .t-revisado { color: var(--color-mint); font-size: 12px; font-weight: 600; }
-.selo-linha.selo-azul, .selo-linha.selo-menta, .selo-linha.selo-origem { text-transform: none; letter-spacing: 0; }
+.selo-linha.selo-azul, .selo-linha.selo-menta, .selo-linha.selo-verde, .selo-linha.selo-origem { text-transform: none; letter-spacing: 0; }
 
 /* janelas por cima (escuras: o Modal do 18, chão verde, canto de 8px, contorno fino, o fundo preto a 75%) */
 .janela {

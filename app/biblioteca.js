@@ -69,7 +69,7 @@ function origemDe(o) {
 }
 
 /** Os selos do banco e dos motions (o que entrou num vídeo aprovado, o aprovado à mão, o recusado). */
-const SELOS = { usado: ['Usado em vídeo', 'selo-menta'], aprovado: ['Aprovado', 'selo-azul'], recusado: ['Recusado', 'selo-coral'] }
+const SELOS = { usado: ['Usado em vídeo', 'selo-menta'], aprovado: ['Aprovado', 'selo-verde'], recusado: ['Recusado', 'selo-coral'] }
 /** Os trechos no card do banco; com mais de 3, recolhidos num expansor (não ocupam a altura toda da grade). */
 function listaTrechos(ts, cod) {
   if (!ts.length) return ''
