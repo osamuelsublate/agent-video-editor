@@ -68,9 +68,9 @@ async function inicio(tela) {
       <div class="mini mini-916"><video muted playsinline preload="metadata" src="${proxy}#t=1.5"></video>
         <span class="selo ${cor}">${estado}</span>${p.duracao ? `<span class="duracao">${mmss(p.duracao)}</span>` : ''}
         <span class="chip-formato">${esc(rotuloCategoria(cats, p.formato || 'reels'))}</span></div>
-      <div class="card-titulo"><h3>${esc(p.nome)}</h3>${chipCodigo(cods.projeto?.[p.slug], p.nome)}</div>
+      <div class="card-titulo"><h3 title="${esc(p.nome)}">${esc(p.nome)}</h3></div>
       <p class="sub" title="${esc(p.slug)}">${quandoFoi(p.atualizado)} · v${p.ultima}${n > 1 ? ` · ${n} versões` : ''}${p.comentarios ? ` · ${p.comentarios} ${p.comentarios === 1 ? 'comentário' : 'comentários'}` : ''}</p>
-    </a>${seletorCategoria(cats, p.formato || 'reels')}</div>`
+    </a><div class="pe-projeto">${seletorCategoria(cats, p.formato || 'reels')}${chipCodigo(cods.projeto?.[p.slug], p.nome)}</div></div>`
   }
   const lista = () => {
     const l = projetos.filter((p) => !filtro || (p.formato || 'reels') === filtro)
