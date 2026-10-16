@@ -21,7 +21,7 @@ Rotas (JSON; um erro volta como {"erro": "…"}, com 422 numa validação):
 - GET /api/presets/amostras (o ator e as mídias do banco da simulação dos presets, render/preset.html)
   · PUT /api/presets/<id> {aprovado} · PUT /api/presets/ordem {chave, ids, favoritos} · PUT /api/transicoes/<id> {aprovado}
   · PUT /api/transicoes/ordem {chave, ids, favoritas} · GET|PUT|DELETE /api/banco/<id> ({estado} marca o selo à mão; {tags} as tags, aninhadas com /) · GET /api/estados (selos do banco e usos dos motions nos
-  vídeos aprovados) · POST /api/limpar-recusados · GET|POST /api/ctas · PUT|DELETE /api/ctas/<id> (os CTAs) · PUT /api/ctas-produtos {produtos} · POST /api/banco (subir: o arquivo cru, nome em X-Nome) ·
+  vídeos aprovados) · POST /api/limpar-recusados · POST /api/banco (subir: o arquivo cru, nome em X-Nome) ·
   POST /api/banco/<id>/trechos {inicio, fim, nome} · GET /api/banco/<id>/tira · PUT /api/motions/<id>/aprovar.
 - Recusar: GET /api/presets/<id>/usos e /api/motions/<id>/usos (os projetos que usam) · POST /api/presets/<id>/recusar
   e /api/motions/<id>/recusar {motivo}: o arquivo vai para _recusados/ (com recusado_em e motivo), o preset sai do
@@ -771,76 +771,6 @@ def _tira(h, q, id_):
     ler_midia(b, id_)
     b.tira(id_)
     return {'url': f'/biblioteca/banco/{id_}/tira.jpg'}
-
-
-def _ctas():
-    import ctas
-    return ctas
-
-
-@rota('GET', '/api/ctas')
-def _lista_ctas(h, q):
-    c = _ctas()
-    return {'ctas': c.todos(), 'categorias': c.categorias(), 'produtos': c.produtos()}
-
-
-@rota('PUT', '/api/ctas-produtos')
-def _produtos_cta(h, q):
-    return {'produtos': _ctas().salvar_produtos(h.corpo().get('produtos') or [])}
-
-
-@rota('POST', '/api/ctas')
-def _subir_cta(h, q):
-    """Um vídeo editado (o arquivo cru no corpo, nome em X-Nome; categoria opcional em X-Categoria)."""
-    c = _ctas()
-    nome = Path(unquote(h.headers.get('X-Nome') or 'cta.mp4')).name
-    resta = int(h.headers.get('Content-Length') or 0)
-    if not resta:
-        raise Erro('Arquivo vazio.', 422)
-    pasta = Path(tempfile.mkdtemp(prefix='cta-'))
-    try:
-        destino = pasta / re.sub(r'[^\w. -]', '_', nome)
-        with open(destino, 'wb') as f:
-            while resta > 0:
-                bloco = h.rfile.read(min(1 << 20, resta))
-                if not bloco:
-                    break
-                f.write(bloco)
-                resta -= len(bloco)
-        if resta:
-            raise Erro('O envio parou no meio.', 400)
-        try:
-            return {'cta': c.adicionar(destino, Path(nome).stem, unquote(h.headers.get('X-Categoria') or '') or None, mover=True)}
-        except SystemExit as e:
-            raise Erro(str(e), 422) from e
-    finally:
-        shutil.rmtree(pasta, ignore_errors=True)
-
-
-@rota('GET', r'/api/ctas/(\w+)/tira')
-def _tira_cta(h, q, id_):
-    try:
-        _ctas().tira(id_)
-    except SystemExit as e:
-        raise Erro(str(e), 404) from e
-    return {'url': f'/biblioteca/ctas/{id_}/tira.jpg'}
-
-
-@rota('PUT', r'/api/ctas/(\w+)')
-def _editar_cta(h, q, id_):
-    try:
-        return {'cta': _ctas().editar(id_, h.corpo())}
-    except SystemExit as e:
-        raise Erro(str(e), 422) from e
-
-
-@rota('DELETE', r'/api/ctas/(\w+)')
-def _apagar_cta(h, q, id_):
-    try:
-        _ctas().apagar(id_)
-    except SystemExit as e:
-        raise Erro(str(e), 404) from e
-    return {}
 
 
 @rota('GET', '/api/estados')

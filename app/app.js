@@ -3,7 +3,6 @@
 // (#/presets, #/transicoes[/<de>><para>], #/banco (os inserts), #/motions, #/trilhas).
 import { $, $$, ICONE, abasAbertas, aviso, preferencia, chipCodigo, codigos, confirmar, copiar, enviar, esc, fecharAba, json, mmss } from './comum.js'
 import { abrirRevisao } from './revisao.js'
-import { abrirCtas } from './ctas.js'
 import { abrirBiblioteca, PAGINAS_BIBLIOTECA } from './biblioteca.js'
 import { abrirCalibragem, abrirRevisaoReferencia } from './calibragem.js'
 import { abrirAprendizados, abrirHeuristica, abrirReferencias } from './referencias.js'
@@ -207,7 +206,6 @@ async function rotear() {
   }
   if (partes[0] === 'p' && partes[1]) s = await abrirRevisao(tela, partes[1], partes[2] ? parseInt(partes[2].replace(/^v/, ''), 10) : null)
   else if (partes[0] === 'calibragem') s = await (partes[1] ? abrirRevisaoReferencia(tela, partes[1]) : abrirCalibragem(tela))
-  else if (partes[0] === 'ctas') s = await abrirCtas(tela)
   else if (partes[0] === 'referencias') s = await abrirReferencias(tela)
   else if (partes[0] === 'heuristica') s = await abrirHeuristica(tela)
   else if (partes[0] === 'aprendizados') s = await abrirAprendizados(tela, partes[1])

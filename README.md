@@ -34,7 +34,7 @@ renderizam. Tudo fica preso às palavras da transcrição (IDs), nunca a segundo
 | `ferramentas/` | um script por etapa (`uv run ferramentas/<script>.py`, dependências no próprio arquivo); `inicial/`, a biblioteca de uma instalação nova |
 | `render/` | a página que desenha inserts, motions e legenda para o render, com o runtime dos motions, fontes e fundos |
 | `app/` | o app de revisão (HTML + JS puro) |
-| `biblioteca/` | o que é do criador (fora do git): exemplos da direção por categoria, aprendizados, presets, transições, sons, trilhas, LUTs, motions, banco de mídias, CTAs, referências |
+| `biblioteca/` | o que é do criador (fora do git): exemplos da direção por categoria, aprendizados, presets, transições, sons, trilhas, LUTs, motions, banco de mídias, referências (os CTAs são projetos da categoria CTA) |
 | `projetos/` | um vídeo por pasta (fora do git) |
 
 ### A biblioteca e os projetos

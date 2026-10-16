@@ -17,7 +17,7 @@ Responda em PT-BR, direto. Separe o que existe do que é plano.
 - `app/`: o app de revisão. `uv run ferramentas/servidor.py` → http://localhost:8719/app/
 - `biblioteca/` (fora do git; copia-se entre máquinas, por cima): `exemplos/` (criador.md e, por categoria de vídeo, as
   regras e os roteiros dirigidos, gerados pela Calibragem), `aprendizados/` (um .md por área com as correções do criador,
-  e `imagens/`), presets, transições, sons, trilhas, LUTs, motions, banco de inserts, CTAs, referências, códigos.
+  e `imagens/`), presets, transições, sons, trilhas, LUTs, motions, banco de inserts, referências, códigos (os CTAs são projetos da categoria CTA).
 - `projetos/<slug>/` (fora do git): um vídeo por pasta.
 
 Referência: `../18-harness-video-editor` (o app web anterior). Só leitura: copie ideias e código, nunca mexa lá.

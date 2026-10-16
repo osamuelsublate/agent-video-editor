@@ -1080,13 +1080,8 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 
 /* a página dos CTAs */
 .cabeca-secao .botao-subir { margin-left: auto; }
-.grade-ctas { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 32px 20px; }
-.card-cta .mini { position: relative; overflow: hidden; border-radius: var(--radius-xl); background: #000; }
-.card-cta .mini img, .card-cta .mini video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.card-cta .mini video { opacity: 0; transition: opacity 0.2s; }
 .card-cta.tocando .mini video { opacity: 1; }
 .card-cta .estrela { position: absolute; right: 8px; top: 8px; z-index: 2; }
-.cta-nome { margin: 10px 0 8px; font-size: 14px; font-weight: 600; letter-spacing: -0.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cta-info { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .cta-info .select-cta { flex: 1; min-width: 0; margin: 0; }
 .select-cta { width: 100%; margin: 8px 0 6px; padding: 6px 8px; border: 1px solid var(--color-line-dark); border-radius: var(--radius-lg);
@@ -1098,31 +1093,13 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 .card-cta .video-tocar { z-index: 3; }
 .card-cta.com-som .video-tocar { opacity: 0; }
 .card-cta.com-som .mini:hover .video-tocar { opacity: 1; }
-.cta-barra { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; height: 3px; background: rgba(0, 0, 0, 0.4); opacity: 0; }
 .card-cta.tocando .cta-barra { opacity: 1; }
-.cta-barra i { display: block; width: 0; height: 100%; background: var(--color-coral); }
 
 .cta-expandir { position: absolute; right: 8px; bottom: 10px; z-index: 3; background: rgba(0, 0, 0, 0.6); color: var(--color-cream); opacity: 0; transition: opacity 0.2s; }
 .card-cta .mini:hover .cta-expandir { opacity: 1; }
 .card-cta .mini .duracao { top: auto; bottom: 10px; left: 8px; right: auto; height: auto; }
 
 /* o card do CTA: as ferramentas sobre a miniatura (aparecem no hover); embaixo, o nome editável e uma linha de meta */
-.cta-ferramentas { position: absolute; right: 8px; bottom: 8px; z-index: 3; display: flex; gap: 2px; padding: 3px; border-radius: var(--radius-full);
-  background: rgba(10, 18, 16, 0.72); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); opacity: 0; transform: translateY(4px);
-  transition: opacity 0.2s, transform 0.25s var(--ease-otto); }
-.card-cta .mini:hover .cta-ferramentas, .card-cta:focus-within .cta-ferramentas { opacity: 1; transform: none; }
-.cta-ferramentas button { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 50%;
-  background: transparent; color: var(--color-cream); cursor: pointer; transition: background-color 0.15s; }
-.cta-ferramentas button:hover { background: rgba(250, 247, 238, 0.14); }
-.cta-ferramentas button[data-apagar]:hover { background: rgba(229, 72, 77, 0.3); }
-.cta-ferramentas svg { width: 14px; height: 14px; }
-.cta-corpo { display: flex; flex-direction: column; gap: 6px; padding: 12px 2px 0; }
-.cta-nome { width: 100%; margin: 0 0 0 -6px; padding: 3px 6px; border: 1px solid transparent; border-radius: var(--radius-lg); background: transparent;
-  color: var(--color-cream); font: inherit; font-size: 13.5px; font-weight: 600; letter-spacing: -0.015em; text-overflow: ellipsis;
-  transition: border-color 0.15s, background-color 0.15s; }
-.cta-nome:hover { border-color: var(--color-line-dark); }
-.cta-nome:focus { outline: none; border-color: var(--color-cream-50); background: var(--color-deeper); }
-.cta-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
 .cta-rodape { display: flex; justify-content: flex-start; }
 .cta-categoria { position: relative; display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%; padding: 3px 9px 3px 8px;
   border: 1px solid var(--color-line-dark); border-radius: var(--radius-full); color: var(--color-fog); font-size: 11.5px; font-weight: 500; cursor: pointer;
@@ -1132,7 +1109,6 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 .cta-categoria span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cta-categoria svg { flex: none; width: 11px; height: 11px; opacity: 0.7; }
 .cta-categoria select { position: absolute; inset: 0; width: 100%; opacity: 0; cursor: pointer; }
-.cta-meta .codigo { flex: none; }
 
 /* os produtos: o filtro no topo da página e o painel de edição */
 .filtro-produtos { display: flex; flex-wrap: wrap; gap: 6px; margin-left: 18px; }
@@ -1148,11 +1124,7 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 .produto-emoji { text-align: center; font-size: 16px !important; }
 .produtos-acoes { display: flex; justify-content: space-between; align-items: center; padding: 4px 20px 20px; }
 
-.card-cta .mini { cursor: pointer; }
 
-.cta-titulo { display: flex; align-items: center; gap: 6px; min-width: 0; }
-.cta-titulo .cta-nome { flex: 1; min-width: 0; }
-.cta-titulo .codigo { flex: none; }
 
 /* a categoria de vídeo (Reels, Ad…) de um projeto ou de uma referência, embaixo do card (app/categorias.js) */
 .caixa-projeto > .cta-categoria { margin-top: 6px; }
