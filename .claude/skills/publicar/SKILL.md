@@ -69,15 +69,18 @@ Editor = Rodrigo Tadewald** (`8147cc82-d2ee-4a16-ab14-0fec77b9f1a5`), **Prazo = 
 Publicação**, **Formato = 📽️ Vídeo**, **Perfil = Rodrigo**, **Link da Pasta = a pasta do Drive**. Antes de criar, procure
 o card pelo nome: se o criador já criou, preencha esse.
 
-- **Reels** (template Reels `3063ee05-7ee5-81c4-9d86-d23a41763aac`): título = o nome do vídeo (ex.: "3 níveis de IA");
+- **Reels** (template Reels `3063ee05-7ee5-81c4-9d86-d23a41763aac`): título = o nome do vídeo (ex.: "3 níveis de IA"),
+  **ícone 📱** (como os demais Reels);
   Mídia 📸 Reels / Tiktok. No corpo: o roteiro (a fala do vídeo, `projetos/<corpo>/roteiro.md` sem as marcações + o CTA
   do Reels) e a **descrição** proposta com a skill `roteiro-to-descricao` (vault: `~/Obsidian Notes/3 Skills/`).
 - **Perpétuo** (template Criativo `3063ee05-7ee5-816f-b147-f12935ee6519`), um card por funil: título `[FUNIL]_NNN_Nome`
   (ex.: `[VSL]_1085_3 Níveis de IA`), ícone 💰; Produto (ex.: 🤖 FIA), Mídia 💰 Criativo, Etapa do Funil Topo;
   **Campanha**: LP em branco · VSL `[COD_PROD]_VSL_Nome_do_ad` · ISCA `[COD_PROD]_ISCA_Nome_do_ad`; **Landing Page em branco**
   (o criador preenche).
-- **Pico** (template Criativo): título = o nome da pasta (`XX Nome do Ad`); Fase Black Friday (Captura ou Carrinho),
-  Produto Black Friday, Público Black Friday (Público geral), Mídia 💰 Criativo.
+- **Pico · Black** (template Criativo): título **`P2🟡BF26_Nome_do_ad`** (ex.: `P2🟡BF26_3_niveis_de_IA`), com
+  **Nível prioridade = P2🟡 Importante mas não urgente** (o prefixo do título é a prioridade); Fase Black Friday (Captura ou
+  Carrinho), Produto Black Friday, Público Black Friday (Público geral), Mídia 💰 Criativo. A pasta do Drive segue
+  `XX Nome do Ad` (ex.: `21 Rodrigo 3 níveis de IA`).
 
 ## 5. Entrega
 
