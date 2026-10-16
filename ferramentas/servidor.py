@@ -343,6 +343,13 @@ def _codigos(h, q):
     return codigo.mapa()
 
 
+@rota('GET', '/api/marcaveis')
+def _marcaveis(h, q):
+    """O que se marca com @ nos comentários da revisão (codigo.marcaveis)."""
+    import codigo
+    return {'itens': codigo.marcaveis()}
+
+
 # ---- calibragem e referências
 
 @rota('GET', '/api/referencias')

@@ -1233,3 +1233,26 @@ button.tag:hover { background: rgba(185, 166, 242, 0.26); }
 .tag-linha.ativa .tag-acao:hover { background: rgba(24, 45, 42, 0.12); }
 .tag-acao svg { width: 13px; height: 13px; }
 .tag-campo-barra { flex: 1; width: auto; min-width: 0; height: 24px; }
+
+/* as marcações com @ nos comentários: o seletor (mencoes.js) e o chip no texto */
+.janela-mencao { width: min(980px, 94vw); }
+.seletor-mencao { display: flex; flex-direction: column; gap: 14px; }
+.seletor-mencao .janela-cabeca { align-items: center; }
+.mencao-abas { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; }
+.mencao-busca { height: 38px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--color-line-strong); background: var(--color-deeper);
+  color: var(--color-cream); font: inherit; outline: none; }
+.mencao-busca:focus { border-color: var(--color-cream); }
+.mencao-grade { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; max-height: 62vh; overflow-y: auto; padding: 2px; }
+.mencao-card { display: flex; flex-direction: column; gap: 8px; padding: 0; border: 0; background: none; color: inherit; text-align: left; cursor: pointer; }
+.mencao-mini { aspect-ratio: 16 / 9; border-radius: 10px; overflow: hidden; background: var(--color-deeper); display: grid; place-items: center;
+  border: 1px solid var(--color-line-dark); transition: border-color .12s; }
+.mencao-card:hover .mencao-mini, .mencao-card:focus-visible .mencao-mini { border-color: var(--color-coral); }
+.mencao-mini img, .mencao-mini video { width: 100%; height: 100%; object-fit: cover; }
+.mencao-icone { color: var(--color-fog); opacity: 0.7; }
+.mencao-icone svg { width: 26px; height: 26px; }
+.mencao-rotulo { display: flex; flex-direction: column; gap: 2px; font-size: 12px; min-width: 0; }
+.mencao-rotulo b { font-family: var(--font-mono, ui-monospace, monospace); font-size: 11px; color: var(--color-fog); font-weight: 600; }
+.mencao-rotulo span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mencao { display: inline-flex; align-items: baseline; gap: 4px; padding: 0 6px; border-radius: 6px; background: rgba(245, 119, 87, 0.14);
+  color: var(--color-coral); font-weight: 600; white-space: nowrap; }
+.mencao-nome { font-weight: 400; color: var(--color-cream); opacity: 0.85; max-width: 18ch; overflow: hidden; text-overflow: ellipsis; }

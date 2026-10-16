@@ -23,6 +23,8 @@ uv run ferramentas/revisao.py ler <slug> [vN]     # cada comentário com id, ân
 0. **Abra os anexos**: cada comentário com `↳ print:` / `↳ anexo: projetos/<slug>/revisoes/anexos/…` (também no
    `revisao.py ler`) tem imagens ou vídeos do criador; abra cada imagem com a ferramenta Read (ela mostra a imagem) e,
    num vídeo, tire alguns quadros com o ffmpeg e leia-os, antes de aplicar.
+   **Elementos marcados com @** (`@BAN-074`, `@PRE-04`, `@TRA-02`…: o criador escolhe no seletor do app): resolva cada um
+   com `codigo.py <código>` — é a mídia, o preset, a transição, o motion, a trilha ou o som exato que ele quer.
 1. **Classifique** cada comentário pela etapa que ele toca e leia o `.md` dessa etapa:
    - fala (corta/volta palavra, repetição) → `02-cortes.md` (edite a `selecao.json` e `cortes.py aplicar`);
    - plano, tipo, o que aparece, lettering, elementos → `03-direcao.md` (edite o `roteiro.md` e `direcao.py aplicar`:

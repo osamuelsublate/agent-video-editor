@@ -146,6 +146,50 @@ def mapa() -> dict[str, dict[str, str]]:
     return out
 
 
+def marcaveis() -> list[dict]:
+    """O que se marca com @ num comentário da revisão: {codigo, tipo, id, nome, mini (imagem), clipe (vídeo), audio},
+    só do que ainda existe na biblioteca (o registro guarda os apagados)."""
+    B = BIBLIOTECA
+    trilhas = ler_json(B / 'trilhas' / 'catalogo.json', {}) or {}
+    trilhas = {f['id']: f for f in (trilhas.get('faixas', trilhas) if isinstance(trilhas, dict) else trilhas)}
+    sons = {s['id']: s for s in ler_json(B / 'sons' / 'catalogo.json', []) or []}
+    out = []
+    for c, v in atribuir().items():
+        tipo, id_ = v['tipo'], v['id']
+        x = {'codigo': c, 'tipo': 'midia' if tipo == 'trecho' else tipo, 'id': id_}
+        if tipo in ('midia', 'trecho'):
+            item = ler_json(B / 'banco' / id_ / 'item.json')
+            if not item:
+                continue
+            pai = item.get('pai') or id_
+            x['nome'] = item.get('nome') or id_
+            x['mini'] = f'/biblioteca/banco/{pai}/miniatura.jpg'
+        elif tipo == 'preset':
+            if not (B / 'presets' / f'{id_}.json').is_file():
+                continue
+            x['clipe'] = f'/biblioteca/presets/clipes/{id_}.mp4' if (B / 'presets' / 'clipes' / f'{id_}.mp4').is_file() else None
+        elif tipo == 'motion':
+            if not (B / 'motions' / 'presets' / f'{id_}.html').is_file():
+                continue
+        elif tipo == 'transicao':
+            if not (B / 'transicoes' / f'{id_}.json').is_file():
+                continue
+            x['clipe'] = f'/biblioteca/transicoes/clipes/{id_}.mp4' if (B / 'transicoes' / 'clipes' / f'{id_}.mp4').is_file() else None
+        elif tipo == 'trilha':
+            if id_ not in trilhas:
+                continue
+            x['audio'] = f'/biblioteca/trilhas/{id_}.m4a'
+        elif tipo == 'som':
+            if id_ not in sons:
+                continue
+            x['audio'] = f'/biblioteca/sons/{id_}.m4a'
+        else:
+            continue  # projetos e referências não se marcam aqui
+        x.setdefault('nome', nome_de(tipo, id_))
+        out.append(x)
+    return sorted(out, key=lambda x: [int(n) if n.isdigit() else n for n in re.split(r'(\d+)', x['codigo'])])  # BAN-074.2 antes do .10
+
+
 # ---------------------------------------------------------------- resolver
 
 def tempo(t: float) -> str:
