@@ -39,12 +39,10 @@ export function seDigitouArroba(campo, e) {
 
 async function abrirSeletor(campo, posArroba) {
   await carregarMarcaveis()
-  let busca = ''
   let escolhido = false
   const { el, fechar } = janela(`<div class="seletor-mencao">
       <header class="janela-cabeca"><nav class="mencao-abas">${ABAS.map(([k, n]) => `<button class="pilula pequena" data-aba-mencao="${k}">${n} <span class="conta">${itens.filter((x) => x.tipo === k).length}</span></button>`).join('')}</nav>
         <button class="botao-icone" data-fechar title="Fechar (Esc)">${ICONE.fechar}</button></header>
-      <input class="mencao-busca" placeholder="Buscar pelo nome ou pelo código" autocomplete="off">
       <div class="mencao-grade"></div></div>`, {
     classe: 'janela-mencao',
     aoFechar: () => {
@@ -52,17 +50,14 @@ async function abrirSeletor(campo, posArroba) {
       if (!escolhido) campo.setSelectionRange(posArroba + 1, posArroba + 1)
     },
   })
-  const lista = () => {
-    const b = busca.trim().toLowerCase()
-    return itens.filter((x) => x.tipo === aba && (!b || x.nome.toLowerCase().includes(b) || x.codigo.toLowerCase().includes(b)))
-  }
+  const lista = () => itens.filter((x) => x.tipo === aba)
   const desenhar = () => {
     for (const t of $$('[data-aba-mencao]', el)) t.classList.toggle('ativa', t.dataset.abaMencao === aba)
     const l = lista()
     $('.mencao-grade', el).innerHTML = l.length ? l.map((x) => `<button class="mencao-card" data-mencao="${esc(x.codigo)}">
         <span class="mencao-mini">${x.mini ? `<img src="${esc(x.mini)}" alt="" loading="lazy">` : x.clipe ? `<video muted loop playsinline preload="none" data-src="${esc(x.clipe)}"></video>` : `<span class="mencao-icone">${x.audio ? ICONE.tocar : ICONE.motion || ''}</span>`}</span>
         <span class="mencao-rotulo"><b>${esc(x.codigo)}</b><span>${esc(x.nome)}</span></span>${x.audio ? `<audio preload="none" src="${esc(x.audio)}"></audio>` : ''}</button>`).join('')
-      : '<p class="vazio">Nada com essa busca.</p>'
+      : '<p class="vazio">Nada aqui ainda.</p>'
     for (const card of $$('.mencao-card', el)) {
       const v = $('video', card)
       const a = $('audio', card)
@@ -102,18 +97,6 @@ async function abrirSeletor(campo, posArroba) {
     const c = e.target.closest('[data-mencao]')
     if (c) escolher(c.dataset.mencao)
   })
-  const entrada = $('.mencao-busca', el)
-  entrada.addEventListener('input', () => {
-    busca = entrada.value
-    desenhar()
-  })
-  entrada.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      const primeiro = lista()[0]
-      if (primeiro) escolher(primeiro.codigo)
-    }
-  })
   desenhar()
-  entrada.focus()
+  $('.mencao-card', el)?.focus()
 }

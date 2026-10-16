@@ -1239,9 +1239,6 @@ button.tag:hover { background: rgba(185, 166, 242, 0.26); }
 .seletor-mencao { display: flex; flex-direction: column; gap: 14px; }
 .seletor-mencao .janela-cabeca { align-items: center; }
 .mencao-abas { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; }
-.mencao-busca { height: 38px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--color-line-strong); background: var(--color-deeper);
-  color: var(--color-cream); font: inherit; outline: none; }
-.mencao-busca:focus { border-color: var(--color-cream); }
 .mencao-grade { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; max-height: 62vh; overflow-y: auto; padding: 2px; }
 .mencao-card { display: flex; flex-direction: column; gap: 8px; padding: 0; border: 0; background: none; color: inherit; text-align: left; cursor: pointer; }
 .mencao-mini { aspect-ratio: 16 / 9; border-radius: 10px; overflow: hidden; background: var(--color-deeper); display: grid; place-items: center;
