@@ -93,13 +93,17 @@ def _ator(clipes: list[dict], horizontal: bool, enquadramento_x: float, w: int, 
         q0, q1 = math.ceil(acc * fps - 1e-9), math.ceil((acc + dur) * fps - 1e-9)
         ini_v = ini + (q0 / fps - acc) * vel
         no_grid = f'{setpts},fps={fps},tpad=stop_mode=clone:stop_duration=0.5,trim=end_frame={q1 - q0},setpts=PTS-STARTPTS'
-        partes.append(f'[v{k}]trim=start={ini_v:.4f}:end={fim:.4f},{no_grid}[cv{k}]')
+        # o vídeo vai 1 quadro além do fim: o último quadro do clipe pega o quadro do bruto mais próximo do seu instante,
+        # que às vezes cai logo depois do `fim` (bruto a 23,976/s); cortado no `fim`, ele virava uma cópia do anterior
+        # (um quadro repetido antes de cada corte, mvi-0719 v1). O quadro a mais é a continuação da mesma tomada
+        fim_v = fim + vel / fps
+        partes.append(f'[v{k}]trim=start={ini_v:.4f}:end={fim_v:.4f},{no_grid}[cv{k}]')
         partes.append(f'[a{k}]atrim=start={ini:.4f}:end={fim:.4f},asetpts=PTS-STARTPTS,{atempo}'
                       f'afade=t=in:d={FADE},afade=t=out:st={max(dur - FADE, 0):.4f}:d={FADE}[ca{k}]')
         videos += f'[cv{k}]'
         audios += f'[ca{k}]'
         if usa_mascara:
-            partes.append(f'[m{k}]trim=start={ini_v:.4f}:end={fim:.4f},{no_grid}[cm{k}]')
+            partes.append(f'[m{k}]trim=start={ini_v:.4f}:end={fim_v:.4f},{no_grid}[cm{k}]')
             masc += f'[cm{k}]'
         acc += dur
     # o vídeo e o áudio emendados cada um por si: o vídeo em quadros exatos do vídeo final, o áudio no tempo exato
