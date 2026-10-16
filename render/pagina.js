@@ -1564,7 +1564,7 @@ ${b}` };
   });
   function manychat(e, rel) {
     const d = digitacao(e);
-    const letras = [...e.texto ?? ""];
+    const letras = [...(e.texto ?? "").toUpperCase()];
     const n = rel < d.ini ? 0 : Math.min(letras.length, Math.floor((rel - d.ini) / d.dur * letras.length) + 1);
     const digitando = rel < d.ini + d.dur;
     const toque = rel - d.ini - d.dur;
@@ -1585,7 +1585,8 @@ ${b}` };
         {
           chave: "palavra",
           classe: "absolute flex",
-          estilo: { left: `${(BARRA.texto - (1 - BARRA.w) / 2) * 100}cqw`, top: 0, bottom: 0, alignItems: "center", fontFamily: FONTE, fontWeight: 400, fontSize: `${TAM.manychat.toFixed(3)}cqh`, color: "#2a2a2a", whiteSpace: "pre" },
+          // centrada na barra (entre a borda e o botão de enviar), em negrito
+          estilo: { left: `${(BARRA.texto - (1 - BARRA.w) / 2) * 100}cqw`, right: `${BARRA.h * 100}cqh`, top: 0, bottom: 0, alignItems: "center", justifyContent: "center", fontFamily: FONTE, fontWeight: 700, letterSpacing: "0.04em", fontSize: `${(TAM.manychat * 1.25).toFixed(3)}cqh`, color: "#151515", whiteSpace: "pre" },
           filhos: [
             { chave: "texto", tag: "span", texto: letras.slice(0, n).join("") },
             digitando && { chave: "cursor", tag: "span", estilo: { width: "0.3cqw", height: "1.15em", marginLeft: "0.2cqw", background: "#2a2a2a", borderRadius: "0.2cqw" } }

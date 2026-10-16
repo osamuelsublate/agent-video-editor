@@ -51,6 +51,10 @@ Edite `inserts.pedidos[i].enriquecimento` no `edicao.json`:
 Ex.: um print com texto pequeno pede `"zoom": "Mais"` e `"zona"` no ponto do texto; uma sequência rápida de 3 mídias
 num insert curto pede `"entrada": "Rápida"`.
 
+**Ator embaixo** (`enriquecimento.divisao: "atras"`, o ator numa janela embaixo, com a cabeça saindo por cima;
+`enriquecimento.ator.escala` muda o tamanho, padrão 0,55): precisa do recorte da silhueta, senão a janela mostra só o
+peito. Rode uma vez por projeto, em segundo plano: `uv run ferramentas/recorte.py <slug>`.
+
 ## Full ator
 
 Em `inserts.ator_planos[<plano>]`: `zoom_lento` (+3 %/s, até +15 %, nunca para) ou `zoom_seco` (+18 % de uma vez, até o
