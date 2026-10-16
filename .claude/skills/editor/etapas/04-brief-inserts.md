@@ -13,8 +13,13 @@ Para cada um, nesta ordem:
  (3) a captura do site real, quando a fala cita um site/ferramenta (ache a URL oficial com WebSearch):
      `captura.py <url> --proporcao <a do insert> --duracao <dur+1, mín. 4> --projeto {slug}`.
      Site pesado (3D/WebGL, animação de abertura longa) sai no loader: espere a página carregar antes de gravar (ou
-     corte o começo com um trecho). Página do Cloudflare ("Attention Required", "Um momento…"): troque de site;
- (4) web oficial: imagens/vídeos do próprio produto (yt-dlp com --download-sections, só o trecho útil), subidos com
+     corte o começo com um trecho). Página do Cloudflare ("Attention Required", "Um momento…"): busque o HTML com
+     `uvx --with curl_cffi python` (`requests.get(url, impersonate="chrome")`) e renderize-o local num Playwright (os
+     CSS e imagens também pelo curl_cffi), ou troque de site;
+ (4) web oficial: imagens/vídeos do próprio produto. Vídeo do YouTube ou do X: SEMPRE
+     `uvx yt-dlp@latest -f "bv*[height<=2160]" --download-sections "*<ini>-<fim>" <url>` (o yt-dlp antigo leva 403 e
+     só baixa 360p: nunca aceite 360p, o texto fica ilegível); os vídeos oficiais (canais da OpenAI, Anthropic, Google,
+     n8n, Meta) mostram o produto em uso. Suba com
      `banco.py adicionar <arquivo> --nome … --descricao "<o que aparece, concreto>" --palavras … --fonte <url> --projeto {slug}`.
 Nunca rosto ou vídeo de outro criador; nunca imagem gerada por IA; nunca mockup seu. Não procure "um site genérico
 feito por IA" ao vivo (não existe como site real): use o que o banco tiver e, sem nada, deixe sem mídia e diga na nota.
