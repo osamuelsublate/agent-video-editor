@@ -1261,3 +1261,10 @@ button.tag:hover { background: rgba(185, 166, 242, 0.26); }
 .mencao-tags .tags-banco { position: static; max-height: 62vh; }
 .tags-banco.sem-editar .tag-acoes { display: none !important; }
 .tags-banco.sem-editar .tag-linha:hover .conta { display: inline; }
+/* o seletor do @ grande e de tamanho fixo (filtrar por uma tag não encolhe a janela) */
+.janela-mencao { width: min(1320px, 95vw) !important; }
+.seletor-mencao { height: min(820px, 86vh); }
+.mencao-corpo { flex: 1; min-height: 0; }
+.mencao-corpo.com-tags { height: 100%; }
+.mencao-grade, .mencao-tags .tags-banco { max-height: none; height: 100%; overflow-y: auto; align-content: start; }
+.mencao-corpo:not(.com-tags) .mencao-grade { height: 100%; }
