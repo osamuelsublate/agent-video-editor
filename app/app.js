@@ -1,7 +1,7 @@
 // O app de revisão: roteamento pelo endereço e o início (os projetos). As páginas: #/ (projetos), #/p/<slug>[/vN] (a
 // revisão de uma versão), #/calibragem[/<id>], #/referencias, #/heuristica, #/aprendizados[/<área>] e as da biblioteca
 // (#/presets, #/transicoes[/<de>><para>], #/banco (os inserts), #/motions, #/trilhas).
-import { $, $$, ICONE, abasAbertas, aviso, preferencia, chipCodigo, codigos, confirmar, copiar, enviar, esc, fecharAba, json, mmss } from './comum.js'
+import { $, $$, ICONE, abasAbertas, abrirAba, aviso, preferencia, chipCodigo, codigos, confirmar, copiar, enviar, esc, fecharAba, json, mmss } from './comum.js'
 import { abrirRevisao } from './revisao.js'
 import { abrirBiblioteca, PAGINAS_BIBLIOTECA } from './biblioteca.js'
 import { abrirCalibragem, abrirRevisaoReferencia } from './calibragem.js'
@@ -68,7 +68,7 @@ async function inicio(tela) {
       <div class="mini mini-916"><video muted playsinline preload="metadata" src="${proxy}#t=1.5"></video>
         <span class="selo ${cor}">${estado}</span>${p.duracao ? `<span class="duracao">${mmss(p.duracao)}</span>` : ''}
         <span class="chip-formato">${esc(rotuloCategoria(cats, p.formato || 'reels'))}</span></div>
-      <div class="card-titulo"><h3 title="${esc(p.nome)}">${esc(p.nome)}</h3></div>
+      <div class="card-titulo"><h3 title="${esc(p.nome)}">${esc(p.nome)}</h3><button class="botao-icone pequeno renomear" data-renomear title="Renomear" aria-label="Renomear ${esc(p.nome)}">${ICONE.lapis}</button></div>
       <p class="sub" title="${esc(p.slug)}">${quandoFoi(p.atualizado)} · v${p.ultima}${n > 1 ? ` · ${n} versões` : ''}${p.comentarios ? ` · ${p.comentarios} ${p.comentarios === 1 ? 'comentário' : 'comentários'}` : ''}</p>
     </a><div class="pe-projeto">${seletorCategoria(cats, p.formato || 'reels')}${chipCodigo(cods.projeto?.[p.slug], p.nome)}</div></div>`
   }
@@ -116,6 +116,40 @@ async function inicio(tela) {
       aviso(err.message, 'erro')
     }
   })
+  // renomear: o nome vira um campo no próprio card (Enter grava, Esc desiste)
+  const renomear = (caixa) => {
+    const p = projetos.find((x) => x.slug === caixa.dataset.slug)
+    const h3 = $('.card-titulo h3', caixa)
+    const campo = document.createElement('input')
+    campo.className = 'campo-nome'
+    campo.value = p.nome
+    h3.replaceWith(campo)
+    campo.focus()
+    campo.select()
+    let feito = false
+    const concluir = async (gravar) => {
+      if (feito) return
+      feito = true
+      const nome = campo.value.trim()
+      if (gravar && nome && nome !== p.nome) {
+        try {
+          await enviar('PUT', `/api/projetos/${encodeURIComponent(p.slug)}/nome`, { nome })
+          p.nome = nome
+          if (abasAbertas().some((a) => a.slug === p.slug)) abrirAba(p.slug, nome) // a aba de cima também
+          aviso('Nome salvo')
+        } catch (err) {
+          aviso(err.message, 'erro')
+        }
+      }
+      desenhar()
+    }
+    campo.addEventListener('keydown', (k) => {
+      if (k.key === 'Enter') { k.preventDefault(); concluir(true) }
+      if (k.key === 'Escape') { k.preventDefault(); concluir(false) }
+    })
+    campo.addEventListener('blur', () => concluir(true))
+    for (const t of ['click', 'mousedown']) campo.addEventListener(t, (k) => { k.preventDefault(); k.stopPropagation() })
+  }
   // apagar (como no 18): a pasta vai para a lixeira (projetos/_lixeira/), de onde dá para recuperar
   tela.addEventListener('click', async (e) => {
     const o = e.target.closest('[data-ordem]')
@@ -134,6 +168,11 @@ async function inicio(tela) {
         cats = await carregarCategorias()
         desenhar()
       })
+    const r = e.target.closest('[data-renomear]')
+    if (r) {
+      e.preventDefault() // o lápis fica dentro do link do card
+      return renomear(r.closest('.caixa-projeto'))
+    }
     const b = e.target.closest('[data-apagar]')
     if (!b) return
     const caixa = b.closest('.caixa-projeto')

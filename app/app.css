@@ -1214,3 +1214,11 @@ button.tag:hover { background: rgba(185, 166, 242, 0.26); }
 @media (max-width: 1100px) { .banco-com-tags .grade-banco { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 900px) { .banco-com-tags { grid-template-columns: 1fr; } .tags-banco { position: static; max-height: none; } }
 .selo-na-thumb { position: absolute; top: 10px; left: 10px; z-index: 2; box-shadow: 0 1px 6px rgba(0, 0, 0, 0.35); }
+
+/* renomear o projeto no card: o lápis aparece no hover; o nome vira campo */
+.card-projeto .renomear { flex: none; opacity: 0; transition: opacity .12s; }
+.caixa-projeto:hover .renomear, .renomear:focus-visible { opacity: 0.7; }
+.card-projeto .renomear:hover { opacity: 1; }
+.campo-nome { flex: 1; min-width: 0; font: inherit; font-size: 18px; font-weight: 500; color: var(--color-cream); background: var(--color-deeper);
+  border: 1px solid var(--color-line-strong); border-radius: 8px; padding: 2px 8px; outline: none; }
+.campo-nome:focus { border-color: var(--color-cream); }

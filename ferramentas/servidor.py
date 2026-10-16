@@ -412,6 +412,19 @@ def _categoria_referencia(h, q, id_):
     return calibragem().definir_categoria(id_, str(h.corpo().get('categoria') or ''))
 
 
+@rota('PUT', r'/api/projetos/([\w-]+)/nome')
+def _nome_projeto(h, q, slug):
+    """O nome do projeto (só o nome: a pasta e o slug ficam)."""
+    nome = str(h.corpo().get('nome') or '').strip()[:120]
+    if not nome:
+        raise Erro('O nome não pode ficar vazio.', 422)
+    arq = _edicao(slug)
+    edicao = ler_json(arq, {})
+    edicao['nome'] = nome
+    gravar_json(arq, edicao)
+    return {'nome': nome}
+
+
 @rota('PUT', r'/api/projetos/([\w-]+)/categoria')
 def _categoria_projeto(h, q, slug):
     calibragem().categoria_projeto(slug, str(h.corpo().get('categoria') or ''))
