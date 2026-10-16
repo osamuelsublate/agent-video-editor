@@ -50,8 +50,11 @@ def do_projeto(p: dict) -> dict:
     a = p.get('audio') or {}
     voz = {**PADRAO['voz'], **{k: v for k, v in (a.get('voz') or {}).items() if k in PADRAO['voz']}}
     niveis = {**PADRAO['niveis'], **{k: float(v) for k, v in (a.get('niveis') or {}).items() if k in TRILHAS and isinstance(v, (int, float))}}
+    # emendar vídeos (o Reels e o CTA que entra depois dele): `continua` = o slug do vídeo de antes, cuja trilha este
+    # continua de onde ela parou; `fade_fim: false` no de antes, para a música não sumir na emenda
     return {'voz': voz, 'fundo': a.get('fundo') if isinstance(a.get('fundo'), str) else None, 'fundo_mudo': bool(a.get('fundo_mudo')),
-            'niveis': niveis}
+            'niveis': niveis, 'continua': a.get('continua') if isinstance(a.get('continua'), str) else None,
+            'fade_fim': a.get('fade_fim', True) is not False}
 
 
 def db(x: float) -> float:
@@ -174,7 +177,8 @@ def filtros(a: dict, clipes: list[dict], eventos_som: list[dict], primeira_entra
     if a.get('fundo') and not a.get('fundo_mudo'):
         idx = primeira_entrada + entradas.count('-i')
         # cada volta numa entrada própria (o mesmo arquivo), emendadas com crossfade de potência constante
-        voltas = voltas_do_fundo(tuple(a.get('laco') or (0.0, duracao)), duracao)
+        desde = float(a.get('desde') or 0)  # onde a trilha já está (continuando o vídeo de antes)
+        voltas = voltas_do_fundo(tuple(a.get('laco') or (0.0, desde + duracao)), desde + duracao)
         for k, (de, ate) in enumerate(voltas):
             entradas += ['-i', str(a['fundo'])]
             f.append(f'[{idx + k}:a]aresample=48000,aformat=channel_layouts=stereo,atrim=start={de:.3f}:end={ate:.3f},asetpts=PTS-STARTPTS[pf{k}]')
@@ -182,8 +186,9 @@ def filtros(a: dict, clipes: list[dict], eventos_som: list[dict], primeira_entra
         for k in range(1, len(voltas)):
             f.append(f'[{"pf0" if k == 1 else f"pfx{k - 1}"}][pf{k}]acrossfade=d={cruza:.3f}:c1=qsin:c2=qsin[pfx{k}]')
         ganho = ganho_fundo(a['voz_lufs'], a['niveis']['fundo'])
-        f.append(f"[{'pf0' if len(voltas) == 1 else f'pfx{len(voltas) - 1}'}]atrim=duration={duracao:.4f},asetpts=PTS-STARTPTS,"
-                 f"afade=t=out:st={max(duracao - FADE_FUNDO, 0):.4f}:d={FADE_FUNDO},volume={ganho:.1f}dB,"
+        fade = f"afade=t=out:st={max(duracao - FADE_FUNDO, 0):.4f}:d={FADE_FUNDO}," if a.get('fade_fim', True) else ''
+        f.append(f"[{'pf0' if len(voltas) == 1 else f'pfx{len(voltas) - 1}'}]atrim=start={desde:.4f}:duration={duracao:.4f},asetpts=PTS-STARTPTS,"
+                 f"{fade}volume={ganho:.1f}dB,"
                  f"volume='{expressao_ducking(a.get('falas') or [], a.get('ducking_db', DUCKING_DB))}':eval=frame[pfd]")
         f.append(f'[{atual}][pfd]amix=inputs=2:duration=first:normalize=0[pmixf]')
         atual = 'pmixf'

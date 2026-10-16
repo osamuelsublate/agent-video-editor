@@ -68,6 +68,17 @@ def v1_tocada(edicao: dict) -> list[dict]:
     return [{**c, 'vel': v} for c in sorted((edicao.get('timeline') or {}).get('V1') or [], key=lambda c: c['inicio'])]
 
 
+def duracao_antes(slug: str, avisos: list[str]) -> float:
+    """A duração da última versão do vídeo que vem antes deste na emenda (`audio.continua`): onde a trilha dele parou."""
+    vs = sorted((int(d.name[1:]) for d in (pasta(slug) / 'versoes').glob('v*') if d.name[1:].isdigit()), reverse=True)
+    for v in vs:
+        dur = (ler_json(pasta(slug) / 'versoes' / f'v{v}' / 'info.json', {}) or {}).get('duracao')
+        if dur:
+            return float(dur)
+    avisos.append(f'audio.continua: {slug} não tem versão renderizada; a trilha começou do zero.')
+    return 0.0
+
+
 def palavras_na_saida(palavras: list[dict], clipes: list[dict]) -> list[dict]:
     """As palavras que tocam no vídeo final, com início e fim no tempo da saída. Do 18: direcao_projeto.palavras_na_saida."""
     acc, posicoes = 0.0, []
@@ -244,7 +255,8 @@ def som(p: Path, edicao: dict, fonte: dict, clipes: list[dict], transcricao: lis
     if a['fundo'] and not fundo:
         avisos.append(f"A faixa de fundo {a['fundo']} não está em biblioteca/trilhas/: o vídeo saiu sem fundo.")
     return {'voz': voz, 'voz_lufs': voz_lufs, 'timbre': a['voz']['timbre'], 'niveis': a['niveis'], 'fundo': fundo,
-            'laco': audio.laco(fundo) if fundo else None, 'fundo_mudo': a['fundo_mudo'],
+            'laco': audio.laco(fundo) if fundo else None, 'fundo_mudo': a['fundo_mudo'], 'fade_fim': a['fade_fim'],
+            'desde': duracao_antes(a['continua'], avisos) if a['continua'] else 0.0,
             'falas': audio.falas(palavras_na_saida(transcricao, clipes)), 'ducking_db': audio.DUCKING_DB, 'limpeza': limpeza}
 
 
