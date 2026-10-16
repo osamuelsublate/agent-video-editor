@@ -20,7 +20,7 @@ Rotas (JSON; um erro volta como {"erro": "…"}, com 422 numa validação):
   aprendizados/<área>.md) · GET /api/aprendizados/imagens/<nome> (as imagens que os .md mostram).
 - GET /api/presets/amostras (o ator e as mídias do banco da simulação dos presets, render/preset.html)
   · PUT /api/presets/<id> {aprovado} · PUT /api/presets/ordem {chave, ids, favoritos} · PUT /api/transicoes/<id> {aprovado}
-  · PUT /api/transicoes/ordem {chave, ids, favoritas} · GET|PUT|DELETE /api/banco/<id> ({estado} marca o selo à mão; {tags} as tags, aninhadas com /) · GET /api/estados (selos do banco e usos dos motions nos
+  · PUT /api/transicoes/ordem {chave, ids, favoritas} · GET|PUT|DELETE /api/banco/<id> ({estado} marca o selo à mão; {tags} as tags, aninhadas com /) · PUT /api/motions/<id>/tags {tags} · PUT /api/referencias/<id>/tags {inicio, fim, tags} · POST /api/tags/<banco|motions|referencias> {de, para} (renomeia ou tira em todos) · GET /api/estados (selos do banco e usos dos motions nos
   vídeos aprovados) · POST /api/limpar-recusados · POST /api/banco (subir: o arquivo cru, nome em X-Nome) ·
   POST /api/banco/<id>/trechos {inicio, fim, nome} · GET /api/banco/<id>/tira · PUT /api/motions/<id>/aprovar.
 - Recusar: GET /api/presets/<id>/usos e /api/motions/<id>/usos (os projetos que usam) · POST /api/presets/<id>/recusar
@@ -50,7 +50,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
 sys.path.insert(0, str(Path(__file__).parent))
-from base import APRENDIZADOS, BIBLIOTECA, EXEMPLOS, PROJETOS, RAIZ, gravar_json, ler_json, preparar_biblioteca  # noqa: E402
+from base import APRENDIZADOS, BIBLIOTECA, EXEMPLOS, PROJETOS, RAIZ, gravar_json, ler_json, preparar_biblioteca, renomear_tags, tag_limpa, tags_limpas  # noqa: E402
 
 PORTA = 8719
 PUBLICOS = ('app', 'render', 'projetos', 'biblioteca')
@@ -804,15 +804,50 @@ def _estados(h, q):
     return {'midias': b.estados(), 'motions': motions}
 
 
-@rota('POST', '/api/banco-tags')
-def _renomear_tag(h, q):
-    """Renomeia (ou, com `para` vazio, apaga) uma tag em todas as mídias do banco, com as tags de dentro dela."""
+MOTION_TAGS = BIBLIOTECA / 'motions' / '_tags.json'  # {preset: [tags]}
+
+
+@rota('PUT', r'/api/motions/([\w-]+)/tags')
+def _tags_motion(h, q, id_):
+    tags = tags_limpas(h.corpo().get('tags'))
+    mapa = ler_json(MOTION_TAGS, {}) or {}
+    if tags:
+        mapa[id_] = tags
+    else:
+        mapa.pop(id_, None)
+    gravar_json(MOTION_TAGS, mapa)
+    return {'tags': tags}
+
+
+@rota('PUT', f'/api/referencias/{ID}/tags')
+def _tags_referencia(h, q, id_):
     c = h.corpo()
-    limpa = lambda t: re.sub(r'/+', '/', re.sub(r'\s+', '-', str(t or '').strip().lstrip('#').strip())).strip('/')  # noqa: E731
-    de, para = limpa(c.get('de')), limpa(c.get('para'))
+    return calibragem().marcar_tags(id_, float(c['inicio']), float(c['fim']), c.get('tags') or [])
+
+
+@rota('POST', r'/api/tags/(banco|motions|referencias)')
+def _renomear_tag(h, q, onde):
+    """Renomeia (ou, com `para` vazio, tira) uma tag, com as de dentro dela, em tudo do Banco, dos Motions ou das
+    Referências."""
+    c = h.corpo()
+    de, para = tag_limpa(c.get('de')), tag_limpa(c.get('para'))
     if not de:
         raise Erro('Qual tag?', 422)
-    return {'mudaram': _banco().renomear_tag(de, para)}
+    if onde == 'banco':
+        return {'mudaram': _banco().renomear_tag(de, para)}
+    if onde == 'referencias':
+        return {'mudaram': calibragem().renomear_tag(de, para)}
+    mapa, n = ler_json(MOTION_TAGS, {}) or {}, 0
+    for k, tags in list(mapa.items()):
+        novas = renomear_tags(tags, de, para)
+        if novas != tags:
+            n += 1
+            if novas:
+                mapa[k] = novas
+            else:
+                mapa.pop(k)
+    gravar_json(MOTION_TAGS, mapa)
+    return {'mudaram': n}
 
 
 @rota('POST', '/api/limpar-recusados')
@@ -834,8 +869,7 @@ def _editar_midia(h, q, id_):
     if 'palavras' in c and not item.get('pai'):
         item['palavras'] = [str(p).strip() for p in c['palavras'] or [] if str(p).strip()][:30]
     if 'tags' in c:  # como no Obsidian: sem o #, sem espaços, níveis com / ("fia/ad-vsl")
-        tags = [re.sub(r'/+', '/', re.sub(r'\s+', '-', str(t).strip().lstrip('#').strip())).strip('/') for t in c['tags'] or []]
-        item['tags'] = list(dict.fromkeys(t for t in tags if t))[:30]
+        item['tags'] = tags_limpas(c['tags'])
     if item.get('pai') and ('inicio' in c or 'fim' in c):  # o intervalo de um trecho
         try:
             t = b.editar_trecho(id_, c.get('inicio', item['inicio']), c.get('fim', item['fim']))

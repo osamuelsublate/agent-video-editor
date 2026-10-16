@@ -153,6 +153,7 @@ def marcaveis() -> list[dict]:
     trilhas = ler_json(B / 'trilhas' / 'catalogo.json', {}) or {}
     trilhas = {f['id']: f for f in (trilhas.get('faixas', trilhas) if isinstance(trilhas, dict) else trilhas)}
     sons = {s['id']: s for s in ler_json(B / 'sons' / 'catalogo.json', []) or []}
+    tags_motion = ler_json(B / 'motions' / '_tags.json', {}) or {}
     out = []
     for c, v in atribuir().items():
         tipo, id_ = v['tipo'], v['id']
@@ -164,6 +165,9 @@ def marcaveis() -> list[dict]:
             pai = item.get('pai') or id_
             x['nome'] = item.get('nome') or id_
             x['mini'] = f'/biblioteca/banco/{pai}/miniatura.jpg'
+            x['tags'] = item.get('tags') or []
+            if item.get('pai'):
+                x['trecho'] = True
         elif tipo == 'preset':
             if not (B / 'presets' / f'{id_}.json').is_file():
                 continue
@@ -171,6 +175,7 @@ def marcaveis() -> list[dict]:
         elif tipo == 'motion':
             if not (B / 'motions' / 'presets' / f'{id_}.html').is_file():
                 continue
+            x['tags'] = tags_motion.get(id_, [])
         elif tipo == 'transicao':
             if not (B / 'transicoes' / f'{id_}.json').is_file():
                 continue

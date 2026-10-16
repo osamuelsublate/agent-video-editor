@@ -4,6 +4,7 @@ Importado pelos outros scripts de ferramentas/ (rodados com `uv run ferramentas/
 """
 import json
 import os
+import re
 import subprocess
 import tempfile
 from pathlib import Path
@@ -51,6 +52,26 @@ def ler_json(caminho: Path, padrao=None):
     if not caminho.exists():
         return padrao
     return json.loads(caminho.read_text(encoding='utf-8'))
+
+
+def tag_limpa(t) -> str:
+    """Uma tag como no Obsidian: sem o #, sem espaços (viram -), níveis com / ("fia/ad-vsl")."""
+    return re.sub(r'/+', '/', re.sub(r'\s+', '-', str(t or '').strip().lstrip('#').strip())).strip('/')
+
+
+def tags_limpas(lista) -> list[str]:
+    return list(dict.fromkeys(t for t in (tag_limpa(x) for x in lista or []) if t))[:30]
+
+
+def renomear_tags(tags: list[str], de: str, para: str) -> list[str]:
+    """Troca a tag `de` e as de dentro dela ("fia" leva "fia/reels") por `para`; `para` vazio tira."""
+    out = []
+    for t in tags or []:
+        if t == de or t.startswith(f'{de}/'):
+            t = f'{para}{t[len(de):]}' if para else ''
+        if t and t not in out:
+            out.append(t)
+    return out
 
 
 def gravar_json(caminho: Path, dados) -> None:

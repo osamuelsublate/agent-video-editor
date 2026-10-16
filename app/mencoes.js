@@ -1,7 +1,8 @@
 // as marcações com @ nos comentários da revisão: o @ abre um seletor (Banco, Motions, Presets, Transições, Trilhas,
 // Sons) e o escolhido entra no texto como o código (@BAN-074), que o Claude resolve com codigo.py; no card do
 // comentário, o código vira um chip com o nome
-import { $, $$, ICONE, esc, janela, json } from './comum.js'
+import { $, $$, ICONE, esc, janela, json, preferencia } from './comum.js'
+import { barraDeTags, temTag } from './tags.js'
 
 const ABAS = [
   ['midia', 'Banco'], ['motion', 'Motions'], ['preset', 'Presets'], ['transicao', 'Transições'], ['trilha', 'Trilhas'], ['som', 'Sons'],
@@ -11,6 +12,9 @@ const MENCAO = /@((?:PRE|MOT|TRA|TRI|BAN|SOM)-\d+(?:\.\d+)?)/g
 let itens = null // [{codigo, tipo, id, nome, mini?, clipe?, audio?}]
 let porCodigo = new Map()
 let aba = 'midia'
+const tagDa = {} // a tag escolhida em cada aba (no seletor)
+// o Banco sem os trechos individuais (a mídia inteira basta para marcar)
+const daAba = (k) => itens.filter((x) => x.tipo === k && !x.trecho)
 
 /** Carrega a lista uma vez (os chips dos comentários usam o nome). */
 export async function carregarMarcaveis() {
@@ -41,18 +45,23 @@ async function abrirSeletor(campo, posArroba) {
   await carregarMarcaveis()
   let escolhido = false
   const { el, fechar } = janela(`<div class="seletor-mencao">
-      <header class="janela-cabeca"><nav class="mencao-abas">${ABAS.map(([k, n]) => `<button class="pilula pequena" data-aba-mencao="${k}">${n} <span class="conta">${itens.filter((x) => x.tipo === k).length}</span></button>`).join('')}</nav>
+      <header class="janela-cabeca"><nav class="mencao-abas">${ABAS.map(([k, n]) => `<button class="pilula pequena" data-aba-mencao="${k}">${n} <span class="conta">${daAba(k).length}</span></button>`).join('')}</nav>
         <button class="botao-icone" data-fechar title="Fechar (Esc)">${ICONE.fechar}</button></header>
-      <div class="mencao-grade"></div></div>`, {
+      <div class="mencao-corpo"><div class="mencao-tags"></div><div class="mencao-grade"></div></div></div>`, {
     classe: 'janela-mencao',
     aoFechar: () => {
       campo.focus()
       if (!escolhido) campo.setSelectionRange(posArroba + 1, posArroba + 1)
     },
   })
-  const lista = () => itens.filter((x) => x.tipo === aba)
+  const lista = () => daAba(aba).filter((x) => !tagDa[aba] || temTag(x.tags, tagDa[aba]))
   const desenhar = () => {
     for (const t of $$('[data-aba-mencao]', el)) t.classList.toggle('ativa', t.dataset.abaMencao === aba)
+    // as tags no canto (Banco e Motions): só filtram aqui; editar é na página de cada um
+    const comTags = daAba(aba).some((x) => x.tags?.length)
+    if (tagDa[aba] && !daAba(aba).some((x) => temTag(x.tags, tagDa[aba]))) tagDa[aba] = ''
+    $('.mencao-tags', el).innerHTML = comTags ? barraDeTags(daAba(aba).map((x) => ({ chave: x.codigo, tags: x.tags })), tagDa[aba] || '', `mencao.${aba}`, { editar: false }) : ''
+    el.querySelector('.mencao-corpo').classList.toggle('com-tags', comTags)
     const l = lista()
     $('.mencao-grade', el).innerHTML = l.length ? l.map((x) => `<button class="mencao-card" data-mencao="${esc(x.codigo)}">
         <span class="mencao-mini">${x.mini ? `<img src="${esc(x.mini)}" alt="" loading="lazy">` : x.clipe ? `<video muted loop playsinline preload="none" data-src="${esc(x.clipe)}"></video>` : `<span class="mencao-icone">${x.audio ? ICONE.tocar : ICONE.motion || ''}</span>`}</span>
@@ -89,6 +98,18 @@ async function abrirSeletor(campo, posArroba) {
     campo.dispatchEvent(new Event('input', { bubbles: true }))
   }
   el.addEventListener('click', (e) => {
+    const ab = e.target.closest('[data-abrir-tag]')
+    if (ab) {
+      const chave = `mencao.${aba}.tags.abertas`
+      const l = preferencia(chave, [])
+      preferencia(chave, [], l.includes(ab.dataset.abrirTag) ? l.filter((x) => x !== ab.dataset.abrirTag) : [...l, ab.dataset.abrirTag])
+      return desenhar()
+    }
+    const tg = e.target.closest('[data-tag]')
+    if (tg) {
+      tagDa[aba] = tg.dataset.tag
+      return desenhar()
+    }
     const t = e.target.closest('[data-aba-mencao]')
     if (t) {
       aba = t.dataset.abaMencao

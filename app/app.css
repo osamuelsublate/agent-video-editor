@@ -1253,3 +1253,11 @@ button.tag:hover { background: rgba(185, 166, 242, 0.26); }
 .mencao { display: inline-flex; align-items: baseline; gap: 4px; padding: 0 6px; border-radius: 6px; background: rgba(245, 119, 87, 0.14);
   color: var(--color-coral); font-weight: 600; white-space: nowrap; }
 .mencao-nome { font-weight: 400; color: var(--color-cream); opacity: 0.85; max-width: 18ch; overflow: hidden; text-overflow: ellipsis; }
+
+/* o seletor do @: as tags no canto (só filtram) */
+.mencao-corpo { display: block; }
+.mencao-corpo.com-tags { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 20px; align-items: start; }
+.mencao-corpo.com-tags .mencao-grade { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.mencao-tags .tags-banco { position: static; max-height: 62vh; }
+.tags-banco.sem-editar .tag-acoes { display: none !important; }
+.tags-banco.sem-editar .tag-linha:hover .conta { display: inline; }

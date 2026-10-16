@@ -3,6 +3,7 @@
 // área, com as correções do criador vídeo a vídeo).
 import { $, $$, ESTRELA_CHEIA, ICONE, PLANOS, ajuda, aviso, chipCodigo, codigos, enviar, esc, janela, markdown, nomePlano, num, preferencia, seg, tempo, tocarTrecho, urlRef } from './comum.js'
 import { jsons } from './biblioteca.js'
+import { barraDeTags, datalistTags, htmlTagsCard, ligarTags, tagEscolhida, temTag } from './tags.js'
 import { botaoCategorias, carregarCategorias, editarCategorias, pilulasCategoria, rotuloCategoria } from './categorias.js'
 
 // o ícone de cada grupo nos chips (o IconeGrupo do 18)
@@ -55,8 +56,12 @@ export async function abrirReferencias(tela) {
   let ordem = 'video' // alfabética: pelo nome do vídeo, e na ordem dentro dele
   let visiveis = []
 
-  const base = () => clipes.filter((c) => (!semAtor || !SO_ATOR.includes(c.tipo)) && (conteudo === 'todos' || conteudoDo(c.tipo) === conteudo)
+  const chaveDo = (c) => `${c.ref}|${c.inicio}`
+  let tagAtiva = ''
+  // os filtros de cima (sem a tag): o que a barra de tags conta
+  const semTag = () => clipes.filter((c) => (!semAtor || !SO_ATOR.includes(c.tipo)) && (conteudo === 'todos' || conteudoDo(c.tipo) === conteudo)
     && (!categoria || (c.tipo_video || 'reels') === categoria))
+  const base = () => semTag().filter((c) => !tagAtiva || temTag(c.tags, tagAtiva))
   const card = (c, k) => `<article class="card-clipe" data-k="${k}">
       <div class="mini mini-916">${c.miniatura ? `<img src="${c.miniatura}" alt="" loading="lazy">` : ''}
         <span class="selo tipo-${esc(c.tipo)}">${esc(nomePlano(c.tipo))}</span>
@@ -66,9 +71,11 @@ export async function abrirReferencias(tela) {
       <p class="sub">${esc(c.ref_nome)} · ${tempo(c.inicio)}</p><div class="card-pe">${chipDo(c)}</div>
       ${c.texto ? `<p class="texto-clipe">“${esc(c.texto)}”</p>` : ''}
       <p class="desc desc-2">${esc(c.descricao || '')}</p>
+      ${htmlTagsCard(c.tags)}
     </article>`
 
   const desenhar = () => {
+    tagAtiva = tagEscolhida('refs', clipes.map((c) => ({ tags: c.tags })))
     const l = base()
     const nFav = l.filter((c) => c.favorito).length
     const contar = (tipos) => l.filter((c) => tipos.includes(c.tipo)).length
@@ -94,8 +101,22 @@ export async function abrirReferencias(tela) {
           <label class="caixa"><input type="checkbox" data-sem-ator ${semAtor ? 'checked' : ''}> Ignorar Full ator</label>
           <label class="caixa">Ordenar <select data-ordem>${Object.entries(ORDENS).map(([k, n]) => `<option value="${k}"${k === ordem ? ' selected' : ''}>${n}</option>`).join('')}</select></label></span></div>
       ${!clipes.length ? '<p class="vazio">Nenhum clipe ainda. Suba vídeos editados na <a href="#/calibragem">Calibragem</a>: quando a análise terminar, cada plano aparece aqui.</p>'
-        : visiveis.length ? `<div class="grade grade-clipes">${visiveis.map(card).join('')}</div>` : '<p class="vazio">Nenhum clipe com esses filtros.</p>'}`
+        : `${datalistTags('tags-conhecidas-ref', conhecidas())}<div class="banco-com-tags">${barraDeTags(semTag().map((c) => ({ chave: chaveDo(c), tags: c.tags })), tagAtiva, 'refs')}<div class="banco-grade">${visiveis.length ? `<div class="grade grade-clipes">${visiveis.map(card).join('')}</div>` : '<p class="vazio">Nenhum clipe com esses filtros.</p>'}</div></div>`}`
+    ligarTags(tela, {
+      onde: 'referencias',
+      pref: 'refs',
+      lista: 'tags-conhecidas-ref',
+      conhecidas: conhecidas(),
+      itemDo: (b) => visiveis[+b.closest('[data-k]').dataset.k],
+      gravar: async (c, tags) => {
+        const r = await enviar('PUT', `/api/referencias/${encodeURIComponent(c.ref)}/tags`, { inicio: c.inicio, fim: c.fim, tags })
+        c.tags = r.tags
+      },
+      recarregar: desenhar,
+      aposRenomear: () => abrirReferencias(tela),
+    })
   }
+  const conhecidas = () => [...new Set(clipes.flatMap((c) => c.tags || []))].sort()
 
   const favoritar = async (c) => {
     c.favorito = !c.favorito
@@ -155,7 +176,7 @@ export async function abrirReferencias(tela) {
       return desenhar()
     }
     const card = e.target.closest('.card-clipe')
-    if (!card) return
+    if (!card || e.target.closest('.tags-card, .tag-campo')) return
     const c = visiveis[+card.dataset.k]
     if (e.target.closest('[data-favoritar]')) return favoritar(c)
     parar?.()

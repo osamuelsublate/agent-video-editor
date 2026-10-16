@@ -55,11 +55,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 import gemini  # noqa: E402
-from base import BIBLIOTECA, EXEMPLOS, PROJETOS, RAIZ, env, ffmpeg, gravar_json, inspecionar, ler_json  # noqa: E402
+from base import BIBLIOTECA, EXEMPLOS, PROJETOS, RAIZ, env, ffmpeg, gravar_json, inspecionar, ler_json, renomear_tags, tags_limpas  # noqa: E402
 
 REFS = BIBLIOTECA / 'referencias'
 LIXEIRA = REFS / '_lixeira'
 FAVORITOS = REFS / '_favoritos.json'
+TAGS = REFS / '_tags.json'  # as tags dos planos da galeria: [{ref, inicio, fim, tags}]
 CATEGORIAS_ARQ = BIBLIOTECA / 'categorias-video.json'
 CATEGORIA_PADRAO = 'reels'  # das referências e dos projetos de antes das categorias
 CATEGORIAS = [
@@ -483,6 +484,38 @@ def favoritar(ref: str, inicio: float, fim: float, favorito: bool) -> dict:
     return {'favorito': bool(favorito)}
 
 
+def ler_tags() -> list[dict]:
+    try:
+        return json.loads(TAGS.read_text(encoding='utf-8'))
+    except (FileNotFoundError, ValueError):
+        return []
+
+
+def marcar_tags(ref: str, inicio: float, fim: float, tags: list[str]) -> dict:
+    """As tags de um plano da galeria (pela referência e pelo intervalo, como o favorito); lista vazia tira."""
+    tags = tags_limpas(tags)
+    with _trava():
+        l = [t for t in ler_tags() if not mesmo_trecho(t, ref, float(inicio), float(fim))]
+        if tags:
+            l.append({'ref': ref, 'inicio': round(float(inicio), 3), 'fim': round(float(fim), 3), 'tags': tags})
+        gravar_json(TAGS, l)
+    return {'tags': tags}
+
+
+def renomear_tag(de: str, para: str) -> int:
+    """Renomeia (ou tira) uma tag, com as de dentro dela, em todos os planos da galeria."""
+    n = 0
+    with _trava():
+        l = []
+        for t in ler_tags():
+            novas = renomear_tags(t['tags'], de, para)
+            n += novas != t['tags']
+            if novas:
+                l.append({**t, 'tags': novas})
+        gravar_json(TAGS, l)
+    return n
+
+
 def entrada(t: float, palavras: list[dict]) -> dict | None:
     """Como um plano entra em relação à fala: numa pausa (≥ 150 ms sem fala), entre palavras coladas ou no meio de uma
     palavra; no começo ou no meio de uma frase; e a quantos ms do começo da palavra mais próxima."""
@@ -542,9 +575,10 @@ def clipes() -> dict:
     for r, itens, palavras in _analisadas():
         lista, origens[r['id']] = _clipes_de(r, itens, palavras)
         todos += [{**c, 'tipo_video': categoria_de(r)} for c in lista]  # a categoria do vídeo de origem, para o filtro
-    favoritos = ler_favoritos()
+    favoritos, tags = ler_favoritos(), ler_tags()
     for c in todos:
         c['favorito'] = any(mesmo_trecho(f, c['ref'], c['inicio'], c['fim']) for f in favoritos)
+        c['tags'] = next((t['tags'] for t in tags if mesmo_trecho(t, c['ref'], c['inicio'], c['fim'])), [])
     return {'clipes': todos, 'origens': origens, 'categorias': PLANOS, 'elementos': ELEMENTOS}
 
 
