@@ -1159,7 +1159,8 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 
 /* a linha de baixo do card da Calibragem: a data e a categoria */
 .pe-ref { display: flex; align-items: center; gap: 6px; margin-top: 4px; min-width: 0; }
-.pe-ref .sub { margin: 0; flex: none; }
+.pe-ref .codigo { margin-left: auto; flex: none; }
+.card-ref .data-ref { margin: 0; flex: none; font-size: 11px; }
 .pe-ref > .cta-categoria { margin-top: 0; min-width: 0; }
 /* o interruptor "Ensina" (entra nos exemplos da direção), no canto direito da linha de baixo */
 .interruptor { display: inline-flex; flex: none; align-items: center; gap: 4px; margin-left: auto; padding: 0; border: 0; background: none;

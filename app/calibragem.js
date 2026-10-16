@@ -49,7 +49,7 @@ export async function abrirCalibragem(tela) {
     const [rotulo, cor] = STATUS[r.status] || [r.status, 'selo-coral']
     const passo = r.passo ? `${PASSOS[r.passo] || r.passo_rotulo || r.passo}${r.passo === 'analise' && r.passos?.analise?.total ? ` ${r.passos.analise.feitos || 0}/${r.passos.analise.total}` : r.progresso != null ? ` ${Math.round(r.progresso * 100)}%` : ''}` : ''
     const mini = `<div class="mini mini-916">${r.miniatura ? `<img src="${r.miniatura}" alt="" loading="lazy">` : ''}
-        <span class="selo ${cor}">${rotulo}</span>${r.duracao ? `<span class="duracao">${mmss(r.duracao)}</span>` : ''}${seloOrigem(r.origem, 'selo selo-azul')}
+        <span class="selo ${cor}">${rotulo}</span>${r.duracao ? `<span class="duracao">${mmss(r.duracao)}</span>` : ''}
         ${r.status === 'analisando' || r.status === 'na_fila' ? `<span class="progresso"><i style="width:${Math.round((r.progresso ?? 0) * 100)}%"></i></span>` : ''}
         <span class="acoes-card"><button class="botao-icone pequeno" data-ocultar title="${r.oculto ? 'Mostrar de novo (volta a ensinar a direção)' : 'Ocultar (sai da grade e da direção)'}">${r.oculto ? OLHO : OLHO_FECHADO}</button>
           <button class="botao-icone pequeno" data-renomear title="Renomear">${ICONE.lapis}</button>
@@ -57,9 +57,8 @@ export async function abrirCalibragem(tela) {
         ${r.oculto ? '' : interruptor(r)}</div>`
     return `<article class="card-ref${abrivel(r) ? ' abrivel' : ''}" data-id="${esc(r.id)}">
       ${abrivel(r) ? `<a href="#/calibragem/${encodeURIComponent(r.id)}" title="Abrir a revisão">${mini}</a>` : mini}
-      ${editando === r.id ? `<input class="renomear" value="${esc(r.nome)}" maxlength="120">` : `<div class="card-titulo"><h3 data-renomear title="Dois cliques para renomear">${esc(r.nome)}</h3>${chipCodigo(cod[r.id], r.nome)}</div>`}
-      <div class="pe-ref"><span class="sub" title="${r.largura ? `${r.largura}×${r.altura}` : ''}">${emAndamento(r) ? esc(passo || 'Na fila') : esc(dataHora(r.criado_em).slice(0, 5))}</span>
-        ${seletorCategoria(cats, r.tipo || 'reels')}</div>
+      ${editando === r.id ? `<input class="renomear" value="${esc(r.nome)}" maxlength="120">` : `<div class="card-titulo"><h3 data-renomear title="Dois cliques para renomear">${esc(r.nome)}</h3><span class="sub data-ref" title="${r.largura ? `${r.largura}×${r.altura}` : ''}">${emAndamento(r) ? esc(passo || 'Na fila') : esc(dataHora(r.criado_em).slice(0, 5))}</span></div>`}
+      <div class="pe-ref">${seletorCategoria(cats, r.tipo || 'reels')}${chipCodigo(cod[r.id], r.nome)}</div>
       ${r.status === 'erro' ? `<p class="erro-ref">${esc(r.erro || 'A análise falhou.')}</p><button class="botao pequeno" data-tentar>${ICONE.refazer} Tentar de novo</button>` : ''}
     </article>`
   }
