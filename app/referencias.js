@@ -55,6 +55,10 @@ export async function abrirReferencias(tela) {
   let conteudo = CONTEUDOS[preferencia('refConteudo', 'todos')] ? preferencia('refConteudo', 'todos') : 'todos'
   let ordem = 'video' // alfabética: pelo nome do vídeo, e na ordem dentro dele
   let visiveis = []
+  // a grade em lotes: os primeiros na hora, o resto conforme rola (mil e tantos cards de uma vez travavam a abertura)
+  const LOTE = 120
+  let mostrar = LOTE
+  let assinatura = ''
 
   const chaveDo = (c) => `${c.ref}|${c.inicio}`
   let tagAtiva = ''
@@ -94,6 +98,11 @@ export async function abrirReferencias(tela) {
       curtos: (a, b) => dur(a) - dur(b),
       video: (a, b) => a.ref_nome.localeCompare(b.ref_nome, 'pt-BR') || a.inicio - b.inicio,
     }[ordem])
+    const sig = JSON.stringify([filtro, semAtor, conteudo, categoria, ordem, busca, tagAtiva])
+    if (sig !== assinatura) { // filtro novo: volta ao primeiro lote (um redesenho por tag ou favorito mantém o que já estava)
+      assinatura = sig
+      mostrar = LOTE
+    }
     const chip = (id, html, classe = '') => `<button class="pilula pequena${classe}${filtro === id ? ' ativa' : ''}" data-filtro="${id}">${html}</button>`
     const icone = (id) => ICONE[ICONE_GRUPO[id]] || ''
     tela.innerHTML = `<div class="filtros filtros-ref">
@@ -106,13 +115,13 @@ export async function abrirReferencias(tela) {
           <label class="caixa"><input type="checkbox" data-sem-ator ${semAtor ? 'checked' : ''}> Ignorar Full ator</label>
           <label class="caixa">Ordenar <select data-ordem>${Object.entries(ORDENS).map(([k, n]) => `<option value="${k}"${k === ordem ? ' selected' : ''}>${n}</option>`).join('')}</select></label></span></div>
       ${!clipes.length ? '<p class="vazio">Nenhum clipe ainda. Suba vídeos editados na <a href="#/calibragem">Calibragem</a>: quando a análise terminar, cada plano aparece aqui.</p>'
-        : `${datalistTags('tags-conhecidas-ref', conhecidas())}<div class="banco-com-tags">${barraDeTags(semTag().map((c) => ({ chave: chaveDo(c), tags: c.tags })), tagAtiva, 'refs')}<div class="banco-grade">${visiveis.length ? `<div class="grade grade-clipes">${visiveis.map(card).join('')}</div>` : '<p class="vazio">Nenhum clipe com esses filtros.</p>'}</div></div>`}`
+        : `${datalistTags('tags-conhecidas-ref', conhecidas())}<div class="banco-com-tags">${barraDeTags(semTag().map((c) => ({ chave: chaveDo(c), tags: c.tags })), tagAtiva, 'refs')}<div class="banco-grade">${visiveis.length ? `<div class="grade grade-clipes">${visiveis.slice(0, mostrar).map(card).join('')}</div>${visiveis.length > mostrar ? '<div class="mais-clipes" data-mais></div>' : ''}` : '<p class="vazio">Nenhum clipe com esses filtros.</p>'}</div></div>`}`
     // a barra de tags gruda logo abaixo dos filtros (que também grudam e mudam de altura quando quebram a linha)
     const filtros = $('.filtros', tela)
     tela.altura?.disconnect()
     tela.altura = new ResizeObserver(() => tela.style.setProperty('--alto-filtros', `${filtros.offsetHeight}px`))
     tela.altura.observe(filtros)
-    ligarTags(tela, {
+    const opcoes = {
       onde: 'referencias',
       pref: 'refs',
       lista: 'tags-conhecidas-ref',
@@ -125,7 +134,24 @@ export async function abrirReferencias(tela) {
       },
       recarregar: desenhar,
       aposRenomear: () => abrirReferencias(tela),
-    })
+    }
+    ligarTags(tela, opcoes)
+    // o próximo lote quando o fim da grade chega perto (um ouvinte de rolagem por página)
+    if (!tela.dataset.lotes) {
+      tela.dataset.lotes = '1'
+      window.addEventListener('scroll', () => tela.isConnected && tela.maisLote?.(), { passive: true })
+    }
+    tela.maisLote = () => {
+      const fim = $('[data-mais]', tela)
+      if (!fim || fim.getBoundingClientRect().top > innerHeight + 1200) return
+      const de = mostrar
+      mostrar = Math.min(visiveis.length, mostrar + LOTE)
+      const t = document.createElement('template')
+      t.innerHTML = visiveis.slice(de, mostrar).map((c, i) => card(c, de + i)).join('')
+      ligarTags(t.content, opcoes)
+      $('.grade-clipes', tela).append(t.content)
+      if (mostrar >= visiveis.length) fim.remove()
+    }
   }
   const conhecidas = () => [...new Set(clipes.flatMap((c) => c.tags || []))].sort()
 
