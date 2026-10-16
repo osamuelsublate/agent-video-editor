@@ -32,7 +32,7 @@ const crescer = (el) => {
 /** O botão de clipe de uma caixa de comentário (`alvo`: nova ou editor). */
 // a barra acima da linha do tempo (comum.js): os atalhos da revisão
 const ATALHOS = () => [
-  ['R', 'plano', ICONE_ATALHO.plano], ['I O', 'trecho', ICONE_ATALHO.trecho], ['C', 'geral', ICONE.balao], ['arrastar', 'trecho', ICONE_ATALHO.trecho],
+  ['R', 'plano', ICONE_ATALHO.plano], ['C', 'geral', ICONE.balao], ['arrastar', 'trecho', ICONE_ATALHO.trecho],
   ['Espaço', 'tocar', ICONE.tocar], ['← →', 'quadro', ICONE.quadroDepois], ['⇧ ← →', 'corte', ICONE.segDepois], ['⌘ + −', 'zoom', ICONE_ATALHO.zoom],
 ]
 
