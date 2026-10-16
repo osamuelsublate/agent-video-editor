@@ -636,8 +636,8 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 .pilula.chip-favoritos.ativa { background: var(--color-yellow); border-color: var(--color-yellow); color: var(--color-ink); }
 .filtros-sep { flex: none; width: 1px; height: 20px; margin: 0 8px; background: var(--color-line-dark); }
 .filtros-dir { margin-left: auto; display: flex; align-items: center; gap: 12px; font-size: 12px; color: var(--color-fog); }
-.busca-ref { width: 240px; height: 32px; padding: 0 12px; border: 1px solid var(--color-line-dark); border-radius: 999px; background: rgba(0, 0, 0, 0.2); color: var(--color-cream); font: inherit; font-size: 12px; }
-.busca-ref:focus { outline: none; border-color: var(--color-coral); }
+.busca { width: 240px; height: 32px; padding: 0 12px; border: 1px solid var(--color-line-dark); border-radius: 999px; background: rgba(0, 0, 0, 0.2); color: var(--color-cream); font: inherit; font-size: 12px; }
+.busca:focus { outline: none; border-color: var(--color-coral); }
 /* a contagem no canto da barra de cima (os "251 clipes" do 18) */
 .contagem {
   flex: none; padding: 4px 12px; border: 1px solid var(--color-line-dark); border-radius: var(--radius-full);
@@ -1224,7 +1224,7 @@ button.tag:hover { background: rgba(185, 166, 242, 0.26); }
 @media (max-width: 1400px) { .banco-com-tags .grade-banco { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 1100px) { .banco-com-tags .grade-banco { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 900px) { .banco-com-tags { grid-template-columns: 1fr; } .tags-banco { position: static; max-height: none; } }
-.selo-na-thumb { position: absolute; top: 10px; left: 10px; z-index: 2; box-shadow: 0 1px 6px rgba(0, 0, 0, 0.35); }
+.selo-na-thumb { position: absolute; top: 10px; bottom: auto; left: 10px; z-index: 2; box-shadow: 0 1px 6px rgba(0, 0, 0, 0.35); }
 
 /* renomear o projeto no card: o lápis aparece no hover; o nome vira campo */
 .card-projeto .renomear { flex: none; opacity: 0; transition: opacity .12s; }

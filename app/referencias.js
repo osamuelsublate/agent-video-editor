@@ -1,7 +1,7 @@
 // As páginas do que o Claude lê para editar: a galeria de Referências (todos os planos, para ver como cada tipo foi usado
 // e favoritar os melhores), a Heurística da direção (as regras e os roteiros de exemplo) e os Aprendizados (um .md por
 // área, com as correções do criador vídeo a vídeo).
-import { $, $$, ESTRELA_CHEIA, ICONE, PLANOS, ajuda, aviso, chipCodigo, codigos, enviar, esc, janela, markdown, nomePlano, num, preferencia, seg, tempo, tocarTrecho, urlRef } from './comum.js'
+import { $, $$, ESTRELA_CHEIA, ICONE, PLANOS, achaBusca, ajuda, aviso, chipCodigo, codigos, enviar, esc, janela, markdown, nomePlano, num, preferencia, seg, semAcento, tempo, tocarTrecho, urlRef } from './comum.js'
 import { jsons } from './biblioteca.js'
 import { barraDeTags, datalistTags, htmlTagsCard, ligarTags, tagEscolhida, temTag } from './tags.js'
 import { botaoCategorias, carregarCategorias, editarCategorias, pilulasCategoria, rotuloCategoria } from './categorias.js'
@@ -60,9 +60,8 @@ export async function abrirReferencias(tela) {
   let tagAtiva = ''
   // a busca: todas as palavras digitadas, sem acento, no nome do vídeo, na marcação, na fala, no texto, nas tags e no código
   let busca = ''
-  const semAcento = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
   const textoDo = (c) => (c.busca ||= semAcento([c.ref_nome, nomePlano(c.tipo), c.descricao, c.fala, c.texto, codigoDo(c), ...(c.tags || []).map((t) => `#${t}`)].join(' ')))
-  const acha = (c) => semAcento(busca).split(/\s+/).filter(Boolean).every((p) => textoDo(c).includes(p))
+  const acha = (c) => achaBusca(textoDo(c), busca)
   // os filtros de cima (sem a tag): o que a barra de tags conta
   const semTag = () => clipes.filter((c) => (!busca || acha(c)) && (!semAtor || !SO_ATOR.includes(c.tipo)) && (conteudo === 'todos' || conteudoDo(c.tipo) === conteudo)
     && (!categoria || (c.tipo_video || 'reels') === categoria))
@@ -101,7 +100,7 @@ export async function abrirReferencias(tela) {
         ${chip('favoritos', `${filtro === 'favoritos' ? ESTRELA_CHEIA : ICONE.estrela} Favoritos <span class="conta">${nFav}</span>`, ' chip-favoritos')}
         ${chip('todos', `${icone('todos')} Todos <span class="conta">${l.length}</span>`)}
         ${ativos.map(([id, nome, tipos]) => chip(id, `${icone(id)} ${esc(nome)} <span class="conta">${contar(tipos)}</span>`)).join('')}
-        <span class="filtros-dir"><input class="busca-ref" type="search" data-busca placeholder="Buscar (nome, marcação, fala, #tag)" value="${esc(busca)}">
+        <span class="filtros-dir"><input class="busca" type="search" data-busca placeholder="Buscar (nome, marcação, fala, #tag)" value="${esc(busca)}">
           <label class="caixa">Categoria <select data-categoria-ref><option value="">Todas</option>${cats.map((c) => `<option value="${esc(c.id)}"${c.id === categoria ? ' selected' : ''}>${esc(rotuloCategoria(cats, c.id))}</option>`).join('')}</select></label>
           <span class="alternar">${Object.entries(CONTEUDOS).map(([k, n]) => `<button class="pilula${k === conteudo ? ' ativa' : ''}" data-conteudo="${k}">${n}</button>`).join('')}</span>
           <label class="caixa"><input type="checkbox" data-sem-ator ${semAtor ? 'checked' : ''}> Ignorar Full ator</label>

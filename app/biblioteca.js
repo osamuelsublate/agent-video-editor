@@ -3,7 +3,7 @@
 // O Claude é quem cria; aqui o criador vê, aprova e marca os melhores.
 import { marcarTrechos } from './trechos.js'
 import { barraDeTags, datalistTags, htmlTagsCard, ligarTags, tagEscolhida, tagLimpa, temTag } from './tags.js'
-import { $, $$, ESTRELA_CHEIA, ICONE, ajuda, aviso, chipCodigo, codigos, confirmar, dataHora, enviar, esc, janela, json, lista, mmss, num, preferencia, seg, tocarTrecho, urlRef } from './comum.js'
+import { $, $$, ESTRELA_CHEIA, ICONE, achaBusca, ajuda, aviso, chipCodigo, codigos, confirmar, dataHora, enviar, esc, janela, json, lista, mmss, num, preferencia, seg, semAcento, tocarTrecho, urlRef } from './comum.js'
 
 export const PAGINAS_BIBLIOTECA = ['presets', 'transicoes', 'banco', 'motions', 'trilhas']
 
@@ -95,6 +95,7 @@ const chipsDeUso = (usos, cods) => {
 }
 
 let tagsConhecidas = [] // as tags do banco, para o autocompletar do modal da mídia
+const buscas = { inserts: '', motions: '' } // o que está digitado na busca de cada página (sobrevive aos redesenhos)
 
 async function bancoInserts(el, tipo = 'inserts') {
   const [nomes, cods, est, ms, tagsMotion] = await Promise.all([lista('biblioteca/banco'), codigos(), json('/api/estados', { midias: {}, motions: {} }), lerMotions(),
@@ -106,7 +107,7 @@ async function bancoInserts(el, tipo = 'inserts') {
   const chaveFiltro = tipo === 'motions' ? 'motions.filtro' : 'banco.filtro'
   let filtro = FILTROS_BANCO[preferencia(chaveFiltro, 'todos')] ? preferencia(chaveFiltro, 'todos') : 'todos'
   const cod = cods.midia || {}
-  const ids = nomes.filter((n) => n.endsWith('/')).map((n) => n.slice(0, -1))
+  const ids = nomes.filter((n) => n.endsWith('/') && !n.startsWith('_')).map((n) => n.slice(0, -1)) // _lixeira etc. não são mídias
   const itens = (await Promise.all(ids.map((id) => json(`/biblioteca/banco/${id}/item.json`).then((it) => it && { ...it, id: it.id || id })))).filter(Boolean)
   const recente = (it) => (estados[it.id]?.usos || []).reduce((m, u) => (u.quando > m ? u.quando : m), '') || it.criado_em || ''
   const originais = itens.filter((i) => !i.pai).sort((a, b) => recente(b).localeCompare(recente(a)))
@@ -133,7 +134,8 @@ async function bancoInserts(el, tipo = 'inserts') {
     const base = `/biblioteca/banco/${it.id}/`
     const video = it.tipo === 'video'
     const ts = trechos[it.id] || []
-    return `<article class="card-banco" data-id="${it.id}">
+    const busca = semAcento([it.nome, it.descricao, it.fonte, ...(it.palavras || []), cod[it.id], ...ts.flatMap((t) => [t.nome, cod[t.id]]), ...(it.tags || []).map((t) => `#${t}`)].join(' '))
+    return `<article class="card-banco" data-id="${it.id}" data-busca="${esc(busca)}">
       <div class="mini mini-169"><img src="${base}miniatura.jpg" alt="" loading="lazy">
         ${video ? `<video muted loop playsinline preload="none" data-src="${base}${it.proxy || 'proxy.mp4'}"></video>` : ''}
         <span class="selo ${video ? 'selo-azul' : 'selo-menta'}">${video ? 'Vídeo' : 'Imagem'} · ${esc(it.formato || '')}</span>
@@ -149,7 +151,8 @@ async function bancoInserts(el, tipo = 'inserts') {
   cardsMidia.forEach((c, k) => (c.criado = recente(visiveis[k])))
   const cardsMotion = motionsT.filter((m) => filtro === 'todos' || estadoMotion(m) === filtro).map((m) => {
     const [rotulo, cor] = SELOS[estadoMotion(m)] || []
-    return { criado: m.criado_em || '', html: `<article class="card-banco card-banco-motion" data-motion="${esc(m.id)}">
+    const busca = semAcento([m.nome, m.id, m.descricao, cods.motion?.[m.id], ...(m.tags || []).map((t) => `#${t}`)].join(' '))
+    return { criado: m.criado_em || '', html: `<article class="card-banco card-banco-motion" data-motion="${esc(m.id)}" data-busca="${esc(busca)}">
       <div class="mini mini-169 fundo-${esc(m.fundo || 'escuro')}"><div class="palco-motion"><iframe src="/render/motion.html?preset=${encodeURIComponent(m.id)}&formato=vertical&tocar=1" loading="lazy" tabindex="-1" title="${esc(m.nome || m.id)}"></iframe></div>
         ${m.a_revisar && !usosM[m.id]?.length ? '<span class="selo selo-coral">A revisar</span>' : ''}${m.duracao ? `<span class="duracao">${seg(m.duracao)}</span>` : ''}
         <span class="chip-tipo chip-tipo-motion">Motion</span></div>
@@ -165,12 +168,12 @@ async function bancoInserts(el, tipo = 'inserts') {
   const nRecusados = conta('recusado')
   el.innerHTML = `<div class="barra-banco">
       ${Object.entries(FILTROS_BANCO).filter(([k]) => k === 'todos' || conta(k)).map(([k, [n, ic]]) => chip(k === filtro, `${icone(ic)}${n} <span class="conta">${conta(k)}</span>`, `data-filtro-banco="${k}"`)).join('')}
-      <span class="barra-banco-acoes">
+      <span class="barra-banco-acoes"><input class="busca" type="search" data-busca placeholder="Buscar (nome, descrição, código, #tag)" value="${esc(buscas[tipo])}">
         ${tipo === 'motions' ? '' : `<label class="botao pequeno botao-subir" title="Vídeos e imagens, vários de uma vez (ou arraste para esta página): entram Aprovados e a IA descreve">${ICONE.subir} Subir mídia<input type="file" multiple accept="video/mp4,video/quicktime,video/webm,image/png,image/jpeg,image/webp" hidden data-subir></label>`}
         ${nRecusados && tipo !== 'motions' ? `<button class="botao pequeno botao-perigo-contorno" data-limpar-recusados title="Leva os recusados para a lixeira do banco (biblioteca/banco/_lixeira/), de onde dá para recuperar">${ICONE.lixo} Limpar recusados (${nRecusados})</button>` : ''}
         ${ajuda(tipo === 'motions' ? 'Os presets de motion. Usado em vídeo: entrou num vídeo aprovado (o chip abre o plano). A revisar: o Claude escreveu e você ainda não aprovou. Passe o mouse para tocar.' : 'Os inserts (vídeos e imagens). Usado em vídeo: entrou num vídeo aprovado (o chip abre o plano). Aprovado: bom, mesmo sem uso. Recusado: ficou de fora de um vídeo aprovado. Passe o mouse para tocar; clique num insert para editar, marcar trechos ou mudar o selo.')}</span></div>` +
     `${datalistTags('tags-conhecidas-card', conhecidas)}<div class="banco-com-tags">${barraDeTags(doTipo.map((it) => ({ chave: it.id, tags: it.tags })), tagAtiva, pref)}<div class="banco-grade">` +
-    (cards.length ? `<div class="grade grade-banco">${cards.join('')}</div>` : '<p class="vazio">Nada com esses filtros.</p>') +
+    (cards.length ? `<div class="grade grade-banco">${cards.join('')}</div><p class="vazio" data-sem-busca hidden>Nada com essa busca.</p>` : '<p class="vazio">Nada com esses filtros.</p>') +
     '</div></div>'
   const subir = async (arquivos) => {
     const l = [...arquivos].filter((f) => /\.(mp4|mov|m4v|webm|png|jpe?g|webp)$/i.test(f.name))
@@ -191,6 +194,22 @@ async function bancoInserts(el, tipo = 'inserts') {
     bancoInserts(el, tipo)
   }
   $('[data-subir]', el)?.addEventListener('change', (e) => subir(e.target.files))
+  // a busca esconde os cards que não têm todas as palavras (sem redesenhar: as prévias dos motions não recarregam)
+  const buscar = () => {
+    let n = 0
+    for (const c of $$('.card-banco[data-busca]', el)) {
+      const acha = achaBusca(c.dataset.busca, buscas[tipo])
+      c.style.display = acha ? '' : 'none'
+      n += acha
+    }
+    const vazio = $('[data-sem-busca]', el)
+    if (vazio) vazio.hidden = n > 0
+  }
+  $('[data-busca]', el).addEventListener('input', (e) => {
+    buscas[tipo] = e.target.value
+    buscar()
+  })
+  buscar()
   if (!el.dataset.arrastar) {  // arrastar arquivos para a página (uma vez por página)
     el.dataset.arrastar = '1'
     el.addEventListener('dragover', (e) => { e.preventDefault(); el.classList.add('soltando') })
