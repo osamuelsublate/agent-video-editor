@@ -93,6 +93,49 @@ const chipsDeUso = (usos, cods) => {
   }).join('')
 }
 
+// ---------- Tags (como no Obsidian: #grupo/tag) ----------
+
+/** Uma tag limpa: sem o #, sem espaços (viram -), níveis separados por / ("fia/ad-vsl"). */
+const tagLimpa = (t) => String(t || '').trim().replace(/^#+/, '').trim().replace(/\s+/g, '-').replace(/\/+/g, '/').replace(/^\/|\/$/g, '')
+/** A mídia tem a tag ou uma de dentro dela ("fia" pega "fia/ad-vsl"). */
+const temTag = (it, t) => (it.tags || []).some((x) => x === t || x.startsWith(`${t}/`))
+let tagsConhecidas = [] // todas as tags do banco, para o autocompletar do modal
+
+/** A árvore das tags: "fia/ad-vsl" fica dentro de "fia"; cada nó conta as mídias dele e as de dentro. */
+function arvoreDeTags(itens) {
+  const raiz = { filhos: {} }
+  for (const it of itens) for (const t of it.tags || []) {
+    let no = raiz
+    for (const parte of t.split('/')) {
+      no = no.filhos[parte] ||= { nome: parte, caminho: no.caminho ? `${no.caminho}/${parte}` : parte, filhos: {}, ids: new Set() }
+      no.ids.add(it.id)
+    }
+  }
+  return raiz
+}
+
+function htmlArvore(no, abertas, ativa, nivel = 0) {
+  return Object.values(no.filhos).sort((a, b) => a.nome.localeCompare(b.nome)).map((f) => {
+    const temFilhos = Object.keys(f.filhos).length > 0
+    const aberta = abertas.includes(f.caminho) || (ativa || '').startsWith(`${f.caminho}/`)
+    return `<li><div class="tag-linha${f.caminho === ativa ? ' ativa' : ''}" data-tag="${esc(f.caminho)}" style="--nivel:${nivel}" title="#${esc(f.caminho)}">
+        ${temFilhos ? `<button class="tag-seta${aberta ? ' aberta' : ''}" data-abrir-tag="${esc(f.caminho)}" aria-label="${aberta ? 'Recolher' : 'Expandir'}">›</button>` : '<span class="tag-seta"></span>'}
+        <span class="tag-nome">${esc(f.nome)}</span><span class="conta">${f.ids.size}</span></div>
+      ${temFilhos && aberta ? `<ul>${htmlArvore(f, abertas, ativa, nivel + 1)}</ul>` : ''}</li>`
+  }).join('')
+}
+
+/** A barra lateral do banco: Todas, a árvore e "Sem tag". */
+function barraDeTags(itens, ativa) {
+  const arvore = arvoreDeTags(itens)
+  const semTag = itens.filter((it) => !(it.tags || []).length).length
+  const linha = (tag, nome, n) => `<div class="tag-linha tag-fixa${ativa === tag ? ' ativa' : ''}" data-tag="${tag}"><span class="tag-seta"></span><span class="tag-nome">${nome}</span><span class="conta">${n}</span></div>`
+  return `<aside class="tags-banco"><span class="eyebrow">Tags</span>
+    ${linha('', 'Todas', itens.length)}
+    ${Object.keys(arvore.filhos).length ? `<ul class="tags-arvore">${htmlArvore(arvore, preferencia('banco.tags.abertas', []), ativa)}</ul>` : '<p class="dica">Nenhuma tag ainda: abra uma mídia e escreva <b>#tag</b> ou <b>#grupo/tag</b>.</p>'}
+    ${semTag && semTag < itens.length ? linha('__sem', 'Sem tag', semTag) : ''}</aside>`
+}
+
 async function bancoInserts(el, tipo = 'inserts') {
   const [nomes, cods, est, ms] = await Promise.all([lista('biblioteca/banco'), codigos(), json('/api/estados', { midias: {}, motions: {} }), lerMotions()])
   const estados = est?.midias || {}
@@ -109,11 +152,17 @@ async function bancoInserts(el, tipo = 'inserts') {
   for (const l of Object.values(trechos)) l.sort((a, b) => a.inicio - b.inicio)
 
   const estadoDe = (it) => estados[it.id]?.estado || 'sem'
-  const midiasT = tipo === 'motions' ? [] : originais
+  tagsConhecidas = [...new Set(originais.flatMap((it) => it.tags || []))].sort()
+  const comTags = tipo !== 'motions'
+  let tagAtiva = comTags ? preferencia('banco.tag', '') : ''
+  if (tagAtiva && tagAtiva !== '__sem' && !originais.some((it) => temTag(it, tagAtiva))) tagAtiva = '' // a tag sumiu
+  const passaTag = (it) => !tagAtiva || (tagAtiva === '__sem' ? !(it.tags || []).length : temTag(it, tagAtiva))
+  const midiasT = tipo === 'motions' ? [] : originais.filter(passaTag)
   const motionsT = tipo === 'inserts' ? [] : ms
   const conta = (k) => (k === 'todos' ? midiasT.length + motionsT.length : midiasT.filter((it) => estadoDe(it) === k).length + motionsT.filter((m) => estadoMotion(m) === k).length)
   if (!conta(filtro)) filtro = 'todos' // um filtro vazio some da barra (ex.: Em edição sem projeto em edição)
-  const cardsMidia = originais.filter((it) => filtro === 'todos' || estadoDe(it) === filtro).map((it) => {
+  const visiveis = midiasT.filter((it) => filtro === 'todos' || estadoDe(it) === filtro)
+  const cardsMidia = visiveis.map((it) => {
     const e = estados[it.id] || {}
     const [rotulo, cor] = SELOS[e.estado] || []
     const base = `/biblioteca/banco/${it.id}/`
@@ -127,12 +176,12 @@ async function bancoInserts(el, tipo = 'inserts') {
         <span class="chip-tipo">Insert${ts.length ? ` · ${ts.length} ${ts.length === 1 ? 'trecho' : 'trechos'}` : ''}</span></div>
       <div class="card-titulo"><h3 title="${esc([it.descricao, it.fonte].filter(Boolean).join('\n'))}">${esc(it.nome)}</h3>${chipCodigo(cod[it.id], it.nome)}</div>
       ${rotulo ? `<div class="estado-banco"><span class="selo-linha ${cor}">${rotulo}</span>${chipsDeUso(e.usos, cods)}</div>` : ''}
+      ${(it.tags || []).length ? `<div class="tags-card">${it.tags.map((t) => `<button class="tag" data-tag-chip="${esc(t)}" title="Mostrar só #${esc(t)}">#${esc(t)}</button>`).join('')}</div>` : ''}
       ${listaTrechos(ts, cod)}
     </article>`
   }).map((html, k) => ({ html, criado: '' }))
   // os motions na mesma grade: a prévia em pé no meio do card, o chip "Motion" e os selos do mesmo jeito
-  const ordemM = originais.filter((it) => filtro === 'todos' || estadoDe(it) === filtro)
-  cardsMidia.forEach((c, k) => (c.criado = ordemM[k].criado_em || ''))
+  cardsMidia.forEach((c, k) => (c.criado = visiveis[k].criado_em || ''))
   const cardsMotion = ms.filter((m) => filtro === 'todos' || estadoMotion(m) === filtro).map((m) => {
     const [rotulo, cor] = SELOS[estadoMotion(m)] || []
     return { criado: m.criado_em || '', html: `<article class="card-banco card-banco-motion" data-motion="${esc(m.id)}">
@@ -154,7 +203,9 @@ async function bancoInserts(el, tipo = 'inserts') {
         ${tipo === 'motions' ? '' : `<label class="botao pequeno botao-subir" title="Vídeos e imagens, vários de uma vez (ou arraste para esta página): entram Aprovados e a IA descreve">${ICONE.subir} Subir mídia<input type="file" multiple accept="video/mp4,video/quicktime,video/webm,image/png,image/jpeg,image/webp" hidden data-subir></label>`}
         ${nRecusados && tipo !== 'motions' ? `<button class="botao pequeno botao-perigo-contorno" data-limpar-recusados title="Leva os recusados para a lixeira do banco (biblioteca/banco/_lixeira/), de onde dá para recuperar">${ICONE.lixo} Limpar recusados (${nRecusados})</button>` : ''}
         ${ajuda(tipo === 'motions' ? 'Os presets de motion. Usado em vídeo: entrou num vídeo aprovado (o chip abre o plano). A revisar: o Claude escreveu e você ainda não aprovou. Passe o mouse para tocar.' : 'Os inserts (vídeos e imagens). Usado em vídeo: entrou num vídeo aprovado (o chip abre o plano). Aprovado: bom, mesmo sem uso. Recusado: ficou de fora de um vídeo aprovado. Passe o mouse para tocar; clique num insert para editar, marcar trechos ou mudar o selo.')}</span></div>` +
-    (cards.length ? `<div class="grade grade-banco">${cards.join('')}</div>` : '<p class="vazio">Nada com esses filtros.</p>')
+    (comTags ? `<div class="banco-com-tags">${barraDeTags(originais, tagAtiva)}<div class="banco-grade">` : '') +
+    (cards.length ? `<div class="grade grade-banco">${cards.join('')}</div>` : '<p class="vazio">Nada com esses filtros.</p>') +
+    (comTags ? '</div></div>' : '')
   const subir = async (arquivos) => {
     const l = [...arquivos].filter((f) => /\.(mp4|mov|m4v|webm|png|jpe?g|webp)$/i.test(f.name))
     if (!l.length) return aviso('Use MP4, MOV, WebM, PNG, JPG ou WebP', 'erro')
@@ -199,6 +250,25 @@ async function bancoInserts(el, tipo = 'inserts') {
     e.stopPropagation()
     recusarMotion(ms.find((m) => m.id === b.closest('[data-motion]').dataset.motion), () => bancoInserts(el, tipo))
   })
+  for (const b of $$('[data-tag]', el)) b.addEventListener('click', (e) => {
+    if (e.target.closest('[data-abrir-tag]')) return
+    preferencia('banco.tag', '', b.dataset.tag)
+    bancoInserts(el, tipo)
+  })
+  for (const b of $$('[data-abrir-tag]', el)) b.addEventListener('click', (e) => {
+    e.stopPropagation()
+    const t = b.dataset.abrirTag
+    const abertas = preferencia('banco.tags.abertas', [])
+    preferencia('banco.tags.abertas', [], abertas.includes(t) ? abertas.filter((x) => x !== t && !x.startsWith(`${t}/`)) : [...abertas, t])
+    if (!b.classList.contains('aberta') || !(tagAtiva || '').startsWith(`${t}/`)) return bancoInserts(el, tipo)
+    preferencia('banco.tag', '', t) // recolher o grupo da tag ativa: a seleção sobe para o grupo
+    bancoInserts(el, tipo)
+  })
+  for (const b of $$('[data-tag-chip]', el)) b.addEventListener('click', (e) => {
+    e.stopPropagation()
+    preferencia('banco.tag', '', b.dataset.tagChip)
+    bancoInserts(el, tipo)
+  })
   for (const b of $$('[data-filtro-banco]', el)) b.addEventListener('click', () => {
     preferencia(chaveFiltro, 'todos', b.dataset.filtroBanco)
     bancoInserts(el, tipo)
@@ -225,7 +295,7 @@ async function bancoInserts(el, tipo = 'inserts') {
       })
       continue
     }
-    card.addEventListener('click', (e) => !e.target.closest('a, summary') && detalheBanco(card.dataset.id, () => bancoInserts(el, tipo), cod, estados[card.dataset.id], cods))
+    card.addEventListener('click', (e) => !e.target.closest('a, summary, [data-tag-chip]') && detalheBanco(card.dataset.id, () => bancoInserts(el, tipo), cod, estados[card.dataset.id], cods))
     const v = $('video', card)
     if (!v) continue
     let trecho = null // [ini, fim] enquanto o mouse está num trecho
@@ -285,6 +355,9 @@ async function detalheBanco(id, recarregar, cod = {}, est = null, cods = {}) {
         <label class="campo"><span class="eyebrow">Nome</span><input name="nome" value="${esc(it.nome)}"></label>
         <label class="campo"><span class="eyebrow">Descrição</span><textarea name="descricao" rows="5">${esc(it.descricao || '')}</textarea></label>
         <label class="campo"><span class="eyebrow">Palavras-chave <span class="apagado">· separadas por vírgula</span></span><input name="palavras" value="${esc((it.palavras || []).join(', '))}"></label>
+        <div class="campo"><span class="eyebrow">Tags <span class="apagado">· #tag ou #grupo/tag, Enter para incluir</span></span>
+          <div class="tags-editor"><span data-tags-chips></span><input data-nova-tag list="tags-conhecidas" placeholder="#fia/reels" autocomplete="off"></div>
+          <datalist id="tags-conhecidas">${tagsConhecidas.map((t) => `<option value="#${esc(t)}">`).join('')}</datalist></div>
         ${it.descricao_ia && it.descricao_ia !== it.descricao ? `<p class="dica"><b>A IA descreveu:</b> ${esc(it.descricao_ia)}</p>` : ''}
         <div class="bloco-lista"><span class="eyebrow">Selo</span>
           <div class="acoes-linha">${est?.estado ? `<span class="selo-linha ${SELOS[est.estado][1]}">${SELOS[est.estado][0]}</span>` : '<span class="dica">Sem selo (o projeto dela ainda está em edição)</span>'}
@@ -304,9 +377,39 @@ async function detalheBanco(id, recarregar, cod = {}, est = null, cods = {}) {
   const form = $('form', el)
   const salvar = $('[type="submit"]', form)
   const erro = $('.erro-linha', el)
-  const valores = () => ({ nome: form.nome.value.trim(), descricao: form.descricao.value.trim(), palavras: form.palavras.value.split(',').map((p) => p.trim()).filter(Boolean) })
+  let tags = [...(it.tags || [])]
+  const valores = () => ({ nome: form.nome.value.trim(), descricao: form.descricao.value.trim(), palavras: form.palavras.value.split(',').map((p) => p.trim()).filter(Boolean), tags })
   const inicial = JSON.stringify(valores())
-  form.addEventListener('input', () => (salvar.disabled = JSON.stringify(valores()) === inicial || !form.nome.value.trim()))
+  const mudou = () => (salvar.disabled = JSON.stringify(valores()) === inicial || !form.nome.value.trim())
+  form.addEventListener('input', mudou)
+  const novaTag = $('[data-nova-tag]', el)
+  const desenharTags = () => {
+    $('[data-tags-chips]', el).innerHTML = tags.map((t, k) => `<span class="tag">#${esc(t)}<button type="button" data-tirar-tag="${k}" aria-label="Tirar #${esc(t)}">×</button></span>`).join('')
+    for (const b of $$('[data-tirar-tag]', el)) b.addEventListener('click', () => {
+      tags = tags.filter((_, k) => k !== +b.dataset.tirarTag)
+      desenharTags()
+    })
+    mudou()
+  }
+  const incluirTag = () => {
+    const novas = novaTag.value.split(/[,\s]+(?=#)|,/).map(tagLimpa).filter((t) => t && !tags.includes(t))
+    novaTag.value = ''
+    if (!novas.length) return
+    tags = [...tags, ...novas]
+    desenharTags()
+  }
+  novaTag.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault()
+      incluirTag()
+    } else if (e.key === 'Backspace' && !novaTag.value && tags.length) {
+      tags = tags.slice(0, -1)
+      desenharTags()
+    }
+  })
+  novaTag.addEventListener('change', () => novaTag.value.includes('#') && tagsConhecidas.includes(tagLimpa(novaTag.value)) && incluirTag()) // escolhida no autocompletar
+  novaTag.addEventListener('blur', incluirTag)
+  desenharTags()
   form.addEventListener('submit', async (e) => {
     e.preventDefault()
     try {

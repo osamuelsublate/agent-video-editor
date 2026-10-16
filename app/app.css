@@ -1195,3 +1195,38 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 .pagina-aprendizados .filtro-produtos { margin: 0 0 12px; }
 [data-ver-ocultos] svg { width: 12px; height: 12px; vertical-align: -1px; margin-right: 2px; }
 .acoes-card [data-ocultar] svg { width: 14px; height: 14px; }
+
+/* ---------- Banco: as tags (como no Obsidian: #grupo/tag), na barra lateral, nos cards e no modal ---------- */
+.banco-com-tags { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 28px; align-items: start; }
+.banco-com-tags .grade-banco { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.tags-banco { position: sticky; top: 76px; max-height: calc(100vh - 100px); overflow-y: auto; display: flex; flex-direction: column; gap: 2px; padding-right: 6px; }
+.tags-banco > .eyebrow { margin: 0 0 8px 6px; }
+.tags-banco .dica { margin: 8px 6px; font-size: 12px; }
+.tags-arvore, .tags-arvore ul { list-style: none; margin: 0; padding: 0; }
+.tag-linha { display: flex; align-items: center; gap: 4px; padding: 5px 8px 5px calc(6px + var(--nivel, 0) * 16px); border-radius: 8px;
+  font-size: 13px; color: var(--color-cream); cursor: pointer; user-select: none; }
+.tag-linha:hover { background: rgba(250, 247, 238, 0.06); }
+.tag-linha.ativa { background: var(--color-cream); color: var(--color-ink); }
+.tag-linha.ativa .conta { color: rgba(24, 45, 42, 0.6); }
+.tag-linha .tag-nome { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tag-linha .conta { font-size: 12px; color: var(--color-fog); font-variant-numeric: tabular-nums; }
+.tag-seta { width: 16px; height: 16px; flex: none; display: inline-flex; align-items: center; justify-content: center; padding: 0;
+  border: 0; background: none; color: inherit; opacity: 0.6; font-size: 15px; line-height: 1; cursor: pointer; transition: transform .15s ease; }
+button.tag-seta:hover { opacity: 1; }
+.tag-seta.aberta { transform: rotate(90deg); }
+.tag-fixa .tag-nome { color: inherit; }
+.tag { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px; border-radius: 999px; border: 0;
+  background: rgba(185, 166, 242, 0.14); color: var(--color-lilac); font: 500 12px/1 var(--font-sans, inherit); white-space: nowrap; }
+button.tag { cursor: pointer; }
+button.tag:hover { background: rgba(185, 166, 242, 0.26); }
+.tags-card { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.tags-editor { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-height: 40px; padding: 6px 8px; border-radius: 10px;
+  border: 1px solid var(--color-line-strong); background: rgba(0, 0, 0, 0.12); }
+.tags-editor:focus-within { border-color: var(--color-cream); }
+.tags-editor [data-tags-chips] { display: contents; }
+.tags-editor .tag button { border: 0; background: none; padding: 0 0 0 2px; color: inherit; opacity: 0.7; cursor: pointer; font-size: 14px; line-height: 1; }
+.tags-editor .tag button:hover { opacity: 1; }
+.tags-editor input { flex: 1; min-width: 120px; border: 0; background: none; color: inherit; font: inherit; outline: none; padding: 4px 2px; }
+@media (max-width: 1400px) { .banco-com-tags .grade-banco { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 1100px) { .banco-com-tags .grade-banco { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 900px) { .banco-com-tags { grid-template-columns: 1fr; } .tags-banco { position: static; max-height: none; } }

@@ -20,7 +20,7 @@ Rotas (JSON; um erro volta como {"erro": "…"}, com 422 numa validação):
   aprendizados/<área>.md) · GET /api/aprendizados/imagens/<nome> (as imagens que os .md mostram).
 - GET /api/presets/amostras (o ator e as mídias do banco da simulação dos presets, render/preset.html)
   · PUT /api/presets/<id> {aprovado} · PUT /api/presets/ordem {chave, ids, favoritos} · PUT /api/transicoes/<id> {aprovado}
-  · PUT /api/transicoes/ordem {chave, ids, favoritas} · GET|PUT|DELETE /api/banco/<id> ({estado} marca o selo à mão) · GET /api/estados (selos do banco e usos dos motions nos
+  · PUT /api/transicoes/ordem {chave, ids, favoritas} · GET|PUT|DELETE /api/banco/<id> ({estado} marca o selo à mão; {tags} as tags, aninhadas com /) · GET /api/estados (selos do banco e usos dos motions nos
   vídeos aprovados) · POST /api/limpar-recusados · GET|POST /api/ctas · PUT|DELETE /api/ctas/<id> (os CTAs) · PUT /api/ctas-produtos {produtos} · POST /api/banco (subir: o arquivo cru, nome em X-Nome) ·
   POST /api/banco/<id>/trechos {inicio, fim, nome} · GET /api/banco/<id>/tira · PUT /api/motions/<id>/aprovar.
 - Recusar: GET /api/presets/<id>/usos e /api/motions/<id>/usos (os projetos que usam) · POST /api/presets/<id>/recusar
@@ -869,6 +869,9 @@ def _editar_midia(h, q, id_):
         item['descricao'] = str(c['descricao'] or '').strip()
     if 'palavras' in c and not item.get('pai'):
         item['palavras'] = [str(p).strip() for p in c['palavras'] or [] if str(p).strip()][:30]
+    if 'tags' in c:  # como no Obsidian: sem o #, sem espaços, níveis com / ("fia/ad-vsl")
+        tags = [re.sub(r'/+', '/', re.sub(r'\s+', '-', str(t).strip().lstrip('#').strip())).strip('/') for t in c['tags'] or []]
+        item['tags'] = list(dict.fromkeys(t for t in tags if t))[:30]
     if item.get('pai') and ('inicio' in c or 'fim' in c):  # o intervalo de um trecho
         try:
             t = b.editar_trecho(id_, c.get('inicio', item['inicio']), c.get('fim', item['fim']))
