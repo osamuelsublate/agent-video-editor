@@ -324,6 +324,7 @@ export const ICONE = {
   fechar: svg('<path d="M6 6l12 12M18 6L6 18"/>'),
   refazer: svg('<path d="M20 12a8 8 0 1 1-2.4-5.7M20 4v5h-5"/>'),
   desfazer: svg('<path d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3"/>'),
+  recortar: svg('<path d="M6 2v14a2 2 0 0 0 2 2h14M18 22V8a2 2 0 0 0-2-2H2"/>'),
   tesoura: svg('<circle cx="6" cy="7" r="2.5"/><circle cx="6" cy="17" r="2.5"/><path d="M8 8.5L20 18M8 15.5L20 6"/>'),
   subir: svg('<path d="M12 16V4M7 9l5-5 5 5M5 20h14"/>'),
   abrir: svg('<path d="M14 5h5v5M19 5l-8 8M18 14v5H5V6h5"/>'),

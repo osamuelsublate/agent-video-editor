@@ -8,11 +8,13 @@
     uv run ferramentas/banco.py adicionar <arquivo> [--nome N] [--descricao D] [--palavras "a,b"] [--fonte url|upload|captura] [--projeto slug]
     uv run ferramentas/banco.py buscar <termos…>          nome, descrição e palavras-chave, sem diferenciar acentos
     uv run ferramentas/banco.py trecho <id> <ini> <fim> [--nome N]   um pedaço de um vídeo (sem arquivo próprio)
+    uv run ferramentas/banco.py recortar <id> <x> <y> <w> <h>   um pedaço do quadro (px do original), como item novo
     uv run ferramentas/banco.py apagar <id…>              apaga mídias que não serviram (recusa se alguma está em uso)
     uv run ferramentas/banco.py listar
     uv run ferramentas/banco.py descrever <id>            o Gemini descreve e sugere palavras-chave
 
 Trechos (do 18): itens com `pai`, `inicio` e `fim`, que tocam o original e herdam dele a descrição, as palavras e o formato.
+Recortes: itens novos, com arquivo próprio (o quadro recortado do original, que não muda) e `recorte_de` {id, x, y, w, h}.
 """
 import argparse
 import json
@@ -20,6 +22,7 @@ import math
 import re
 import shutil
 import sys
+import tempfile
 import unicodedata
 import uuid
 from datetime import datetime
@@ -33,6 +36,8 @@ EXT_VIDEO = ('.mp4', '.mov', '.m4v', '.webm')
 EXT_IMAGEM = ('.png', '.jpg', '.jpeg', '.webp')
 PROPORCOES = {'16:9': 16 / 9, '16:10': 16 / 10, '4:3': 4 / 3, '1:1': 1.0, '4:5': 4 / 5, '3:4': 3 / 4, '9:16': 9 / 16, 'alto': 9 / 22}
 MIN_TRECHO = 0.2
+MIN_RECORTE = 16  # px, em cada lado
+RAPIDAS = ('9:16', '16:9', '1:1', '4:5')  # as proporções do recorte no app: o nome do item novo leva a que bate
 HERDADOS = ('tipo', 'formato', 'largura', 'altura', 'descricao', 'palavras', 'descricao_ia', 'origem', 'ia', 'arquivo', 'proxy', 'cortes')
 VERSAO_PROXY = 2  # quadro-chave a cada 12 quadros: a busca no player é imediata
 
@@ -324,6 +329,48 @@ def criar_trecho(pai: str, inicio: float, fim: float, nome: str | None = None) -
     return ler_item(tid)
 
 
+def recortar(bid: str, x: float, y: float, w: float, h: float) -> dict:
+    """Um pedaço do quadro de um original (x, y, w, h em px dele) como item novo do banco, em boa qualidade: o vídeo em
+    H.264 CRF 15 (com o áudio, se houver), a imagem em PNG (ou JPG, se era JPG). Segue o caminho do `adicionar` (proxy e
+    miniatura); o original não muda."""
+    original = ler_item(bid)
+    if original.get('pai'):
+        raise SystemExit('Trechos não têm arquivo próprio: recorte o original ' + original['pai'])
+    pasta = RAIZ / bid
+    fonte = pasta / original['arquivo']
+    info = inspecionar(fonte)
+    W, H = info.get('largura') or original.get('largura'), info.get('altura') or original.get('altura')
+    video = original['tipo'] == 'video'
+    x, y = max(0, min(int(round(float(x))), W - MIN_RECORTE)), max(0, min(int(round(float(y))), H - MIN_RECORTE))
+    w, h = min(int(round(float(w))), W - x), min(int(round(float(h))), H - y)
+    if video:  # o yuv420p pede lados pares
+        w, h = w - w % 2, h - h % 2
+    if w < MIN_RECORTE or h < MIN_RECORTE:
+        raise SystemExit(f'Recorte pequeno demais (mínimo {MIN_RECORTE} px de cada lado)')
+    if (x, y, w, h) == (0, 0, W, H):
+        raise SystemExit('O recorte é o quadro inteiro: nada a recortar')
+    prop = next((p for p in RAPIDAS if abs(math.log(w / h / PROPORCOES[p])) < 0.015), None)
+    nome = f'{original["nome"]} (recorte{" " + prop if prop else ""})'[:200]
+    ext = '.mp4' if video else ('.jpg' if fonte.suffix.lower() in ('.jpg', '.jpeg') else '.png')
+    tmp = Path(tempfile.mkdtemp(prefix='recorte-'))
+    try:
+        saida = tmp / f'recorte{ext}'
+        if video:
+            ffmpeg('-i', str(fonte), '-vf', f'crop={w}:{h}:{x}:{y}', '-c:v', 'libx264', '-crf', '15', '-preset', 'medium',
+                   '-pix_fmt', 'yuv420p', *(['-c:a', 'aac', '-b:a', '192k'] if info.get('tem_audio') else ['-an']),
+                   '-movflags', '+faststart', str(saida))
+        else:
+            ffmpeg('-i', str(fonte), '-vf', f'crop={w}:{h}:{x}:{y}', *(['-q:v', '2'] if ext == '.jpg' else []), '-frames:v', '1', str(saida))
+        item = adicionar(saida, nome, fonte=original.get('fonte') or 'upload', projeto=original.get('projeto'),
+                         origem=original.get('origem'), mover=True)
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    item['recorte_de'] = {'id': bid, 'x': x, 'y': y, 'w': w, 'h': h}
+    if original.get('tags'):
+        item['tags'] = list(original['tags'])
+    return salvar_item(item)
+
+
 def editar_trecho(tid: str, inicio: float, fim: float) -> dict:
     """Muda o intervalo de um trecho (e refaz a miniatura no meio dele)."""
     t = ler_item(tid)
@@ -436,6 +483,10 @@ if __name__ == '__main__':
     t.add_argument('ini', type=float)
     t.add_argument('fim', type=float)
     t.add_argument('--nome')
+    r = sub.add_parser('recortar')
+    r.add_argument('id')
+    for k in ('x', 'y', 'w', 'h'):
+        r.add_argument(k, type=float)
     sub.add_parser('listar')
     d = sub.add_parser('descrever')
     d.add_argument('id')
@@ -450,6 +501,10 @@ if __name__ == '__main__':
     elif args.cmd == 'trecho':
         item = criar_trecho(args.id, args.ini, args.fim, args.nome)
         print(f'{item["id"]}  trecho {num(item["inicio"], 2)}–{num(item["fim"], 2)} s de {args.id}  {item["nome"]}')
+    elif args.cmd == 'recortar':
+        item = recortar(args.id, args.x, args.y, args.w, args.h)
+        c = item['recorte_de']
+        print(f'{item["id"]}  {item["largura"]}×{item["altura"]} de {args.id} (x {c["x"]}, y {c["y"]})  {item["nome"]}')
     elif args.cmd == 'listar':
         mostrar(listar_banco())
     elif args.cmd == 'apagar':

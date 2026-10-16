@@ -23,7 +23,8 @@ Rotas (JSON; um erro volta como {"erro": "…"}, com 422 numa validação):
   · PUT /api/presets/<id> {aprovado} · PUT /api/presets/ordem {chave, ids, favoritos} · PUT /api/transicoes/<id> {aprovado}
   · PUT /api/transicoes/ordem {chave, ids, favoritas} · GET|PUT|DELETE /api/banco/<id> ({estado} marca o selo à mão; {tags} as tags, aninhadas com /) · PUT /api/motions/<id>/tags {tags} · PUT /api/referencias/<id>/tags {inicio, fim, tags} · POST /api/tags/<banco|motions|referencias> {de, para} (renomeia ou tira em todos) · GET /api/estados (selos do banco e usos dos motions nos
   vídeos aprovados) · POST /api/limpar-recusados · POST /api/banco (subir: o arquivo cru, nome em X-Nome) ·
-  POST /api/banco/<id>/trechos {inicio, fim, nome} · GET /api/banco/<id>/tira · PUT /api/motions/<id>/aprovar.
+  POST /api/banco/<id>/trechos {inicio, fim, nome} · POST /api/banco/<id>/recorte {x, y, w, h} (px do original: um
+  item novo com o quadro recortado; banco.py recortar) · GET /api/banco/<id>/tira · PUT /api/motions/<id>/aprovar.
 - Recusar: GET /api/presets/<id>/usos e /api/motions/<id>/usos (os projetos que usam) · POST /api/presets/<id>/recusar
   e /api/motions/<id>/recusar {motivo}: o arquivo vai para _recusados/ (com recusado_em e motivo), o preset sai do
   ordem.json e os inserts que o usavam voltam ao 1º favorito da situação (presets.py escolher).
@@ -767,13 +768,34 @@ def _subir_midia(h, q):
         b.salvar_item(item)
     finally:
         shutil.rmtree(pasta, ignore_errors=True)
+    descrever_depois(b, item['id'])
+    return {'item': item}
 
+
+def descrever_depois(b, id_: str) -> None:
+    """O Gemini descreve a mídia nova em segundo plano."""
     def descrever():
         try:
-            b.descrever(item['id'])
+            b.descrever(id_)
         except (Exception, SystemExit) as e:  # sem a descrição, a mídia fica como subiu
-            print(f'descrever {item["id"]}: {e}', file=sys.stderr)
+            print(f'descrever {id_}: {e}', file=sys.stderr)
     threading.Thread(target=descrever, daemon=True).start()
+
+
+@rota('POST', r'/api/banco/(\w+)/recorte')
+def _recortar(h, q, id_):
+    """Recorta o quadro de um original ({x, y, w, h} em px dele) num item novo, feito pelo criador no app (nasce Aprovado)."""
+    b, c = _banco(), h.corpo()
+    ler_midia(b, id_)
+    try:
+        item = b.recortar(id_, *(float(c[k]) for k in ('x', 'y', 'w', 'h')))
+    except (KeyError, TypeError, ValueError) as e:
+        raise Erro('Mande x, y, w e h (px do original).', 422) from e
+    except SystemExit as e:
+        raise Erro(str(e), 422) from e
+    item['do_criador'] = True
+    b.salvar_item(item)
+    descrever_depois(b, item['id'])
     return {'item': item}
 
 

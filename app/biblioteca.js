@@ -321,8 +321,13 @@ async function detalheBanco(id, recarregar, cod = {}, est = null, cods = {}) {
     <header class="janela-cabeca"><span class="selo-linha ${video ? 'selo-azul' : 'selo-menta'}">${video ? 'Vídeo' : 'Imagem'} · ${esc(it.formato || '')}</span>
       ${chipCodigo(cod[id], it.nome)}<span class="dica">${esc(id)}</span><button class="botao-icone" data-fechar title="Fechar (Esc)">${ICONE.fechar}</button></header>
     <div class="banco-detalhe">
-      <div class="banco-midia">${video ? `<video src="${base}${it.proxy || 'proxy.mp4'}" controls muted playsinline autoplay loop></video>` : `<img src="${base}${esc(it.arquivo || 'miniatura.jpg')}" alt="">`}
+      <div class="banco-midia"><div class="recorte-palco">${video ? `<video src="${base}${it.proxy || 'proxy.mp4'}" controls muted playsinline autoplay loop></video>` : `<img src="${base}${esc(it.arquivo || 'miniatura.jpg')}" alt="">`}
+          <div class="recorte" hidden><div class="recorte-caixa">${['nw', 'ne', 'sw', 'se'].map((c) => `<i data-canto="${c}"></i>`).join('')}</div></div></div>
+        <div class="recorte-barra" hidden><div class="alternar">${Object.keys(PROPS_RECORTE).map((p) => `<button class="pilula pequena" type="button" data-proporcao="${p}">${p}</button>`).join('')}</div>
+          <span class="dica" data-recorte-px></span>
+          <span class="acoes-linha"><button class="botao pequeno" type="button" data-recorte-cancelar>Cancelar</button><button class="botao pequeno botao-coral" type="button" data-recorte-salvar>Salvar recorte</button></span></div>
         <dl class="dados"><dt>Dimensões</dt><dd>${it.largura || '?'} × ${it.altura || '?'}</dd>
+          ${it.recorte_de ? `<dt>Recorte de</dt><dd>${esc(cod[it.recorte_de.id] || it.recorte_de.id)} · ${it.recorte_de.w} × ${it.recorte_de.h} a partir de (${it.recorte_de.x}, ${it.recorte_de.y})</dd>` : ''}
           ${video ? `<dt>Duração</dt><dd>${seg(it.duracao || 0)}</dd>` : ''}
           <dt>Origem</dt><dd>${origemDe(it.origem) || '—'}</dd>
           <dt>Entrou em</dt><dd>${dataHora(it.criado_em) || '—'}${it.projeto ? ` · ${esc(it.projeto)}` : ''}</dd></dl></div>
@@ -341,6 +346,7 @@ async function detalheBanco(id, recarregar, cod = {}, est = null, cods = {}) {
             ${it.estado ? '<button class="botao pequeno" type="button" data-selo="">Automático</button>' : ''}`}</div>
           ${est?.usos?.length ? `<div class="estado-banco">${chipsDeUso(est.usos, cods)}</div>` : ''}</div>
         <div class="acoes-linha"><button class="botao botao-coral" type="submit" disabled>Salvar</button>
+          ${!it.pai && it.largura && it.altura ? `<button class="botao" type="button" data-recortar title="Recorte o quadro (ex.: o vídeo 9:16 que veio num 16:9 com laterais pretas): vira uma mídia nova, o original fica">${ICONE.recortar} Recortar</button>` : ''}
           ${video && !it.pai ? `<button class="botao" type="button" data-marcar-trechos title="Selecione na linha do tempo os pedaços que servem: cada trecho vira uma mídia com código próprio">${ICONE.tesoura} Marcar trechos</button>` : ''}
           <button class="botao botao-perigo-contorno" type="button" data-apagar>${ICONE.lixo} Apagar do banco</button></div>
         <p class="erro-linha" hidden></p>
@@ -404,6 +410,13 @@ async function detalheBanco(id, recarregar, cod = {}, est = null, cods = {}) {
       detalheBanco(id, recarregar, cod, est, cods)
     })
   })
+  $('[data-recortar]', el)?.addEventListener('click', ({ currentTarget: b }) => {
+    b.disabled = true
+    recortarQuadro(el, it, () => (b.disabled = false), () => {
+      fechar()
+      recarregar()
+    })
+  })
   for (const b of $$('[data-selo]', el)) b.addEventListener('click', async () => {
     try {
       await enviar('PUT', `/api/banco/${id}`, { estado: b.dataset.selo || null })
@@ -427,6 +440,117 @@ async function detalheBanco(id, recarregar, cod = {}, est = null, cods = {}) {
       erro.textContent = x.message
     }
   })
+}
+
+const PROPS_RECORTE = { '9:16': 9 / 16, '16:9': 16 / 9, '1:1': 1, '4:5': 4 / 5, Livre: null }
+const MIN_RECORTE = 16 // px do original, como o MIN_RECORTE do banco.py
+
+/** Recortar o quadro de um original no modal da mídia: o retângulo sobre a prévia (arrastar move; as alças redimensionam,
+ * presas à proporção, menos no Livre). Tudo em px do original; "Salvar recorte" cria um item novo (o original fica). */
+function recortarQuadro(el, it, aoCancelar, aoSalvar) {
+  const W = it.largura
+  const H = it.altura
+  const palco = $('.recorte-palco', el)
+  const midia = $('video, img', palco)
+  const camada = $('.recorte', palco)
+  const caixa = $('.recorte-caixa', camada)
+  const barra = $('.recorte-barra', el)
+  const par = (n) => (it.tipo === 'video' ? n - (n % 2) : n) // o H.264 pede lados pares (o banco.py arredonda igual)
+  const limita = (n, a, b) => Math.max(a, Math.min(b, n))
+  let prop = W > H ? '9:16' : '1:1'
+  let r = { x: 0, y: 0, w: W, h: H }
+  const centrar = (p) => { // a maior caixa da proporção, no meio; o Livre mantém a que está
+    prop = p
+    const a = PROPS_RECORTE[p]
+    if (a) {
+      const [w, h] = W / H > a ? [H * a, H] : [W, W / a]
+      r = { x: (W - w) / 2, y: (H - h) / 2, w, h }
+    }
+    desenhar()
+  }
+  // a camada cobre só a imagem dentro do elemento (object-fit: contain deixa faixas em volta)
+  const caber = () => {
+    const m = midia.getBoundingClientRect()
+    const p = palco.getBoundingClientRect()
+    const k = Math.min(m.width / W, m.height / H)
+    Object.assign(camada.style, { left: `${m.left - p.left + (m.width - W * k) / 2}px`, top: `${m.top - p.top + (m.height - H * k) / 2}px`, width: `${W * k}px`, height: `${H * k}px` })
+  }
+  const desenhar = () => {
+    Object.assign(caixa.style, { left: `${(r.x / W) * 100}%`, top: `${(r.y / H) * 100}%`, width: `${(r.w / W) * 100}%`, height: `${(r.h / H) * 100}%` })
+    $('[data-recorte-px]', barra).textContent = `${par(Math.round(r.w))} × ${par(Math.round(r.h))} px`
+    for (const b of $$('[data-proporcao]', barra)) b.classList.toggle('ativa', b.dataset.proporcao === prop)
+  }
+  const obs = new ResizeObserver(caber)
+  obs.observe(midia)
+  if (midia.tagName === 'VIDEO') midia.controls = false // a camada fica por cima dos controles
+  camada.hidden = barra.hidden = false
+  caber()
+  centrar(prop)
+
+  caixa.addEventListener('pointerdown', (e) => {
+    e.preventDefault()
+    const k = camada.getBoundingClientRect().width / W
+    const canto = e.target.dataset.canto
+    const [x0, y0, r0] = [e.clientX, e.clientY, { ...r }]
+    const a = PROPS_RECORTE[prop]
+    const mover = (ev) => {
+      if (!canto) {
+        r.x = limita(r0.x + (ev.clientX - x0) / k, 0, W - r.w)
+        r.y = limita(r0.y + (ev.clientY - y0) / k, 0, H - r.h)
+        return desenhar()
+      }
+      // a ponta oposta fica parada; a caixa cresce para o lado da alça, até a borda do quadro
+      const dx = canto.includes('w') ? -1 : 1
+      const dy = canto.includes('n') ? -1 : 1
+      const ax = dx < 0 ? r0.x + r0.w : r0.x
+      const ay = dy < 0 ? r0.y + r0.h : r0.y
+      const maxW = dx < 0 ? ax : W - ax
+      const maxH = dy < 0 ? ay : H - ay
+      let w = limita(dx * (r0.w * dx + (ev.clientX - x0) / k), MIN_RECORTE, maxW)
+      let h = limita(dy * (r0.h * dy + (ev.clientY - y0) / k), MIN_RECORTE, maxH)
+      if (a) {
+        w = Math.min(Math.max(w, h * a), maxW, maxH * a)
+        h = w / a
+      }
+      r = { x: dx < 0 ? ax - w : ax, y: dy < 0 ? ay - h : ay, w, h }
+      desenhar()
+    }
+    const soltar = () => {
+      window.removeEventListener('pointermove', mover)
+      window.removeEventListener('pointerup', soltar)
+    }
+    window.addEventListener('pointermove', mover)
+    window.addEventListener('pointerup', soltar)
+  })
+  const sair = () => {
+    obs.disconnect()
+    camada.hidden = barra.hidden = true
+    if (midia.tagName === 'VIDEO') midia.controls = true
+    barra.onclick = null
+  }
+  barra.onclick = async (e) => {
+    const b = e.target.closest('button')
+    if (!b) return
+    if (b.dataset.proporcao) return centrar(b.dataset.proporcao)
+    if (b.hasAttribute('data-recorte-cancelar')) {
+      sair()
+      return aoCancelar()
+    }
+    if (!b.hasAttribute('data-recorte-salvar')) return
+    b.disabled = true
+    b.textContent = 'Recortando…'
+    try {
+      const { item } = await enviar('POST', `/api/banco/${it.id}/recorte`, { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.w), h: Math.round(r.h) })
+      const c = (await codigos()).midia?.[item.id]
+      aviso(`Recorte salvo · ${c || item.id}`)
+      sair()
+      aoSalvar()
+    } catch (x) {
+      aviso(x.message, 'erro')
+      b.disabled = false
+      b.textContent = 'Salvar recorte'
+    }
+  }
 }
 
 // ---------- Presets ----------
