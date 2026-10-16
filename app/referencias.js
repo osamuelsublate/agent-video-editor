@@ -50,20 +50,21 @@ export async function abrirReferencias(tela) {
   const grupos = [...GRUPOS]
   const conhecidos = new Set(GRUPOS.flatMap((g) => g[2]))
   for (const t of new Set(clipes.map((c) => c.tipo))) if (!conhecidos.has(t)) grupos.splice(grupos.length - 1, 0, [t, nomePlano(t), [t]])
-  let filtro = 'todos'
+  // o que estava escolhido fica guardado: voltar à aba devolve os filtros, a busca, a ordem e quanto da grade já tinha aberto
+  let filtro = preferencia('refFiltro', 'todos')
   let semAtor = preferencia('semFullAtor', true)
   let conteudo = CONTEUDOS[preferencia('refConteudo', 'todos')] ? preferencia('refConteudo', 'todos') : 'todos'
-  let ordem = 'video' // alfabética: pelo nome do vídeo, e na ordem dentro dele
+  let ordem = preferencia('refOrdem', 'video') // padrão: alfabética, pelo nome do vídeo, e na ordem dentro dele
   let visiveis = []
   // a grade em lotes: os primeiros na hora, o resto conforme rola (mil e tantos cards de uma vez travavam a abertura)
   const LOTE = 120
-  let mostrar = LOTE
-  let assinatura = ''
+  let mostrar = preferencia('refMostrar', LOTE)
+  let assinatura = preferencia('refAssinatura', '')
 
   const chaveDo = (c) => `${c.ref}|${c.inicio}`
   let tagAtiva = ''
   // a busca: todas as palavras digitadas, sem acento, no nome do vídeo, na marcação, na fala, no texto, nas tags e no código
-  let busca = ''
+  let busca = preferencia('refBusca', '')
   const textoDo = (c) => (c.busca ||= semAcento([c.ref_nome, nomePlano(c.tipo), c.descricao, c.fala, c.texto, codigoDo(c), ...(c.tags || []).map((t) => `#${t}`)].join(' ')))
   const acha = (c) => achaBusca(textoDo(c), busca)
   // os filtros de cima (sem a tag): o que a barra de tags conta
@@ -100,8 +101,8 @@ export async function abrirReferencias(tela) {
     }[ordem])
     const sig = JSON.stringify([filtro, semAtor, conteudo, categoria, ordem, busca, tagAtiva])
     if (sig !== assinatura) { // filtro novo: volta ao primeiro lote (um redesenho por tag ou favorito mantém o que já estava)
-      assinatura = sig
-      mostrar = LOTE
+      assinatura = preferencia('refAssinatura', '', sig)
+      mostrar = preferencia('refMostrar', LOTE, LOTE)
     }
     const chip = (id, html, classe = '') => `<button class="pilula pequena${classe}${filtro === id ? ' ativa' : ''}" data-filtro="${id}">${html}</button>`
     const icone = (id) => ICONE[ICONE_GRUPO[id]] || ''
@@ -145,7 +146,7 @@ export async function abrirReferencias(tela) {
       const fim = $('[data-mais]', tela)
       if (!fim || fim.getBoundingClientRect().top > innerHeight + 1200) return
       const de = mostrar
-      mostrar = Math.min(visiveis.length, mostrar + LOTE)
+      mostrar = preferencia('refMostrar', LOTE, Math.min(visiveis.length, mostrar + LOTE))
       const t = document.createElement('template')
       t.innerHTML = visiveis.slice(de, mostrar).map((c, i) => card(c, de + i)).join('')
       ligarTags(t.content, opcoes)
@@ -209,7 +210,7 @@ export async function abrirReferencias(tela) {
     }
     const f = e.target.closest('[data-filtro]')
     if (f) {
-      filtro = f.dataset.filtro
+      filtro = preferencia('refFiltro', 'todos', f.dataset.filtro)
       return desenhar()
     }
     const card = e.target.closest('.card-clipe')
@@ -226,7 +227,7 @@ export async function abrirReferencias(tela) {
     if (!e.target.matches('[data-busca]')) return
     clearTimeout(esperaBusca)
     esperaBusca = setTimeout(() => {
-      busca = e.target.value
+      busca = preferencia('refBusca', '', e.target.value)
       desenhar()
       const campo = $('[data-busca]', tela) // o redesenho troca o campo: o foco e o cursor voltam
       campo.focus()
@@ -236,7 +237,7 @@ export async function abrirReferencias(tela) {
   tela.addEventListener('change', (e) => {
     if (e.target.matches('[data-busca]')) return
     if (e.target.matches('[data-sem-ator]')) semAtor = preferencia('semFullAtor', true, e.target.checked)
-    if (e.target.matches('[data-ordem]')) ordem = e.target.value
+    if (e.target.matches('[data-ordem]')) ordem = preferencia('refOrdem', 'video', e.target.value)
     if (e.target.matches('[data-categoria-ref]')) categoria = preferencia('refCategoria', '', e.target.value)
     desenhar()
   })

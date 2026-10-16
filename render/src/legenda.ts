@@ -102,7 +102,7 @@ function alturaDaLegenda(tipo: string | undefined, z: Zona | null): number {
   else if (d?.modo === 'atras') {
     // na janela e no recortado, a altura do Full ator dentro do ator encolhido; no canto (o ator pequeno), logo acima dele
     const g: Geometria = z?.ator ?? { modo: 'janela', s: 0.55, tx: 0.225, ty: 0.45 }
-    y = g.modo === 'canto' ? topoDoAtor(g) - MEIA - FOLGA : g.ty + ALTURA_POR_PLANO.full_ator * g.s
+    y = g.modo === 'canto' || g.modo === 'caixa' ? topoDoAtor(g) - MEIA - FOLGA : g.ty + ALTURA_POR_PLANO.full_ator * g.s
   }
   else if (tipo === 'tela_dividida_motion') y = 0.5
   else if (tipo === 'insert_tela_cheia' && z?.deitada) y = ALTURA_DEITADA

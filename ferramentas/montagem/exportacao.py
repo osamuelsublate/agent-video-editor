@@ -195,11 +195,11 @@ def _ator_na_geometria(partes: list[str], divisoes: list[tuple[float, float, dic
     # dos dois trechos e o ator saía sem o enquadramento (mvi-0717 v2 c6, v3 c1: o rosto some e aparece o notebook)
     na_faixa = lambda a, b: f'gte(t,{a - 1e-4:.5f})*lt(t,{b - 1e-4:.5f})'  # noqa: E731
     metades = [(a, b, d['ator']) for a, b, d in divisoes if (d.get('ator') or {}).get('modo') == 'metade']
-    sobre = [(a, b, d['ator']) for a, b, d in divisoes if (d.get('ator') or {}).get('modo') in ('janela', 'canto', 'recortado')]
+    sobre = [(a, b, d['ator']) for a, b, d in divisoes if (d.get('ator') or {}).get('modo') in ('janela', 'canto', 'recortado', 'caixa')]
     # sem a máscara (o recorte do ator não ficou pronto), o recortado vira o ator inteiro num canto
     if not usa_mascara:
         sobre = [(a, b, {**g, 'modo': 'canto', 'raio': g.get('raio') or 0.07} if g['modo'] == 'recortado' else g) for a, b, g in sobre]
-    quadros = [(a, b, g) for a, b, g in sobre if g['modo'] in ('janela', 'canto')]
+    quadros = [(a, b, g) for a, b, g in sobre if g['modo'] in ('janela', 'canto', 'caixa')]
     pessoas = [(a, b, g) for a, b, g in sobre if g['modo'] in ('janela', 'recortado')] if usa_mascara else []
     usos = 1 + len(quadros) + (1 if pessoas else 0)
     partes.append(f'[ator]split={usos}[ator0]' + ''.join(f'[aq{i}]' for i in range(len(quadros))) + ('[ator2]' if pessoas else ''))
@@ -218,6 +218,17 @@ def _ator_na_geometria(partes: list[str], divisoes: list[tuple[float, float, dic
     for i, (a, b, g) in enumerate(quadros):
         sw, sh = _par(g['s'] * w), _par(g['s'] * h)
         x0, y0 = round(g['tx'] * w), round(g['ty'] * h)
+        if g['modo'] == 'caixa':  # um recorte do ator ampliado, na caixa (REF-15·p42)
+            c = g['caixa']
+            cw, ch = _par(c['w'] * w), _par(c['h'] * h)
+            cx, cy = max(0, round((c['x'] - g['tx']) * w)), max(0, round((c['y'] - g['ty']) * h))
+            r = max(1, round((g.get('raio') or 0) * cw))
+            topo.append(f'[aq{i}]trim=start={a:.4f}:end={b:.4f},setpts=PTS-STARTPTS,scale={sw}:{sh},crop={cw}:{ch}:{min(cx, sw - cw)}:{min(cy, sh - ch)},format=rgba[q{i}]')
+            topo.append(_cantos(cw, ch, r, fps, b - a, f'qc{i}'))
+            topo.append(f'[q{i}][qc{i}]alphamerge,{_desde(a, fps)}[qr{i}]')
+            topo.append(f"[{atual}][qr{i}]overlay=x={round(c['x'] * w)}:y={round(c['y'] * h)}:eof_action=pass:enable='{quando(a, b)}'[tq{i}]")
+            atual = f'tq{i}'
+            continue
         corte = _par((g.get('topo') or 0) * sh) if g['modo'] == 'janela' else 0
         qh = sh - corte
         r = max(1, round((g.get('raio') or 0) * sw))

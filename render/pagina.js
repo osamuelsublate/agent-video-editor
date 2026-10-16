@@ -505,8 +505,11 @@
   var PADRAO_MODO = {
     janela: { x: 0.5, y: 1 - 0.55 / 2, escala: 0.55 },
     recortado: { x: 0.5, y: 1 - 0.62 / 2, escala: 0.62 },
-    canto: { x: 1 - 0.34 / 2 - 0.04, y: 1 - 0.34 / 2 - 0.035, escala: 0.34 }
+    canto: { x: 1 - 0.34 / 2 - 0.04, y: 1 - 0.34 / 2 - 0.035, escala: 0.34 },
+    caixa: { x: 0.5, y: 0.82, escala: 0.41 }
+    // o centro e a largura da caixa
   };
+  var CAIXA = { rosto: 0.5, olhos: 0.45, raio: 0.09 };
   var TOPO_JANELA = (0.72 - 0.45) / 0.55;
   var RAIO = 0.07;
   var REGRA = { olhos: 0.4, folga: 0.06, rosto: 0.3, zoomMax: 1.6 };
@@ -537,13 +540,27 @@
     }
     const modo = aj?.modo ?? "janela";
     const p = PADRAO_MODO[modo];
+    if (modo === "caixa") return caixaDoAtor(aj, rosto);
     const s = aj?.escala ?? p.escala;
     const xAuto = modo !== "canto" && rosto ? limite2(0.5 - s * (rosto.cx - 0.5), s / 2, 1 - s / 2) : p.x;
     const x = aj?.x ?? xAuto;
     const y = aj?.y ?? (modo === "canto" ? p.y : 1 - s / 2);
     return { modo, s, tx: x - s / 2, ty: y - s / 2, topo: modo === "janela" ? TOPO_JANELA : void 0, raio: modo === "recortado" ? void 0 : RAIO };
   }
-  var topoDoAtor = (g) => g.ty + (g.modo === "canto" ? 0 : 0.1 * g.s);
+  function caixaDoAtor(aj, rosto) {
+    const p = PADRAO_MODO.caixa;
+    const w = aj?.escala ?? p.escala;
+    const h = w * (9 / 16) * 1.03;
+    const x = (aj?.x ?? p.x) - w / 2;
+    const y = (aj?.y ?? p.y) - h / 2;
+    let s = rosto && rosto.h > 0 ? CAIXA.rosto * h / rosto.h : 0.62;
+    s = Math.max(s, w, h);
+    const olhos2 = rosto ? rosto.cy - 0.15 * rosto.h : 0.3;
+    const tx = limite2(x + w / 2 - s * (rosto?.cx ?? 0.5), x + w - s, x);
+    const ty = limite2(y + CAIXA.olhos * h - s * olhos2, y + h - s, y);
+    return { modo: "caixa", s, tx, ty, caixa: { x, y, w, h }, raio: CAIXA.raio };
+  }
+  var topoDoAtor = (g) => g.caixa ? g.caixa.y : g.ty + (g.modo === "canto" ? 0 : 0.1 * g.s);
   var mediana = (xs) => {
     const o = [...xs].sort((a, b) => a - b);
     return o.length ? o.length % 2 ? o[(o.length - 1) / 2] : (o[o.length / 2 - 1] + o[o.length / 2]) / 2 : 0;
@@ -1031,7 +1048,7 @@
     if (d?.modo === "metade") y = Math.min(Math.max(d.f, 0.3), 0.7);
     else if (d?.modo === "atras") {
       const g = z?.ator ?? { modo: "janela", s: 0.55, tx: 0.225, ty: 0.45 };
-      y = g.modo === "canto" ? topoDoAtor(g) - MEIA - FOLGA : g.ty + ALTURA_POR_PLANO.full_ator * g.s;
+      y = g.modo === "canto" || g.modo === "caixa" ? topoDoAtor(g) - MEIA - FOLGA : g.ty + ALTURA_POR_PLANO.full_ator * g.s;
     } else if (tipo === "tela_dividida_motion") y = 0.5;
     else if (tipo === "insert_tela_cheia" && z?.deitada) y = ALTURA_DEITADA;
     return z?.card ? desviar(y, z.card) : y;

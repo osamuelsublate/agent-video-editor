@@ -221,8 +221,13 @@ document.addEventListener('click', (e) => {
 
 let sair = null
 let vez = 0
+// a rolagem de cada página (fora das revisões): voltar à aba volta ao mesmo ponto
+let rotaAtual = null
+const comRolagem = (r) => r && !/^#\/(p|calibragem)\/./.test(r)
 async function rotear() {
   const minha = ++vez
+  if (comRolagem(rotaAtual)) preferencia(`rolagem.${rotaAtual}`, 0, Math.round(scrollY))
+  rotaAtual = location.hash || '#/'
   sair?.()
   sair = null
   let partes = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean).map(decodeURIComponent)
@@ -251,7 +256,10 @@ async function rotear() {
   else if (PAGINAS_BIBLIOTECA.includes(partes[0])) s = await abrirBiblioteca(tela, partes[0], partes.slice(1))
   else s = await inicio(tela)
   if (minha !== vez) s?.() // já mudou de tela enquanto carregava
-  else sair = s
+  else {
+    sair = s
+    if (comRolagem(rotaAtual)) setTimeout(() => scrollTo(0, preferencia(`rolagem.${rotaAtual}`, 0)), 0)
+  }
 }
 
 // o botão copiar dos códigos (comum.chipCodigo), em qualquer página: na captura, antes do clique do card ou do link

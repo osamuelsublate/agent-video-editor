@@ -95,7 +95,7 @@ const chipsDeUso = (usos, cods) => {
 }
 
 let tagsConhecidas = [] // as tags do banco, para o autocompletar do modal da mídia
-const buscas = { inserts: '', motions: '' } // o que está digitado na busca de cada página (sobrevive aos redesenhos)
+const buscas = { inserts: preferencia('banco.busca', ''), motions: preferencia('motions.busca', '') } // a busca de cada página (guardada: voltar à aba devolve)
 
 async function bancoInserts(el, tipo = 'inserts') {
   const [nomes, cods, est, ms, tagsMotion] = await Promise.all([lista('biblioteca/banco'), codigos(), json('/api/estados', { midias: {}, motions: {} }), lerMotions(),
@@ -206,7 +206,7 @@ async function bancoInserts(el, tipo = 'inserts') {
     if (vazio) vazio.hidden = n > 0
   }
   $('[data-busca]', el).addEventListener('input', (e) => {
-    buscas[tipo] = e.target.value
+    buscas[tipo] = preferencia(tipo === 'motions' ? 'motions.busca' : 'banco.busca', '', e.target.value)
     buscar()
   })
   buscar()

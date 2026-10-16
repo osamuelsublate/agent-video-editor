@@ -13,22 +13,26 @@ import type { Sequencia } from './sequencia'
  *  - **"Ator embaixo"** (`atras`, o insert na tela toda), em três modos: a **janela** (o ator encolhido, recortado numa
  *    janela de cantos redondos, com a cabeça saindo por cima), **recortado** (só a pessoa, sem o cenário, pela máscara do
  *    recorte do ator) e **canto** (o ator inteiro encolhido num canto, cantos redondos). Centro e tamanho arrastáveis
- *    no vídeo (`x`, `y`, `escala`). */
-export type ModoAtor = 'janela' | 'recortado' | 'canto'
+ *    no vídeo (`x`, `y`, `escala`). A **caixa** (REF-15·p42): uma caixa quase quadrada centrada embaixo, com o rosto e os
+ *    ombros enquadrados dentro (`escala` = a largura da caixa). */
+export type ModoAtor = 'janela' | 'recortado' | 'canto' | 'caixa'
 export type AjusteAtor = { modo?: ModoAtor; x?: number; y?: number; escala?: number; dx?: number; dy?: number; zoom?: number }
 export type Rosto = { cx: number; cy: number; w: number; h: number }
 /** `topo`: na janela, onde ela começa dentro do quadro do ator (fração); `raio`: o raio dos cantos (fração da largura
  *  do quadro do ator encolhido). */
-export type Geometria = { modo: 'metade' | ModoAtor; s: number; tx: number; ty: number; topo?: number; raio?: number }
+export type Geometria = { modo: 'metade' | ModoAtor; s: number; tx: number; ty: number; topo?: number; raio?: number; caixa?: { x: number; y: number; w: number; h: number } }
 
-export const NOME_MODO: Record<ModoAtor, string> = { janela: 'Janela', recortado: 'Recortado', canto: 'Canto' }
+export const NOME_MODO: Record<ModoAtor, string> = { janela: 'Janela', recortado: 'Recortado', canto: 'Canto', caixa: 'Caixa' }
 /** As posições de fábrica de cada modo (centro e tamanho, frações do quadro). A janela é a de antes da P5: o ator a 55%,
  *  apoiado embaixo, com a janela começando em 72% do quadro. */
 const PADRAO_MODO: Record<ModoAtor, { x: number; y: number; escala: number }> = {
   janela: { x: 0.5, y: 1 - 0.55 / 2, escala: 0.55 },
   recortado: { x: 0.5, y: 1 - 0.62 / 2, escala: 0.62 },
   canto: { x: 1 - 0.34 / 2 - 0.04, y: 1 - 0.34 / 2 - 0.035, escala: 0.34 },
+  caixa: { x: 0.5, y: 0.82, escala: 0.41 }, // o centro e a largura da caixa
 }
+/** Na caixa: o rosto ocupa metade da altura dela e os olhos ficam a 45% do alto. */
+const CAIXA = { rosto: 0.5, olhos: 0.45, raio: 0.09 }
 const TOPO_JANELA = (0.72 - 0.45) / 0.55 // a janela começa a 49% do ator encolhido
 const RAIO = 0.07
 const REGRA = { olhos: 0.4, folga: 0.06, rosto: 0.3, zoomMax: 1.6 }
@@ -68,6 +72,7 @@ export function geometriaDoAtor(d: Divisao | null, aj: AjusteAtor | null | undef
   }
   const modo = aj?.modo ?? 'janela'
   const p = PADRAO_MODO[modo]
+  if (modo === 'caixa') return caixaDoAtor(aj, rosto)
   const s = aj?.escala ?? p.escala
   // sem posição escolhida, o rosto no meio da largura (na janela e no recortado); o canto fica no canto
   const xAuto = modo !== 'canto' && rosto ? limite(0.5 - s * (rosto.cx - 0.5), s / 2, 1 - s / 2) : p.x
@@ -76,9 +81,24 @@ export function geometriaDoAtor(d: Divisao | null, aj: AjusteAtor | null | undef
   return { modo, s, tx: x - s / 2, ty: y - s / 2, topo: modo === 'janela' ? TOPO_JANELA : undefined, raio: modo === 'recortado' ? undefined : RAIO }
 }
 
+/** A caixa: quase quadrada (no quadro 9:16), centrada em (`x`, `y`), o ator ampliado pelo rosto e sempre cobrindo a caixa. */
+function caixaDoAtor(aj: AjusteAtor | null | undefined, rosto: Rosto | null): Geometria {
+  const p = PADRAO_MODO.caixa
+  const w = aj?.escala ?? p.escala
+  const h = w * (9 / 16) * 1.03 // em pixels, um pouco mais alta que larga
+  const x = (aj?.x ?? p.x) - w / 2
+  const y = (aj?.y ?? p.y) - h / 2
+  let s = rosto && rosto.h > 0 ? (CAIXA.rosto * h) / rosto.h : 0.62
+  s = Math.max(s, w, h) // cobre a caixa
+  const olhos = rosto ? rosto.cy - 0.15 * rosto.h : 0.3
+  const tx = limite(x + w / 2 - s * (rosto?.cx ?? 0.5), x + w - s, x)
+  const ty = limite(y + CAIXA.olhos * h - s * olhos, y + h - s, y)
+  return { modo: 'caixa', s, tx, ty, caixa: { x, y, w, h }, raio: CAIXA.raio }
+}
+
 /** Onde fica o alto da cabeça do ator no "ator embaixo" (fração do quadro): na janela e no recortado, a ~10% do topo do
  *  quadro do ator encolhido; no canto, o topo da caixa. O card do comentário e a legenda desviam por aqui. */
-export const topoDoAtor = (g: Geometria) => g.ty + (g.modo === 'canto' ? 0 : 0.1 * g.s)
+export const topoDoAtor = (g: Geometria) => (g.caixa ? g.caixa.y : g.ty + (g.modo === 'canto' ? 0 : 0.1 * g.s))
 
 // ---------------------------------------------------------------- o rosto medido (rosto.py)
 
