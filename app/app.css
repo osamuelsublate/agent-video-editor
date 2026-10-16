@@ -332,6 +332,11 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
   transition: opacity 0.2s, background-color 0.2s, color 0.2s, transform 0.3s;
 }
 .apagar-projeto svg { width: 14px; height: 14px; }
+/* a pasta dos exports (quando o projeto tem final), no canto de cima à direita da miniatura */
+.abrir-exports { position: absolute; top: 10px; right: 10px; z-index: 4; display: grid; place-items: center; width: 28px; height: 28px; padding: 0;
+  border: 0; border-radius: var(--radius-full); background: var(--color-ink-85); color: var(--color-cream); cursor: pointer; transition: background-color 0.2s; }
+.abrir-exports svg { width: 14px; height: 14px; }
+.abrir-exports:hover { background: var(--color-coral); }
 .caixa-projeto:hover .apagar-projeto, .apagar-projeto:focus-visible { opacity: 1; transform: translateY(-4px); }
 .apagar-projeto:hover { background: var(--color-coral); color: var(--color-cream); }
 .caixa-projeto:hover .card-projeto .selo { opacity: 0; } /* a lixeira fica no lugar do selo de estado */

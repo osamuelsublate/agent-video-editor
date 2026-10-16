@@ -39,8 +39,17 @@ Exemplo (mvi-0719, 16/10): corpo + CTA ManyChat → **Reels**; + CTA VSL → **P
 
 Antes de numerar, **liste a pasta raiz** e ache o maior número (filtre por `createdTime` recente; a de Ads tem 1000+ pastas
 e a primeira página não basta). Crie a pasta pelo MCP do Drive (`create_file` com mimeType de pasta) e **suba os vídeos
-pelo navegador do criador** (Claude in Chrome: a página da pasta no Drive e o `file_upload` no campo de arquivo) — o MCP
-não sobe arquivos grandes.
+pelo rclone** (o remote `asimov:`, autorizado pelo criador na conta com acesso às pastas; o token fica em
+`~/.config/rclone/rclone.conf`, nunca mostre):
+```bash
+rclone copy "<arquivo>" asimov: --drive-root-folder-id <id da pasta> --drive-chunk-size 64M
+rclone lsl asimov: --drive-root-folder-id <id da pasta>     # confira nome e tamanho
+```
+Nem o MCP do Drive nem o navegador sobem arquivos grandes (o upload do Claude in Chrome tem limite de 10 MB), e o Drive
+Desktop está fora: ele dá conflito com o app da câmera (EOS Canon). Sem o remote (`rclone listremotes` vazio), rode
+`rclone config create asimov drive scope=drive` e peça ao criador para autorizar no navegador. O rclone avisa que o
+client_id compartilhado dele será desligado em 2026: quando parar, crie um client_id próprio
+(https://rclone.org/drive/#making-your-own-client-id).
 
 | Saída | Pasta raiz | Nome da pasta |
 |---|---|---|
