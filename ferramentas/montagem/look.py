@@ -64,7 +64,7 @@ def filtros(look: dict, entrada: str, saida: str, idx_mascara: int | None, altur
     pelo `loop`; o `-loop 1` na entrada a decodificava de novo a cada quadro) multiplicada."""
     forca = NITIDEZ.get(look.get('nitidez') or 'sem', 0)
     if forca > 0:  # antes do RGB: o unsharp só na luma (sem halo de cor)
-        m = min(max(round(5 * altura / 1280) // 2 * 2 + 1, 3), 23)
+        m = min(max(round(5 * altura / 1280) // 2 * 2 + 1, 3), 13)  # o ffmpeg aceita até 13×13 (lx/2+ly/2)*2 ≤ 25
         f = [f'[{entrada}]unsharp=luma_msize_x={m}:luma_msize_y={m}:luma_amount={forca}:chroma_amount=0,format=gbrp[lk0]']
     else:
         f = [f'[{entrada}]format=gbrp[lk0]']
