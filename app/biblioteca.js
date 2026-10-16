@@ -173,10 +173,12 @@ async function bancoInserts(el, tipo = 'inserts') {
         ${video ? `<video muted loop playsinline preload="none" data-src="${base}${it.proxy || 'proxy.mp4'}"></video>` : ''}
         <span class="selo ${video ? 'selo-azul' : 'selo-menta'}">${video ? 'Vídeo' : 'Imagem'} · ${esc(it.formato || '')}</span>
         ${video && it.duracao ? `<span class="duracao">${seg(it.duracao)}</span>` : ''}
+        ${rotulo ? `<span class="selo-linha selo-na-thumb ${cor}">${rotulo}</span>` : ''}
         <span class="chip-tipo">Insert${ts.length ? ` · ${ts.length} ${ts.length === 1 ? 'trecho' : 'trechos'}` : ''}</span></div>
       <div class="card-titulo"><h3 title="${esc([it.descricao, it.fonte].filter(Boolean).join('\n'))}">${esc(it.nome)}</h3>${chipCodigo(cod[it.id], it.nome)}</div>
-      ${rotulo ? `<div class="estado-banco"><span class="selo-linha ${cor}">${rotulo}</span>${chipsDeUso(e.usos, cods)}</div>` : ''}
-      ${(it.tags || []).length ? `<div class="tags-card">${it.tags.map((t) => `<button class="tag" data-tag-chip="${esc(t)}" title="Mostrar só #${esc(t)}">#${esc(t)}</button>`).join('')}</div>` : ''}
+      <div class="tags-card">
+        ${(it.tags || []).map((t) => `<span class="tag"><button class="tag-texto" data-tag-chip="${esc(t)}" title="Mostrar só #${esc(t)}">#${esc(t)}</button><button class="tag-tirar" data-tirar-tag-card="${esc(t)}" title="Tirar #${esc(t)}" aria-label="Tirar #${esc(t)}">×</button></span>`).join('')}
+        <button class="tag tag-mais" data-mais-tag title="Pôr uma tag (#tag ou #grupo/tag)">+ tag</button></div>
       ${listaTrechos(ts, cod)}
     </article>`
   }).map((html, k) => ({ html, criado: '' }))
@@ -203,7 +205,7 @@ async function bancoInserts(el, tipo = 'inserts') {
         ${tipo === 'motions' ? '' : `<label class="botao pequeno botao-subir" title="Vídeos e imagens, vários de uma vez (ou arraste para esta página): entram Aprovados e a IA descreve">${ICONE.subir} Subir mídia<input type="file" multiple accept="video/mp4,video/quicktime,video/webm,image/png,image/jpeg,image/webp" hidden data-subir></label>`}
         ${nRecusados && tipo !== 'motions' ? `<button class="botao pequeno botao-perigo-contorno" data-limpar-recusados title="Leva os recusados para a lixeira do banco (biblioteca/banco/_lixeira/), de onde dá para recuperar">${ICONE.lixo} Limpar recusados (${nRecusados})</button>` : ''}
         ${ajuda(tipo === 'motions' ? 'Os presets de motion. Usado em vídeo: entrou num vídeo aprovado (o chip abre o plano). A revisar: o Claude escreveu e você ainda não aprovou. Passe o mouse para tocar.' : 'Os inserts (vídeos e imagens). Usado em vídeo: entrou num vídeo aprovado (o chip abre o plano). Aprovado: bom, mesmo sem uso. Recusado: ficou de fora de um vídeo aprovado. Passe o mouse para tocar; clique num insert para editar, marcar trechos ou mudar o selo.')}</span></div>` +
-    (comTags ? `<div class="banco-com-tags">${barraDeTags(originais, tagAtiva)}<div class="banco-grade">` : '') +
+    (comTags ? `<datalist id="tags-conhecidas-card">${tagsConhecidas.map((t) => `<option value="#${esc(t)}">`).join('')}</datalist><div class="banco-com-tags">${barraDeTags(originais, tagAtiva)}<div class="banco-grade">` : '') +
     (cards.length ? `<div class="grade grade-banco">${cards.join('')}</div>` : '<p class="vazio">Nada com esses filtros.</p>') +
     (comTags ? '</div></div>' : '')
   const subir = async (arquivos) => {
@@ -264,6 +266,45 @@ async function bancoInserts(el, tipo = 'inserts') {
     preferencia('banco.tag', '', t) // recolher o grupo da tag ativa: a seleção sobe para o grupo
     bancoInserts(el, tipo)
   })
+  const gravarTags = async (id, tags) => {
+    try {
+      await enviar('PUT', `/api/banco/${id}`, { tags })
+      bancoInserts(el, tipo)
+    } catch (x) {
+      aviso(x.message, 'erro')
+    }
+  }
+  const tagsDe = (b) => originais.find((it) => it.id === b.closest('[data-id]').dataset.id)
+  for (const b of $$('[data-tirar-tag-card]', el)) b.addEventListener('click', (e) => {
+    e.stopPropagation()
+    const it = tagsDe(b)
+    gravarTags(it.id, (it.tags || []).filter((t) => t !== b.dataset.tirarTagCard))
+  })
+  for (const b of $$('[data-mais-tag]', el)) b.addEventListener('click', (e) => {
+    e.stopPropagation()
+    const it = tagsDe(b)
+    const campo = document.createElement('input')
+    campo.className = 'tag-campo'
+    campo.placeholder = '#grupo/tag'
+    campo.setAttribute('list', 'tags-conhecidas-card')
+    b.replaceWith(campo)
+    campo.focus()
+    let feito = false
+    const concluir = (gravar) => {
+      if (feito) return
+      feito = true
+      const novas = gravar ? campo.value.split(/[,\s]+(?=#)|,/).map(tagLimpa).filter((t) => t && !(it.tags || []).includes(t)) : []
+      if (novas.length) gravarTags(it.id, [...(it.tags || []), ...novas])
+      else campo.replaceWith(b)
+    }
+    campo.addEventListener('keydown', (k) => {
+      if (k.key === 'Enter') { k.preventDefault(); concluir(true) }
+      if (k.key === 'Escape') { k.preventDefault(); k.stopPropagation(); concluir(false) }
+    })
+    campo.addEventListener('change', () => tagsConhecidas.includes(tagLimpa(campo.value)) && concluir(true)) // escolhida no autocompletar
+    campo.addEventListener('blur', () => concluir(true))
+    campo.addEventListener('click', (k) => k.stopPropagation())
+  })
   for (const b of $$('[data-tag-chip]', el)) b.addEventListener('click', (e) => {
     e.stopPropagation()
     preferencia('banco.tag', '', b.dataset.tagChip)
@@ -295,7 +336,7 @@ async function bancoInserts(el, tipo = 'inserts') {
       })
       continue
     }
-    card.addEventListener('click', (e) => !e.target.closest('a, summary, [data-tag-chip]') && detalheBanco(card.dataset.id, () => bancoInserts(el, tipo), cod, estados[card.dataset.id], cods))
+    card.addEventListener('click', (e) => !e.target.closest('a, summary, .tags-card') && detalheBanco(card.dataset.id, () => bancoInserts(el, tipo), cod, estados[card.dataset.id], cods))
     const v = $('video', card)
     if (!v) continue
     let trecho = null // [ini, fim] enquanto o mouse está num trecho
