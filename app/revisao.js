@@ -32,8 +32,8 @@ const crescer = (el) => {
 /** O botão de clipe de uma caixa de comentário (`alvo`: nova ou editor). */
 // a barra acima da linha do tempo (comum.js): os atalhos da revisão
 const ATALHOS = () => [
-  ['R', 'plano', ICONE_ATALHO.plano], ['I O', 'trecho', ICONE_ATALHO.trecho], ['C', 'geral', ICONE.balao], ['⌘V', 'anexo', ICONE.clipe],
-  ['Espaço', 'tocar', ICONE.tocar], ['← →', 'quadro', ICONE.quadroDepois], ['⇧ ← →', 'corte', ICONE.segDepois], ['⌘ rolar', 'zoom', ICONE_ATALHO.zoom],
+  ['R', 'plano', ICONE_ATALHO.plano], ['I O', 'trecho', ICONE_ATALHO.trecho], ['C', 'geral', ICONE.balao], ['arrastar', 'trecho', ICONE_ATALHO.trecho],
+  ['Espaço', 'tocar', ICONE.tocar], ['← →', 'quadro', ICONE.quadroDepois], ['⇧ ← →', 'corte', ICONE.segDepois], ['⌘ + −', 'zoom', ICONE_ATALHO.zoom],
 ]
 
 const clipe = (alvo) =>
@@ -882,14 +882,14 @@ class Revisao {
   }
 
   /** I: a entrada de um trecho; a caixa passa a mostrar o trecho da entrada até o cursor (solta, se estava presa). */
-  marcarEntrada() {
+  marcarEntrada(calado = false) {
     this.nova.geral = false
     this.nova.preso = false
     this.nova.fim = null
     this.entrada = this.video.currentTime
     this.renderNova()
     this.renderMarcas()
-    aviso(`Entrada em ${tempo(this.entrada)}. Agora O marca a saída.`)
+    if (!calado) aviso(`Entrada em ${tempo(this.entrada)}. Agora O marca a saída.`)
   }
 
   /** O: a saída; o trecho fica preso na caixa, pronta para escrever. */
@@ -1185,15 +1185,34 @@ class Revisao {
 
     // clicar/arrastar na linha do tempo busca; ⌘/Ctrl + rolagem aproxima
     const conteudo = $('#conteudo')
+    // clicar busca; arrastar na régua percorre o vídeo; arrastar nas faixas marca um trecho (como I e O)
     conteudo.addEventListener('pointerdown', (e) => {
       if (e.target.closest('.marca') || e.button !== 0) return
       e.preventDefault()
-      const mover = (ev) => this.buscar((ev.clientX - conteudo.getBoundingClientRect().left) / this.pxs)
-      mover(e)
+      const tDe = (ev) => Math.min(Math.max((ev.clientX - conteudo.getBoundingClientRect().left) / this.pxs, 0), this.dur)
+      const naRegua = !!e.target.closest('#regua')
+      const x0 = e.clientX
+      const t0 = tDe(e)
+      let trecho = false
+      this.buscar(t0)
       conteudo.setPointerCapture(e.pointerId)
+      const mover = (ev) => {
+        if (!naRegua && !trecho && Math.abs(ev.clientX - x0) > 4) {
+          trecho = true
+          this.video.pause()
+          this.buscar(t0)
+          this.marcarEntrada(true)
+        }
+        this.buscar(tDe(ev))
+        if (trecho) this.renderMarcas()
+      }
       const soltar = () => {
         conteudo.removeEventListener('pointermove', mover)
         conteudo.removeEventListener('pointerup', soltar)
+        if (trecho) {
+          if (Math.abs(this.video.currentTime - this.entrada) < 0.05) return this.soltarNova()
+          this.marcarSaida()
+        }
       }
       conteudo.addEventListener('pointermove', mover)
       conteudo.addEventListener('pointerup', soltar)
@@ -1298,6 +1317,10 @@ class Revisao {
         }
       }
       return
+    }
+    if ((e.metaKey || e.ctrlKey) && !e.altKey && ['=', '+', '-', '_', '0'].includes(e.key)) {
+      e.preventDefault() // ⌘+ ⌘− ⌘0: o zoom da linha do tempo, não o da página
+      return this.zoom(e.key === '0' ? 0 : e.key === '-' || e.key === '_' ? 0.8 : 1.25)
     }
     if (e.metaKey || e.ctrlKey || e.altKey) return
     const k = e.key.length === 1 ? e.key.toLowerCase() : e.key
