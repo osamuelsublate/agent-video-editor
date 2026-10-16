@@ -1,4 +1,4 @@
-// A revisão de uma versão: o player do proxy, a linha do tempo (planos, fala, comentários e dúvidas do Claude) e os
+// A revisão de uma versão: o player do proxy, a linha do tempo (planos, fala e comentários) e os
 // comentários do criador, gravados sozinhos em projetos/<slug>/revisoes/vN.json (o Claude responde no mesmo arquivo).
 import { carregarMarcaveis, htmlComMencoes, seDigitouArroba } from './mencoes.js'
 import { $, $$, ICONE, ICONE_ATALHO, abrirAba, barraDaLinha, agora, aviso, chipCodigo, codigos, confirmar, copiar, dataHora, enviar, esc, fecharAba, janela, json, mmss, modalAberto, nomePlano, num, PLANOS, preferencia, tempo } from './comum.js'
@@ -70,7 +70,7 @@ class Revisao {
     this.pxs = 1
     this.ajustar = true // a linha do tempo cabe inteira na largura
     this.entrada = null // a marca I (s)
-    this.editor = null // editando um comentário ou respondendo uma dúvida: {t, fim, responde?, id?, texto?, anexos?}
+    this.editor = null // editando um comentário: {t, fim, id?, texto?, anexos?}
     this.nova = { preso: false, geral: false, t: 0, fim: null, anexos: [], novoId: null } // a caixa de baixo: o comentário novo
     this.sel = null
     this.fila = Promise.resolve()
@@ -79,10 +79,9 @@ class Revisao {
   }
 
   async abrir() {
-    const [palavras, planos, notas, info, rev, cods, edicao] = await Promise.all([
+    const [palavras, planos, info, rev, cods, edicao] = await Promise.all([
       json(this.base + 'palavras.json', []),
       json(this.base + 'planos.json', []),
-      json(this.base + 'notas.json', []),
       json(this.base + 'info.json', {}),
       json(this.urlRevisao, null),
       codigos(),
@@ -99,7 +98,6 @@ class Revisao {
     this.midias = {} // os itens do banco já buscados (nome, fonte, vídeo)
     this.palavras = listaDe(palavras, 'palavras').slice().sort((a, b) => a.ini - b.ini)
     this.planos = listaDe(planos, 'planos')
-    this.notas = listaDe(notas, 'notas')
     this.info = info || {}
     this.rev = rev || { projeto: this.slug, versao: this.v, aprovado: false, enviado_em: null, comentarios: [] }
     this.rev.comentarios ||= []
@@ -253,13 +251,12 @@ class Revisao {
       </div>
       <section class="linha">
         ${barraDaLinha(ATALHOS())}
-        <div class="linha-rotulos"><span class="r-regua"></span><span>Planos</span><span>Fala</span><span>Você</span><span>Claude</span></div>
+        <div class="linha-rotulos"><span class="r-regua"></span><span>Planos</span><span>Fala</span><span>Você</span></div>
         <div class="linha-rolo" id="rolo"><div class="linha-conteudo" id="conteudo">
           <div class="regua" id="regua"></div>
           <div class="faixa faixa-planos" id="f-planos"></div>
           <div class="faixa faixa-palavras" id="f-palavras"></div>
           <div class="faixa faixa-comentarios" id="f-comentarios"></div>
-          <div class="faixa faixa-notas" id="f-notas"></div>
           <div id="io"></div>
           <div class="cabeca" id="cabeca"></div>
         </div></div>
@@ -428,15 +425,10 @@ class Revisao {
   renderLista() {
     const campo0 = $('#editor-texto')
     if (campo0 && this.editor) this.editor.texto = campo0.value // o que já foi digitado sobrevive ao redesenho
-    const comentarios = this.rev.comentarios.filter((c) => !c.responde).sort((a, b) => ordem(a) - ordem(b))
+    const comentarios = this.rev.comentarios.slice().sort((a, b) => ordem(a) - ordem(b))
     this.numeros = new Map(comentarios.map((c, k) => [c.id, k + 1]))
-    const respostas = new Map(this.rev.comentarios.filter((c) => c.responde).map((c) => [c.responde, c]))
-    const itens = [
-      ...comentarios.map((c) => ({ t: ordem(c), html: this.htmlComentario(c) })),
-      ...this.notas.map((n) => ({ t: n.ini, html: this.htmlNota(n, respostas.get(n.id)) })),
-    ].sort((a, b) => a.t - b.t)
-    let html = itens.map((i) => i.html).join('')
-    if (!itens.length) html = `<p class="vazio-lista">Nenhum comentário ainda.<br>Escreva na caixa abaixo: o vídeo pausa e o comentário fica naquele instante (<kbd>I</kbd> e <kbd>O</kbd> marcam um trecho).</p>`
+    let html = comentarios.map((c) => this.htmlComentario(c)).join('')
+    if (!comentarios.length) html = `<p class="vazio-lista">Nenhum comentário ainda.<br>Escreva na caixa abaixo: o vídeo pausa e o comentário fica naquele instante (<kbd>I</kbd> e <kbd>O</kbd> marcam um trecho).</p>`
     $('#lista').innerHTML = html
     this.renderResumo()
     const campo = $('#editor-texto')
@@ -473,24 +465,6 @@ class Revisao {
     return `/projetos/${encodeURIComponent(this.slug)}/${a.split('/').map(encodeURIComponent).join('/')}`
   }
 
-  htmlNota(n, resp) {
-    const ed = this.editor
-    let pe
-    if (ed?.responde === n.id) pe = this.htmlEditor()
-    else if (resp)
-      pe = `<div class="replica"><header class="item-cabeca"><span class="eyebrow">↳ Sua resposta</span>
-          <span class="item-acoes"><button class="botao-icone pequeno" data-editar="${resp.id}" title="Editar">${ICONE.lapis}</button>
-          <button class="botao-icone pequeno" data-apagar="${resp.id}" title="Apagar">${ICONE.lixo}</button></span></header>
-          ${resp.texto ? `<p class="texto">${htmlComMencoes(resp.texto)}</p>` : ''}${this.htmlAnexos(resp.anexos, resp.id)}${this.htmlResposta(resp)}</div>`
-    else pe = `<button class="botao pequeno" data-responder="${n.id}">Responder</button>`
-    return `<article class="item item-nota${this.sel === n.id ? ' item-sel' : ''}" data-nota="${n.id}" data-ir="${n.ini}">
-      <header class="item-cabeca"><span class="num num-nota">?</span><span class="rotulo-claude">Dúvida do Claude</span>
-        <button class="chip-tempo" data-ir="${n.ini}">${quando({ t: n.ini, fim: n.fim })}</button></header>
-      ${n.fala ? `<p class="fala">“${esc(n.fala)}”</p>` : ''}
-      <p class="texto">${htmlComMencoes(n.texto)}</p>${pe}
-    </article>`
-  }
-
   /** O que o Claude respondeu a um comentário (status + texto). */
   htmlResposta(c) {
     const k = chaveStatus(c.status)
@@ -502,10 +476,9 @@ class Revisao {
 
   htmlEditor() {
     const ed = this.editor
-    const titulo = ed.responde ? 'Sua resposta' : 'Editar comentário'
     return `<div class="editor">
-      <div class="item-cabeca"><span class="eyebrow">${titulo}</span>${ed.responde ? '' : `<span class="chip-tempo estatico">${quando(ed)}</span>`}</div>
-      <textarea id="editor-texto" rows="3" placeholder="${ed.responde ? 'Responda a dúvida' : 'O que mudar aqui?'} (⌘V ou arraste para anexar print ou vídeo)">${esc(ed.texto || '')}</textarea>
+      <div class="item-cabeca"><span class="eyebrow">Editar comentário</span><span class="chip-tempo estatico">${quando(ed)}</span></div>
+      <textarea id="editor-texto" rows="3" placeholder="O que mudar aqui? (⌘V ou arraste para anexar print ou vídeo)">${esc(ed.texto || '')}</textarea>
       ${this.htmlAnexos(ed.anexos, 'editor')}
       <div class="editor-acoes">${clipe('editor')}<span class="dica">Enter salva · Shift+Enter quebra a linha · Esc cancela</span>
         <button class="botao pequeno" data-acao="cancelar">Cancelar</button>
@@ -590,15 +563,11 @@ class Revisao {
       return `<button class="marca marca-ponto ${cls}${sel}" data-marca="${id}" data-ir="${t}" style="left:${(t * px).toFixed(1)}px" title="${esc(dica)}">${rotulo}</button>`
     }
     $('#f-comentarios').innerHTML = this.rev.comentarios
-      .filter((c) => !c.responde && !c.geral)
+      .filter((c) => !c.geral)
       .map((c) => {
         const k = chaveStatus(c.status)
         return marca(c.id, c.t, c.fim, this.numeros.get(c.id), k === 'pendente' ? '' : `marca-${STATUS[k]?.[1] || 'respondido'}`, `${quando(c)} · ${c.texto}`)
       })
-      .join('')
-    const respondidas = new Set(this.rev.comentarios.filter((c) => c.responde).map((c) => c.responde))
-    $('#f-notas').innerHTML = this.notas
-      .map((n) => marca(n.id, n.ini, n.fim, respondidas.has(n.id) ? '✓' : '?', `marca-nota${respondidas.has(n.id) ? ' marca-nota-ok' : ''}`, `Dúvida do Claude · ${n.texto}`))
       .join('')
     // a marca de entrada (I) e o trecho do comentário sendo escrito na caixa
     const n = this.nova
@@ -859,7 +828,7 @@ class Revisao {
     } else if (texto || anexos.length) {
       const c = this.novoComentario(ed, texto)
       cs.push(c)
-      this.sel = ed.responde || c.id
+      this.sel = c.id
     }
     this.editor = null
     this.renderLista()
@@ -873,15 +842,14 @@ class Revisao {
     return `c${this.reservado}`
   }
 
-  novoComentario({ t, fim, responde, novoId, anexos, geral }, texto) {
+  novoComentario({ t, fim, novoId, anexos, geral }, texto) {
     const n = novoId ? numero(novoId) : Math.max(this.reservado || 0, ...this.rev.comentarios.map((c) => numero(c.id))) + 1
     if (geral)
       return { id: `c${n}`, geral: true, t: null, fim: null, palavra: null, fala: '', texto, criado_em: agora(), de: 'rodrigo', status: 'pendente', resposta: null, ...(anexos?.length ? { anexos } : {}) }
-    const nota = responde && this.notas.find((x) => x.id === responde)
-    const fala = nota ? (nota.fala ? limpar(nota.fala) : this.falaIntervalo(nota.ini, nota.fim ?? nota.ini + 0.5)) : fim != null ? this.falaIntervalo(t, fim) : this.falaPonto(t)
+    const fala = fim != null ? this.falaIntervalo(t, fim) : this.falaPonto(t)
     return {
       id: `c${n}`, t: r3(t), fim: fim == null ? null : r3(fim), palavra: this.palavraPerto(t)?.id ?? null, fala, texto,
-      criado_em: agora(), de: 'rodrigo', status: 'pendente', resposta: null, ...(responde ? { responde } : {}), ...(anexos?.length ? { anexos } : {}),
+      criado_em: agora(), de: 'rodrigo', status: 'pendente', resposta: null, ...(anexos?.length ? { anexos } : {}),
     }
   }
 
@@ -924,7 +892,7 @@ class Revisao {
     if (t != null) this.buscar(t)
     this.renderLista()
     this.renderMarcas()
-    $(`.item[data-id="${id}"], .item[data-nota="${id}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    $(`.item[data-id="${id}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
   }
 
   // ---------- gravar, copiar, aprovar ----------
@@ -964,8 +932,7 @@ class Revisao {
     // como o `linha_anexos` do revisao.py: "print" quando são só imagens, "anexo" quando há vídeo
     const prints = (l) => `  ↳ ${l.some((a) => VIDEO.test(a)) ? 'anexo' : 'print'}: ${l.map((a) => `projetos/${this.slug}/${a}`).join(', ')}`
     for (const c of this.rev.comentarios.filter(temConteudo).sort((a, b) => ordem(a) - ordem(b))) {
-      const ancora = c.responde ? `↳ dúvida do Claude ${tempo(c.t)}` : quando(c)
-      linhas.push(`[${ancora}] ${c.fala ? `"${c.fala}" — ` : ''}${umaLinha(c.texto || '') || '(ver o print)'}`)
+      linhas.push(`[${quando(c)}] ${c.fala ? `"${c.fala}" — ` : ''}${umaLinha(c.texto || '') || '(ver o print)'}`)
       if (c.anexos?.length) linhas.push(prints(c.anexos))
     }
     linhas.push(`(projetos/${this.slug}/revisoes/v${this.v}.json)`)
@@ -1262,18 +1229,14 @@ class Revisao {
     }
     if (d.editar) {
       const c = this.rev.comentarios.find((x) => x.id === d.editar)
-      return c && this.abrirEditor({ id: c.id, t: c.t, fim: c.fim, geral: c.geral, responde: c.responde, texto: c.texto, anexos: [...(c.anexos || [])] })
+      return c && this.abrirEditor({ id: c.id, t: c.t, fim: c.fim, geral: c.geral, texto: c.texto, anexos: [...(c.anexos || [])] })
     }
     if (d.apagar) return this.apagar(d.apagar)
-    if (d.responder) {
-      const n = this.notas.find((x) => x.id === d.responder)
-      return n && this.abrirEditor({ t: n.ini, fim: n.fim ?? null, responde: n.id })
-    }
     if (d.marca) return this.selecionar(d.marca, +d.ir)
     if (d.ir != null) {
       const item = b.closest('.item')
       if (window.getSelection()?.toString()) return // selecionando texto
-      return this.selecionar(item?.dataset.id || item?.dataset.nota || null, +d.ir)
+      return this.selecionar(item?.dataset.id || null, +d.ir)
     }
   }
 

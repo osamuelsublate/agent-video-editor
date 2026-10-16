@@ -95,8 +95,8 @@ casar todas; se não, você alterou a fala — corrija o roteiro).
 
 ## Depois de aplicar
 
-- Dúvidas suas sobre a direção (ex.: "não sei se é pergunta retórica ou leitura de comentário") viram notas:
-  acrescente em `edicao.notas` `{"palavra_ini", "palavra_fim", "texto"}`.
+- Dúvidas suas sobre a direção (ex.: "não sei se é pergunta retórica ou leitura de comentário"): anote para dizer
+  no chat, na entrega.
 - Confira as Regras do criador contra o resultado (abertura, máximo de 3–4 s de Full ator seguido etc.). Se violou,
   reescreva o trecho e aplique de novo.
 

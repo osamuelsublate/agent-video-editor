@@ -6,8 +6,8 @@ criador corrigiu num vídeo não pode se repetir no próximo.
 ## 1. Aprendizados (com o criador)
 
 1. **Junte o que aconteceu no vídeo:** `uv run ferramentas/revisao.py ler <slug> vN`, para cada versão revisada (as
-   revisões ficam em `projetos/<slug>/revisoes/v*.json`, com as suas respostas e os anexos); as suas notas que o
-   criador respondeu; e o que você mesmo teve de corrigir na autorrevisão.
+   revisões ficam em `projetos/<slug>/revisoes/v*.json`, com as suas respostas e os anexos); o que ele respondeu no chat às suas
+   dúvidas; e o que você mesmo teve de corrigir na autorrevisão.
 2. **Extraia os aprendizados.** Para cada comentário, pergunte: isso vale para os próximos vídeos ou só para este?
    - Correção pontual ("aqui prefiro o outro site") **não** é aprendizado.
    - Um gosto que pode se repetir ("lettering demais", "esse tipo de motion fica poluído", "música alta") é.

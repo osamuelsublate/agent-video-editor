@@ -243,7 +243,6 @@ def preparar(video: Path, nome: str, pasta: Path, briefing: str | None, categori
         'audio': {'voz': {'limpeza': 'leve', 'timbre': 'natural'}, 'fundo': None, 'fundo_mudo': False,
                   'niveis': {'ator': 0.0, 'presets': 0.0, 'transicoes': 0.0, 'fundo': 0.0}, 'voz_lufs': {'f1_leve': res['voz_lufs']}},
         'legenda': {'ligada': True, 'modo': 'palavra', 'ajustes': {}},
-        'notas': [],
     }
     gravar_json(pasta / 'edicao.json', edicao)
     f = edicao['fontes'][0]

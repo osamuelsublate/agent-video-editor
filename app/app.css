@@ -514,9 +514,6 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 .marca-intervalo { min-width: 10px; border-radius: 4px; text-align: left; padding-left: 6px; background: rgba(245, 119, 87, 0.6); box-shadow: inset 2px 0 0 var(--color-coral), 0 0 0 1px var(--color-deep); }
 .marca-aplicado { background: var(--color-sage); color: var(--color-ink); }
 .marca-intervalo.marca-aplicado { background: rgba(186, 205, 171, 0.6); box-shadow: inset 2px 0 0 var(--color-sage); }
-.marca-nota { background: var(--color-yellow); color: var(--color-ink); }
-.marca-intervalo.marca-nota { background: rgba(249, 219, 109, 0.55); box-shadow: inset 2px 0 0 var(--color-yellow), 0 0 0 1px var(--color-deep); }
-.marca-nota-ok { opacity: 0.6; }
 .marca-sel { box-shadow: 0 0 0 2px var(--color-yellow); z-index: 2; }
 /* o cursor de reprodução do 18: um fio coral de 2px */
 .cabeca { position: absolute; top: 0; bottom: -12px; left: 0; width: 2px; margin-left: -1px; background: var(--color-coral); pointer-events: none; z-index: 3; }
@@ -556,14 +553,10 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 .item { padding: 12px 14px; border: 1px solid var(--color-line-dark); border-radius: var(--radius-2xl); background: var(--color-cream-5); cursor: pointer; transition: border-color 0.2s; }
 .item:hover { border-color: var(--color-line-strong); }
 .item-sel { border-color: var(--color-coral) !important; }
-.item-nota { background: rgba(249, 219, 109, 0.06); border-color: rgba(249, 219, 109, 0.2); }
-.item-nota.item-sel { border-color: var(--color-yellow) !important; }
 .item-cabeca { display: flex; align-items: center; gap: 8px; min-height: 24px; }
 .item-acoes { margin-left: auto; display: flex; gap: 2px; opacity: 0; transition: opacity 0.15s; }
-.item:hover .item-acoes, .replica:hover .item-acoes { opacity: 1; }
+.item:hover .item-acoes { opacity: 1; }
 .num { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 4px; border-radius: var(--radius-full); background: var(--color-coral); color: var(--color-cream); font-size: 10.5px; font-weight: 700; }
-.num-nota { background: var(--color-yellow); color: var(--color-ink); }
-.rotulo-claude { font-size: 11px; font-weight: 600; color: var(--color-yellow); }
 .chip-tempo {
   padding: 1px 8px; border: 1px solid var(--color-line-dark); border-radius: var(--radius-full); background: none; font-size: 11px; font-weight: 600;
   font-variant-numeric: tabular-nums; color: var(--color-cream); transition: border-color 0.2s;
@@ -572,9 +565,6 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 .chip-tempo.estatico { cursor: default; }
 .item .fala, .editor .fala { margin-top: 6px; font-size: 12px; color: var(--color-fog); font-style: italic; }
 .item .texto { margin-top: 6px; font-size: 13px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
-.item-nota > .botao { margin-top: 9px; }
-.replica { margin-top: 10px; padding: 8px 10px; border-left: 2px solid var(--color-coral); background: rgba(0, 0, 0, 0.15); border-radius: 0 var(--radius-xl) var(--radius-xl) 0; }
-.replica .texto { margin-top: 2px; }
 .resposta { margin-top: 10px; padding: 8px 10px; border-radius: var(--radius-xl); font-size: 12px; line-height: 1.6; background: rgba(157, 180, 255, 0.08); }
 .resposta .status { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-blue-light); }
 .resposta .status svg { width: 12px; height: 12px; }

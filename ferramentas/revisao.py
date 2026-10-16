@@ -61,7 +61,7 @@ def texto(slug: str, v: int, rev: dict) -> str:
     """O texto do botão "Copiar revisão" (app/revisao.js, `texto()`): mude os dois juntos."""
     linhas = [f'Revisão · {slug} · v{v}']
     for c in sorted((c for c in rev.get('comentarios', []) if tem_conteudo(c)), key=ordem):
-        ancora = f'↳ dúvida do Claude {tempo(c["t"])}' if c.get('responde') else quando(c)
+        ancora = quando(c)
         fala = f'"{c["fala"]}" — ' if c.get('fala') else ''
         linhas.append(f'[{ancora}] {fala}{uma_linha(c.get("texto") or "") or "(ver o print)"}')
         if c.get('anexos'):
@@ -92,7 +92,6 @@ def ler(slug: str, v: str | None) -> None:
     vdir = p / 'versoes' / f'v{n}'
     palavras = ler_json(vdir / 'palavras.json', []) or []
     planos = ler_json(vdir / 'planos.json', []) or []
-    notas = {x['id']: x for x in ler_json(vdir / 'notas.json', []) or []}
 
     def palavra_em(t: float) -> dict | None:
         return min(palavras, key=lambda w: 0 if w['ini'] <= t < w['fim'] else min(abs(w['ini'] - t), abs(t - w['fim'])), default=None)
@@ -114,9 +113,6 @@ def ler(slug: str, v: str | None) -> None:
             ancora = f'palavra {c.get("palavra")}' if w1 is None or w1['id'] == c.get('palavra') else f'palavras {c.get("palavra")}–{w1["id"]}'
             ps = ', '.join(f'{q["id"]} {q["tipo"]} ({tempo(q["ini"])}–{tempo(q["fim"])})' for q in planos_em(c['t'], fim if fim is not None else c['t']))
             print(f'\n- {c["id"]} · {quando(c)} · {ancora} · plano {ps or "—"} · {c.get("status", "pendente")}')
-        if c.get('responde'):
-            nota = notas.get(c['responde'], {})
-            print(f'  responde à dúvida {c["responde"]}: {nota.get("texto", "?")}')
         print(f'  {uma_linha(c.get("texto") or "") or "(só o print)"}')
         for a in c.get('anexos') or []:
             print(f'  anexo: projetos/{slug}/{a}{"" if (p / a).is_file() else " (o arquivo sumiu)"}')

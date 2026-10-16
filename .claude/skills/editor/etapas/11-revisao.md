@@ -7,7 +7,6 @@ Revisão · <slug> · v2
 [0:03,2] "a galera considera" — tira esse motion, prefiro tela dividida com o site
 [0:12,0–0:15,4] "esses dois sites" — mostra os dois, um de cada vez
   ↳ print: projetos/<slug>/revisoes/anexos/c2-1.png
-[↳ dúvida do Claude 0:21,7] "Gemini 3.7" — sim, mantém
 Geral: legenda um pouco mais baixa
 (projetos/<slug>/revisoes/v2.json)
 ```

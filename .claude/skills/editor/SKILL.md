@@ -73,8 +73,9 @@ um trecho de referência: `etapas/13-presets-novos.md`.
 - **Códigos**: quando o criador citar um código (`PRE-07`, `BAN-012.2`, `REF-03·p7`, `PRJ-02·v3`…), resolva com
   `uv run ferramentas/codigo.py <código>` antes de agir.
 - **Guarde o porquê** de cada plano (`porque` no edicao.json): o criador vai perguntar.
-- **Dúvidas** que mudam o sentido viram notas para o criador (`edicao.notas`): aparecem no app no ponto exato.
+- **Dúvidas** que mudam o sentido vão para o chat, na entrega (o tempo e a fala de cada uma). Nada de notas no app:
+  o criador não lê.
 - **Não reescreva a fala.** Cortes escolhem palavras existentes; legenda só corrige grafia.
 - Os originais nunca são alterados. As chaves do `.env` nunca aparecem.
-- Ao entregar, diga em poucas linhas: o link do app, a duração final, o tempo total, as dúvidas que deixou e o que não
+- Ao entregar, diga em poucas linhas: o link do app, a duração final, o tempo total, as dúvidas (com o tempo de cada uma) e o que não
   conseguiu (ex.: insert sem mídia real).

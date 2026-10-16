@@ -85,30 +85,6 @@ def palavras_na_saida(palavras: list[dict], clipes: list[dict]) -> list[dict]:
     return out
 
 
-def notas(edicao: dict, transcricao: list[dict], saida: list[dict], duracao: float) -> list[dict]:
-    """As notas do Claude e as dúvidas dos cortes no tempo do vídeo final: `{id, ini, fim, texto, fala}`. Um trecho todo
-    cortado vira um ponto, onde o corte ficou. `fala`: o que fica no vídeo do trecho (ou, se ele foi todo cortado, o
-    que tinha sido dito)."""
-    ordem = {w['id']: k for k, w in enumerate(transcricao)}
-    tempo = {w['id']: (float(w.get('saida_ini', w.get('ini', 0))), float(w.get('saida_fim', w.get('fim', 0)))) for w in saida if 'id' in w}
-    itens = [(f'n{k}', x.get('palavra_ini'), x.get('palavra_fim'), x.get('texto', '')) for k, x in enumerate(edicao.get('notas') or [], 1)]
-    itens += [(f'd{k}', x.get('ini'), x.get('fim'), x.get('motivo', '')) for k, x in enumerate((edicao.get('cortes') or {}).get('duvidas') or [], 1)]
-    out = []
-    for id_, ini, fim, texto in itens:
-        if ini not in ordem:
-            continue
-        a, b = ordem[ini], ordem.get(fim, ordem[ini])
-        dentro = [w for w in transcricao[a:b + 1] if w['id'] in tempo]
-        if dentro:
-            t0, t1 = tempo[dentro[0]['id']][0], tempo[dentro[-1]['id']][1]
-        else:  # cortado: o ponto da emenda (a primeira palavra que toca depois, ou o fim)
-            depois = next((tempo[w['id']][0] for w in transcricao[b + 1:] if w['id'] in tempo), duracao)
-            t0 = t1 = depois
-        out.append({'id': id_, 'ini': round(t0, 3), 'fim': round(t1, 3), 'texto': texto,
-                    'fala': ' '.join(w['texto'].strip() for w in (dentro or transcricao[a:b + 1]))})
-    return out
-
-
 # ---------------------------------------------------------------- o banco, a página e as fotos
 
 def copias_do_banco(edicao: dict) -> int:
@@ -444,8 +420,6 @@ def render(slug: str, final: bool = False) -> Path:
                 avisos.append(f'A página não entregou __render.{campo}: {campo}.json ficou de fora.')
             else:
                 gravar_json(pasta_versao / f'{campo}.json', r[campo])
-        saida = r.get('palavras') or palavras_na_saida(transcricao, clipes)
-        gravar_json(pasta_versao / 'notas.json', notas(edicao, transcricao, saida, duracao))
         gravar_json(pasta_versao / 'info.json', {'versao': versao, 'duracao': duracao_real, 'criado_em': datetime.now().isoformat(timespec='seconds'),
                                                  'fases': fases, 'avisos': avisos})
         final_dir = p / 'versoes' / f'v{versao}'

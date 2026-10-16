@@ -40,7 +40,6 @@ def importar(origem: str, slug: str) -> Path:
     ed['direcao'] = {'roteiro': dr.get('roteiro', ''), 'itens': dr.get('itens', [])}
     ins = p.get('inserts', {})
     ed['inserts'] = {'pedidos': ins.get('pedidos', []), 'fundo': ins.get('fundo'), 'ator_planos': ins.get('ator_planos', {})}
-    ed['notas'] = []
     gravar_json(d / 'edicao.json', ed)
     return d
 

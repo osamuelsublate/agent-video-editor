@@ -41,7 +41,7 @@ manda ler os recusados e os aprendizados). Ele leva ~7 min: **nunca espere por e
 mais próximo (`inserts.py motion`); se o novo ficar pronto antes do render da entrega, troque; senão, ele entra na v2 e
 você diz isso na entrega.
 Depois ligue com `inserts.py motion`. Animação mais elaborada que isso: troque o plano (insert real ou Full ator) e
-registre a ideia como nota para o criador.
+diga a ideia ao criador na entrega.
 
 ## Elementos
 

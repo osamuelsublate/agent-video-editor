@@ -22,7 +22,7 @@ projetos/<slug>/
 │   ├── rosto/f1.json      o rosto ao longo do vídeo (formato do 18, rosto.py)
 │   └── voz/f1_<limpeza>.wav  a voz limpa (DeepFilterNet), 48 kHz mono
 ├── inserts/<plano>.json   o que cada subagente de insert achou (ver etapas/04-inserts.md)
-├── versoes/vN/            cada versão entregue: proxy.mp4, edicao.json (cópia), palavras.json, planos.json, notas.json, info.json
+├── versoes/vN/            cada versão entregue: proxy.mp4, edicao.json (cópia), palavras.json, planos.json, info.json
 ├── revisoes/vN.json       os comentários do criador sobre a vN (gravado pelo app)
 └── final/                 o MP4 final aprovado
 ```
@@ -68,8 +68,7 @@ projetos/<slug>/
   "transicoes": {"p5": {"id": "corte-camera", "par": "full_ator>tela_dividida_insert"}},
   "audio": {"voz": {"limpeza": "leve", "timbre": "natural"}, "fundo": "lofi-piano", "fundo_mudo": false,
             "niveis": {"ator": 0, "presets": 0, "transicoes": 0, "fundo": 0}, "voz_lufs": {"f1_leve": -27.3}},
-  "legenda": {"ligada": true, "modo": "palavra", "ajustes": {}},
-  "notas": [{"palavra_ini": "w00090", "palavra_fim": "w00095", "texto": "dúvida minha para o criador"}]
+  "legenda": {"ligada": true, "modo": "palavra", "ajustes": {}}
 }
 ```
 
