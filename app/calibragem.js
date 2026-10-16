@@ -29,7 +29,7 @@ const OLHO_FECHADO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
 const interruptor = (r) => {
   const liga = r.ensina !== false
   return `<button class="interruptor${liga ? ' ligado' : ''}" role="switch" aria-checked="${liga}" data-ensina
-    title="${liga ? 'Ensina a direção: está nos exemplos da Heurística (clique para tirar)' : 'Não ensina a direção: fora dos exemplos da Heurística (clique para pôr)'}"><span>Ensina</span><i></i></button>`
+    title="${liga ? 'Ativo: entra nos exemplos da direção (clique para desativar)' : 'Inativo: fora dos exemplos da direção (clique para ativar)'}"><span>${liga ? 'Ativo' : 'Inativo'}</span><i></i></button>`
 }
 
 export async function abrirCalibragem(tela) {
