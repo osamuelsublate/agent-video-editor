@@ -8,7 +8,7 @@
     uv run ferramentas/render.py <slug> --final    → projetos/<slug>/final/<nome> · <AAAA-MM-DD HHhMM>.mp4 (2160×3840 HEVC)
     uv run ferramentas/render.py <slug> --camadas  → só fotografa a camada dos inserts e motions para o cache (o pré-render:
         rode em segundo plano enquanto a edição segue; o render da entrega espera ele e acha tudo pronto)
-    uv run ferramentas/render.py amostra-look <slug> <t> <lut|-> <intensidade> <vinheta>
+    uv run ferramentas/render.py amostra-look <slug> <t> <lut|-> <intensidade> <vinheta> [nitidez]
         → um trecho de 3 s do ator (do bruto, no instante t do vídeo final) com aquele look: o provador da revisão
 
 Como a exportação do 18 (SPEC §13; a cola de backend/app/exportacao.py `_gravar`/`_trechos`, reescrita aqui): a página
@@ -520,6 +520,8 @@ def amostra_look(slug: str, t: float, lk: dict) -> Path:
         raise SystemExit(f'LUT desconhecido: {lk["lut"]}')
     if lk['vinheta'] not in look.VINHETAS:
         raise SystemExit(f'Vinheta desconhecida: {lk["vinheta"]}')
+    if lk.get('nitidez', 'sem') not in look.NITIDEZ:
+        raise SystemExit(f'Nitidez desconhecida: {lk["nitidez"]}')
     acc, src = 0.0, clipes[0]['inicio']
     for c in clipes:  # o instante do bruto que toca em t (a amostra segue o bruto dali: para ver a cor, basta)
         d = dur_saida(c)
@@ -546,7 +548,7 @@ def amostra_look(slug: str, t: float, lk: dict) -> Path:
             entradas += ['-i', str(look.mascara_vinheta(w, h, look.VINHETAS[lk['vinheta']], Path(tmp) / 'vinheta.png'))]
             mascara = 1
         grafo = [f'[0:v]{recorte}scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},setsar=1,fps={FPS}[ator_cru]']
-        grafo += look.filtros(lk, 'ator_cru', 'lk', mascara) if look.ativo(lk) else ['[ator_cru]null[lk]']
+        grafo += look.filtros(lk, 'ator_cru', 'lk', mascara, h) if look.ativo(lk) else ['[ator_cru]null[lk]']
         grafo.append('[lk]format=yuv420p[saida]')
         parcial = destino.with_suffix(f'.{os.getpid()}.tmp.mp4')  # duas amostras iguais pedidas juntas não se atropelam
         ffmpeg(*entradas, '-filter_complex', ';'.join(grafo), '-map', '[saida]', '-an', '-c:v', 'libx264', '-preset', 'veryfast',
@@ -557,8 +559,9 @@ def amostra_look(slug: str, t: float, lk: dict) -> Path:
 
 if __name__ == '__main__':
     if sys.argv[1:2] == ['amostra-look']:
-        _, _, slug, t, lut, intensidade, vinheta = sys.argv
-        print(amostra_look(slug, float(t), {'lut': None if lut == '-' else lut, 'intensidade': float(intensidade), 'vinheta': vinheta}).relative_to(RAIZ))
+        _, _, slug, t, lut, intensidade, vinheta, *nit = sys.argv
+        print(amostra_look(slug, float(t), {'lut': None if lut == '-' else lut, 'intensidade': float(intensidade), 'vinheta': vinheta,
+                                            'nitidez': nit[0] if nit else 'sem'}).relative_to(RAIZ))
         sys.exit(0)
     args = [a for a in sys.argv[1:] if a not in ('--final', '--camadas')]
     if len(args) != 1:

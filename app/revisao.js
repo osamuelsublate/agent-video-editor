@@ -126,7 +126,7 @@ class Revisao {
     const d = await json(`/api/projetos/${encodeURIComponent(this.slug)}/look`, null)
     if (!d) return aviso('Não consegui ler o look do projeto', 'erro')
     const { el, fechar } = janela('<div class="look-modal"></div>', { classe: 'janela-look', aoFechar: () => clearInterval(this.relogioRender) })
-    this.lk = { el, fechar, atual: d.look, teste: { ...d.look }, luts: d.luts, vinhetas: d.vinhetas, renderizando: d.renderizando, t: this.video.currentTime }
+    this.lk = { el, fechar, atual: d.look, teste: { ...d.look }, luts: d.luts, vinhetas: d.vinhetas, nitidezes: d.nitidezes || ['sem'], renderizando: d.renderizando, t: this.video.currentTime }
     el.addEventListener('click', (e) => {
       const b = e.target.closest('[data-look]')
       if (!b) return
@@ -151,7 +151,9 @@ class Revisao {
     const lk = this.lk
     const igual = JSON.stringify(lk.teste) === JSON.stringify(lk.atual)
     const pilula = (campo, valor, nome) => `<button class="pilula pequena${(lk.teste[campo] ?? '-') === valor ? ' ativa' : ''}" data-look="${campo}:${valor}">${esc(nome)}</button>`
-    const nomeV = { sem: 'Sem', leve: 'Leve', normal: 'Normal', forte: 'Forte' }
+    const nomeV = { sem: 'Sem', leve: 'Leve', normal: 'Normal', forte: 'Forte', mais: 'Mais' }
+    lk.teste.nitidez ??= 'sem'
+    lk.atual.nitidez ??= 'sem'
     if (!lk.el?.isConnected) return
     $('.look-modal', lk.el).innerHTML = `<header class="janela-cabeca"><h2>Look do ator</h2><span class="dica">em ${tempo(lk.t)} · 3 s do bruto, sem inserts nem legenda</span>
         <button class="botao-icone" data-fechar title="Fechar (Esc)">${ICONE.fechar}</button></header>
@@ -159,6 +161,7 @@ class Revisao {
       <div class="look-linha"><span class="dica">LUT</span>${pilula('lut', '-', 'Sem')}${Object.entries(lk.luts).map(([id, nome]) => pilula('lut', id, nome)).join('')}</div>
       <label class="look-linha"><span class="dica">Intensidade</span><input type="range" min="0" max="100" step="5" value="${Math.round((lk.teste.intensidade ?? 1) * 100)}" data-look-intensidade ${lk.teste.lut ? '' : 'disabled'}><b>${Math.round((lk.teste.intensidade ?? 1) * 100)}%</b></label>
       <div class="look-linha"><span class="dica">Vinheta</span>${lk.vinhetas.map((v) => pilula('vinheta', v, nomeV[v] || v)).join('')}</div>
+      <div class="look-linha"><span class="dica">Nitidez</span>${lk.nitidezes.map((v) => pilula('nitidez', v, nomeV[v] || v)).join('')}</div>
       <div class="look-acoes"><button class="botao pequeno botao-coral" data-look="aplicar" ${igual || lk.renderizando ? 'disabled' : ''} title="Grava o look no projeto e renderiza a próxima versão (~1 min)">${lk.renderizando ? 'Renderizando…' : `Aplicar · v${this.proj.ultima + 1}`}</button></div></div>
         <div class="look-amostras">${['atual', 'teste'].map((k) => `<figure><video data-amostra="${k}" muted loop playsinline autoplay${lk.amostras?.[k] ? ` src="${lk.amostras[k]}"` : ''}></video><figcaption>${k === 'atual' ? 'Atual' : 'Testando'}</figcaption></figure>`).join('')}</div></div>`
   }

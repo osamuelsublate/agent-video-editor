@@ -333,7 +333,7 @@ def comando_final(bruto: Path, clipes: list[dict], horizontal: bool, enquadramen
         if mascara_vinheta is not None and look_mod.VINHETAS.get(look.get('vinheta'), 0) > 0:
             idx_vinheta = base_idx + len(camadas) + ent_som.count('-i')
             entradas += ['-i', str(mascara_vinheta)]
-        partes += look_mod.filtros(look, 'ator_cru', 'ator', idx_vinheta)
+        partes += look_mod.filtros(look, 'ator_cru', 'ator', idx_vinheta, h)
     ent_pos, f_pos = _pos_montagem(transicoes, legenda, 'topo', 'v', w, h, 1 + entradas.count('-i'), fps)
     entradas += ent_pos
     partes += f_ins + f_som + topo + f_pos

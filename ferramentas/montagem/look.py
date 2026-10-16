@@ -7,12 +7,14 @@ from pathlib import Path
 from base import BIBLIOTECA
 
 LUTS = BIBLIOTECA / 'luts'
-NOMES = {'natural': 'Natural', 'casa': 'Casa', 'frio': 'Frio / limpo'}
+NOMES = {'claro': 'Claro', 'natural': 'Natural', 'casa': 'Casa', 'frio': 'Frio / limpo'}
 # a vinheta: o quanto as bordas escurecem (0 = sem) e a forma (uma elipse do quadro 9:16, centro um pouco acima do meio,
 # borda bem suave). A mesma fórmula no shader da prévia e na máscara do render (`mascara_vinheta`).
 VINHETAS = {'sem': 0.0, 'leve': 0.25, 'normal': 0.4, 'forte': 0.55}
+# a nitidez (unsharp na luma): a força de cada opção; o tamanho da máscara acompanha a altura do vídeo (5 px a 720p)
+NITIDEZ = {'sem': 0.0, 'leve': 0.45, 'mais': 0.8}
 FORMA = {'cy': 0.45, 'rx': 0.62, 'ry': 0.62, 'ini': 0.45, 'fim': 1.25}
-PADRAO = {'lut': 'casa', 'intensidade': 1.0, 'vinheta': 'normal'}
+PADRAO = {'lut': 'claro', 'intensidade': 1.0, 'vinheta': 'sem', 'nitidez': 'sem'}  # o "Claro" (mvi-0719 v1: o Casa escuro demais); o preparar.py dá nitidez Leve aos novos
 
 
 def arquivo_lut(lut: str) -> Path:
@@ -27,7 +29,8 @@ def do_projeto(p: dict) -> dict:
 
 
 def ativo(look: dict | None) -> bool:
-    return bool(look) and ((look.get('lut') and look.get('intensidade', 1) > 0) or VINHETAS.get(look.get('vinheta'), 0) > 0)
+    return bool(look) and ((look.get('lut') and look.get('intensidade', 1) > 0) or VINHETAS.get(look.get('vinheta'), 0) > 0
+                           or NITIDEZ.get(look.get('nitidez') or 'sem', 0) > 0)
 
 
 def fator_vinheta(x: float, y: float, forca: float) -> float:
@@ -54,12 +57,17 @@ def mascara_vinheta(w: int, h: int, forca: float, destino: Path) -> Path:
     return destino
 
 
-def filtros(look: dict, entrada: str, saida: str, idx_mascara: int | None) -> list[str]:
+def filtros(look: dict, entrada: str, saida: str, idx_mascara: int | None, altura: int = 1280) -> list[str]:
     """Os filtros do ffmpeg do look, de `[entrada]` para `[saida]`, em RGB (gbrp: o LUT e a multiplicação da vinheta
     valem por canal de cor, não em YUV): o LUT (trilinear, como o WebGL), misturado com o original pela intensidade, e a
     máscara da vinheta (a entrada `idx_mascara` do ffmpeg: a imagem, decodificada e convertida uma vez só e repetida
     pelo `loop`; o `-loop 1` na entrada a decodificava de novo a cada quadro) multiplicada."""
-    f = [f'[{entrada}]format=gbrp[lk0]']
+    forca = NITIDEZ.get(look.get('nitidez') or 'sem', 0)
+    if forca > 0:  # antes do RGB: o unsharp só na luma (sem halo de cor)
+        m = min(max(round(5 * altura / 1280) // 2 * 2 + 1, 3), 23)
+        f = [f'[{entrada}]unsharp=luma_msize_x={m}:luma_msize_y={m}:luma_amount={forca}:chroma_amount=0,format=gbrp[lk0]']
+    else:
+        f = [f'[{entrada}]format=gbrp[lk0]']
     atual = 'lk0'
     k = float(look.get('intensidade', 1))
     if look.get('lut') and k > 0:

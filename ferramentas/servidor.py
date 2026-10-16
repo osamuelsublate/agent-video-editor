@@ -221,13 +221,16 @@ def _look_pedido(c: dict) -> dict:
         k = round(min(max(float(c.get('intensidade', 1)), 0), 1), 2)
     except (TypeError, ValueError):
         raise Erro('Intensidade inválida', 422) from None
-    return {'lut': lut, 'intensidade': k, 'vinheta': c['vinheta']}
+    nitidez = c.get('nitidez') or 'sem'
+    if nitidez not in look.NITIDEZ:
+        raise Erro('Nitidez desconhecida', 422)
+    return {'lut': lut, 'intensidade': k, 'vinheta': c['vinheta'], 'nitidez': nitidez}
 
 
 @rota('GET', r'/api/projetos/([\w-]+)/look')
 def _ler_look(h, q, slug):
     look = _look()
-    return {'look': look.do_projeto(ler_json(_edicao(slug), {}) or {}), 'luts': look.NOMES, 'vinhetas': list(look.VINHETAS),
+    return {'look': look.do_projeto(ler_json(_edicao(slug), {}) or {}), 'luts': look.NOMES, 'vinhetas': list(look.VINHETAS), 'nitidezes': list(look.NITIDEZ),
             'renderizando': _render_rodando(slug)}
 
 
@@ -237,7 +240,7 @@ def _amostra_look(h, q, slug):
     c = h.corpo()
     lk = _look_pedido(c)
     r = subprocess.run([shutil.which('uv') or 'uv', 'run', '--quiet', str(Path(__file__).parent / 'render.py'), 'amostra-look', slug,
-                        f'{float(c.get("t") or 0):.2f}', lk['lut'] or '-', str(lk['intensidade']), lk['vinheta']],
+                        f'{float(c.get("t") or 0):.2f}', lk['lut'] or '-', str(lk['intensidade']), lk['vinheta'], lk['nitidez']],
                        cwd=RAIZ, capture_output=True, text=True, timeout=180)
     if r.returncode:
         raise Erro(f'A amostra falhou: {(r.stderr or r.stdout).strip()[-300:]}', 500)
