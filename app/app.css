@@ -1158,9 +1158,26 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 .look-acoes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; }
 
 /* a linha de baixo do card da Calibragem: a data e a categoria */
-.pe-ref { display: flex; align-items: center; gap: 8px; margin-top: 4px; min-width: 0; }
+.pe-ref { display: flex; align-items: center; gap: 6px; margin-top: 4px; min-width: 0; }
 .pe-ref .sub { margin: 0; flex: none; }
 .pe-ref > .cta-categoria { margin-top: 0; min-width: 0; }
+/* o interruptor "Ensina" (entra nos exemplos da direção), no canto direito da linha de baixo */
+.interruptor { display: inline-flex; flex: none; align-items: center; gap: 4px; margin-left: auto; padding: 0; border: 0; background: none;
+  font: 600 10.5px/1 var(--font-sans); color: var(--color-fog-60); cursor: pointer; transition: color 0.2s; }
+.interruptor i { position: relative; width: 22px; height: 13px; border: 1px solid var(--color-line-strong); border-radius: var(--radius-full);
+  background: var(--color-cream-5); transition: background 0.2s, border-color 0.2s; }
+.interruptor i::after { content: ''; position: absolute; top: 2px; left: 2px; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--color-fog); transition: transform 0.2s, background 0.2s; }
+.interruptor:hover { color: var(--color-cream); }
+.interruptor:hover i { border-color: var(--color-cream-50); }
+.interruptor.ligado { color: var(--color-mint); }
+.interruptor.ligado i { background: var(--color-confirm); border-color: var(--color-confirm); }
+.interruptor.ligado i::after { transform: translateX(9px); background: var(--color-mint); }
+.interruptor:focus-visible { outline: none; }
+.interruptor:focus-visible i { box-shadow: 0 0 0 2px var(--color-yellow); }
+/* card estreito: só o interruptor (o rótulo fica no title), para a categoria não truncar */
+.card-ref { container-type: inline-size; }
+@container (max-width: 212px) { .interruptor span { display: none; } }
 
 /* a marca "[só VSL]" de um aprendizado, desenhada como o selo da categoria (app/referencias.js) */
 .selo-categoria { display: inline-block; margin: 0 6px; padding: 0 8px; border: 1px solid var(--color-line-dark); border-radius: var(--radius-full);

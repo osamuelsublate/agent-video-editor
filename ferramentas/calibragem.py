@@ -18,8 +18,8 @@ já editados do criador viram os roteiros dirigidos de exemplo que a direção l
 Categorias (Reels, Ad, VSL, YouTube, Aula; o criador cadastra mais no app): cada referência tem uma (`tipo` no
 referencia.json; as antigas são Reels), cada projeto também (`formato` no edicao.json), e cada categoria tem os seus
 exemplos (`exemplos/<categoria>/`: regras.md, roteiros/, favoritos.md). A direção de um projeto lê os da categoria dele;
-nunca os de outra categoria (decisão do criador). Ensinam todos os vídeos analisados que não estão ocultos (o olho do
-card da Calibragem).
+nunca os de outra categoria (decisão do criador). Ensinam os vídeos analisados que não estão ocultos (o olho do card da
+Calibragem) e estão com o interruptor "Ensina" ligado (`ensina` no referencia.json; sem o campo, ligado).
 
 Uma pasta por referência em `biblioteca/referencias/<id>/` (o mesmo formato do 18): referencia.json (a fonte de verdade,
 com o andamento em `analise.passos`), video.<ext>, proxy.mp4, palavras.json, silencios.json, cenas.json, trechos/NNN.json
@@ -230,7 +230,7 @@ def categoria_projeto(slug: str, cat: str) -> dict:
 
 def exemplos_para(slug: str) -> tuple[str, Path, int]:
     """O que a direção do projeto lê (decisão do criador: sempre e só a categoria do vídeo em edição): a categoria, a
-    pasta de exemplos dela e quantos vídeos dela estão em uso (os não ocultos da Calibragem; 0 = só as regras)."""
+    pasta de exemplos dela e quantos vídeos dela estão em uso (os não ocultos e com o Ensina ligado; 0 = só as regras)."""
     edicao = ler_json(PROJETOS / slug / 'edicao.json', None)
     if edicao is None:
         raise FileNotFoundError(f'O projeto {slug} não existe')
@@ -295,6 +295,7 @@ def listar_referencias() -> list[dict]:
             'duracao': v.get('duracao'), 'largura': v.get('largura'), 'altura': v.get('altura'), 'criado_em': r.get('criado_em'),
             'passo': atual, 'passo_rotulo': ROTULOS.get(atual), 'progresso': passos.get(atual, {}).get('progresso') if atual else None,
             'passos': passos, 'origem': r.get('origem'), 'tipo': categoria_de(r), 'oculto': bool(r.get('oculto')),
+            'ensina': r.get('ensina', True) is not False,
             'miniatura': f'{URL}/{r["id"]}/miniatura.jpg' if (base / 'miniatura.jpg').exists() else None,
             'video': f'{URL}/{r["id"]}/proxy.mp4' if (base / 'proxy.mp4').exists() else None,
         })
@@ -656,8 +657,18 @@ def _escrever(arq: Path, texto: str) -> bool:
 
 
 def ensina(r: dict) -> bool:
-    """Se a referência entra nos exemplos (a Heurística da categoria dela): toda a que não está oculta na Calibragem."""
-    return not r.get('oculto')
+    """Se a referência entra nos exemplos (a Heurística da categoria dela): a que não está oculta na Calibragem e tem o
+    interruptor "Ensina" do card ligado (sem o campo, ligado)."""
+    return not r.get('oculto') and r.get('ensina', True) is not False
+
+
+def definir_ensina(id: str, liga: bool) -> dict:
+    """O interruptor "Ensina" do card da Calibragem: ligado, o vídeo entra nos roteiros de exemplo da categoria (a
+    Heurística, que a direção lê); desligado, sai, sem sair da grade."""
+    pasta(id)
+    r = atualizar(id, lambda x: x.update(ensina=bool(liga)))
+    regenerar_exemplos()
+    return r
 
 
 def definir_oculto(id: str, oculto: bool) -> dict:

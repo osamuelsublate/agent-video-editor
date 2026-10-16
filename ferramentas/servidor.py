@@ -10,8 +10,9 @@ Rotas (JSON; um erro volta como {"erro": "…"}, com 422 numa validação):
   revisão inteira; as respostas do Claude no arquivo são mantidas).
 - Calibragem (chama ferramentas/calibragem.py): GET|POST /api/referencias (POST: o vídeo cru no corpo, o nome do arquivo
   no cabeçalho X-Nome) · GET /api/referencias/clipes · GET /api/referencias/<id>/revisao · PUT …/<id>/direcao {itens} ·
-  PUT …/<id>/status {revisado} · PUT …/<id>/oculto {oculto} (oculto: sai da Heurística) · PUT …/<id>/nome {nome} · PUT …/<id>/favorito {inicio, fim, favorito} · POST
-  …/<id>/reanalisar · POST …/<id>/tentar · DELETE /api/referencias/<id>.
+  PUT …/<id>/status {revisado} · PUT …/<id>/oculto {oculto} (oculto: sai da Heurística) · PUT …/<id>/ensina {ensina}
+  (o interruptor do card: desligado, sai dos roteiros de exemplo da Heurística) · PUT …/<id>/nome {nome} ·
+  PUT …/<id>/favorito {inicio, fim, favorito} · POST …/<id>/reanalisar · POST …/<id>/tentar · DELETE /api/referencias/<id>.
 - GET|PUT /api/heuristica?categoria=<id>: as regras da direção da categoria (exemplos/<categoria>/regras.md) e os
   roteiros de exemplo dela, com os tempos dos planos. · GET|PUT /api/categorias {categorias} (as categorias de vídeo:
   Reels, Ad…; uma em uso não sai) · PUT /api/referencias/<id>/categoria {categoria} · PUT /api/projetos/<slug>/categoria
@@ -402,6 +403,11 @@ def _salvar_direcao(h, q, id_):
 @rota('PUT', f'/api/referencias/{ID}/oculto')
 def _oculto(h, q, id_):  # o Ocultar do card: sai da grade principal (vista Ocultos) e não ensina a direção
     return calibragem().definir_oculto(id_, bool(h.corpo().get('oculto')))
+
+
+@rota('PUT', f'/api/referencias/{ID}/ensina')
+def _ensina(h, q, id_):  # o interruptor do card: ligado, entra nos roteiros de exemplo da direção; desligado, sai
+    return calibragem().definir_ensina(id_, bool(h.corpo().get('ensina')))
 
 
 @rota('PUT', f'/api/referencias/{ID}/status')

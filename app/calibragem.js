@@ -25,6 +25,13 @@ const seloOrigem = (o, classe) => (o?.projeto
 const OLHO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.06 12.35a1 1 0 0 1 0-.7 10.75 10.75 0 0 1 19.88 0 1 1 0 0 1 0 .7 10.75 10.75 0 0 1-19.88 0"/><circle cx="12" cy="12" r="3"/></svg>'
 const OLHO_FECHADO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.53 13.53 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/><path d="m2 2 20 20"/></svg>'
 
+/** O interruptor "Ensina" do card: ligado, o vídeo entra nos roteiros de exemplo da Heurística (que a direção lê). */
+const interruptor = (r) => {
+  const liga = r.ensina !== false
+  return `<button class="interruptor${liga ? ' ligado' : ''}" role="switch" aria-checked="${liga}" data-ensina
+    title="${liga ? 'Ensina a direção: está nos exemplos da Heurística (clique para tirar)' : 'Não ensina a direção: fora dos exemplos da Heurística (clique para pôr)'}"><span>Ensina</span><i></i></button>`
+}
+
 export async function abrirCalibragem(tela) {
   tela.className = 'pagina pagina-calibragem'
   let refs = []
@@ -51,7 +58,7 @@ export async function abrirCalibragem(tela) {
       ${abrivel(r) ? `<a href="#/calibragem/${encodeURIComponent(r.id)}" title="Abrir a revisão">${mini}</a>` : mini}
       ${editando === r.id ? `<input class="renomear" value="${esc(r.nome)}" maxlength="120">` : `<div class="card-titulo"><h3 data-renomear title="Dois cliques para renomear">${esc(r.nome)}</h3>${chipCodigo(cod[r.id], r.nome)}</div>`}
       <div class="pe-ref"><span class="sub" title="${r.largura ? `${r.largura}×${r.altura}` : ''}">${emAndamento(r) ? esc(passo || 'Na fila') : esc(dataHora(r.criado_em).slice(0, 5))}</span>
-        ${seletorCategoria(cats, r.tipo || 'reels')}</div>
+        ${seletorCategoria(cats, r.tipo || 'reels')}${r.oculto ? '' : interruptor(r)}</div>
       ${r.status === 'erro' ? `<p class="erro-ref">${esc(r.erro || 'A análise falhou.')}</p><button class="botao pequeno" data-tentar>${ICONE.refazer} Tentar de novo</button>` : ''}
     </article>`
   }
@@ -180,6 +187,19 @@ export async function abrirCalibragem(tela) {
       try {
         await enviar('PUT', `/api/referencias/${encodeURIComponent(id)}/oculto`, { oculto: !r.oculto })
         aviso(r.oculto ? 'De volta: entra na direção da categoria' : 'Ocultado: saiu da direção (está em Ocultos)')
+      } catch (x) {
+        aviso(x.message, 'erro')
+      }
+      assinatura = ''
+      return carregar()
+    }
+    if (e.target.closest('[data-ensina]')) {
+      e.preventDefault()
+      const r = refs.find((x) => x.id === id)
+      const liga = r.ensina === false
+      try {
+        await enviar('PUT', `/api/referencias/${encodeURIComponent(id)}/ensina`, { ensina: liga })
+        aviso(liga ? 'Entra nos exemplos da direção' : 'Sai dos exemplos da direção')
       } catch (x) {
         aviso(x.message, 'erro')
       }
