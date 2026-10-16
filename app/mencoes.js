@@ -4,10 +4,14 @@
 import { $, $$, ICONE, esc, janela, json, preferencia } from './comum.js'
 import { barraDeTags, temTag } from './tags.js'
 
+// [tipo, nome, o ícone (o da aba de cima com o mesmo destino)]
 const ABAS = [
-  ['midia', 'Banco'], ['motion', 'Motions'], ['preset', 'Presets'], ['transicao', 'Transições'], ['trilha', 'Trilhas'], ['som', 'Sons'],
+  ['midia', 'Banco', 'banco'], ['referencia', 'Referências', 'referencias'], ['motion', 'Motions', 'motions'], ['preset', 'Presets', 'presets'],
+  ['transicao', 'Transições', 'transicoes'], ['trilha', 'Trilhas', 'trilhas'], ['som', 'Sons', null],
 ]
-const MENCAO = /@((?:PRE|MOT|TRA|TRI|BAN|SOM)-\d+(?:\.\d+)?)/g
+const ORDENS = { uso: 'Usados recentemente', novos: 'Mais novos', nome: 'Nome', codigo: 'Código' }
+const MENCAO = /@((?:PRE|MOT|TRA|TRI|BAN|SOM)-\d+(?:\.\d+)?|REF-\d+·p\d+)/g
+const iconeAba = (destino) => (destino && document.querySelector(`.navbar [data-aba="${destino}"] svg, [data-aba="${destino}"] svg`)?.outerHTML) || ICONE.tocar
 
 let itens = null // [{codigo, tipo, id, nome, mini?, clipe?, audio?}]
 let porCodigo = new Map()
@@ -44,8 +48,10 @@ export function seDigitouArroba(campo, e) {
 async function abrirSeletor(campo, posArroba) {
   await carregarMarcaveis()
   let escolhido = false
+  let ordem = ORDENS[preferencia('mencao.ordem', 'uso')] ? preferencia('mencao.ordem', 'uso') : 'uso'
   const { el, fechar } = janela(`<div class="seletor-mencao">
-      <header class="janela-cabeca"><nav class="mencao-abas">${ABAS.map(([k, n]) => `<button class="pilula pequena" data-aba-mencao="${k}">${n} <span class="conta">${daAba(k).length}</span></button>`).join('')}</nav>
+      <header class="janela-cabeca"><nav class="mencao-abas">${ABAS.map(([k, n, ic]) => `<button class="pilula pequena" data-aba-mencao="${k}">${iconeAba(ic)}${n} <span class="conta">${daAba(k).length}</span></button>`).join('')}</nav>
+        <label class="caixa mencao-ordem">Ordenar <select data-ordem-mencao>${Object.entries(ORDENS).map(([k, n]) => `<option value="${k}"${k === ordem ? ' selected' : ''}>${n}</option>`).join('')}</select></label>
         <button class="botao-icone" data-fechar title="Fechar (Esc)">${ICONE.fechar}</button></header>
       <div class="mencao-corpo"><div class="mencao-tags"></div><div class="mencao-grade"></div></div></div>`, {
     classe: 'janela-mencao',
@@ -54,40 +60,80 @@ async function abrirSeletor(campo, posArroba) {
       if (!escolhido) campo.setSelectionRange(posArroba + 1, posArroba + 1)
     },
   })
-  const lista = () => daAba(aba).filter((x) => !tagDa[aba] || temTag(x.tags, tagDa[aba]))
+  const ordenar = (l) => {
+    const cod = (x) => x.codigo.split(/(\d+)/).map((n) => (/^\d+$/.test(n) ? n.padStart(6, '0') : n)).join('')
+    const por = {
+      uso: (a, b) => (b.usado_em || '').localeCompare(a.usado_em || '') || (b.favorito ? 1 : 0) - (a.favorito ? 1 : 0) || (b.criado_em || '').localeCompare(a.criado_em || '') || cod(a).localeCompare(cod(b)),
+      novos: (a, b) => (b.criado_em || '').localeCompare(a.criado_em || '') || cod(b).localeCompare(cod(a)),
+      nome: (a, b) => a.nome.localeCompare(b.nome, 'pt-BR'),
+      codigo: (a, b) => cod(a).localeCompare(cod(b)),
+    }[ordem]
+    return [...l].sort(por)
+  }
+  const lista = () => ordenar(daAba(aba).filter((x) => !tagDa[aba] || temTag(x.tags, tagDa[aba])))
+  // a prévia: vídeo (o trecho, em laço), motion (a animação) ou áudio; uma de cada vez
+  let tocando = null
+  const parar = () => {
+    if (!tocando) return
+    tocando.parar()
+    tocando = null
+  }
+  const tocar = (card) => {
+    const x = porCodigo.get(card.dataset.mencao)
+    if (tocando?.card === card) return parar()
+    parar()
+    const mini = $('.mencao-mini', card)
+    let fim = () => {}
+    if (x.clipe) {
+      const v = document.createElement('video')
+      v.muted = true
+      v.playsInline = true
+      v.src = x.clipe + (x.inicio != null ? `#t=${x.inicio},${x.fim}` : '')
+      v.className = 'mencao-video'
+      const laco = () => x.inicio != null && v.currentTime >= x.fim - 0.05 && (v.currentTime = x.inicio)
+      v.addEventListener('timeupdate', laco)
+      v.addEventListener('loadedmetadata', () => { if (x.inicio != null) v.currentTime = x.inicio; v.play().catch(() => {}) }, { once: true })
+      if (x.inicio == null) v.loop = true
+      mini.append(v)
+      fim = () => v.remove()
+    } else if (x.tipo === 'motion') {
+      const f = document.createElement('iframe')
+      f.src = `/render/motion.html?preset=${encodeURIComponent(x.id)}&formato=vertical&tocar=1`
+      f.className = 'mencao-iframe'
+      f.tabIndex = -1
+      f.style.setProperty('--escala-mencao', String(mini.clientHeight / 1920)) // o palco em pé (1080×1920) cabe na altura do card
+      f.style.left = `${(mini.clientWidth - 1080 * (mini.clientHeight / 1920)) / 2}px`
+      mini.append(f)
+      fim = () => f.remove()
+    } else if (x.audio) {
+      const a = new Audio(x.audio)
+      a.play().catch(() => {})
+      fim = () => a.pause()
+    }
+    card.classList.add('tocando')
+    tocando = { card, parar: () => { fim(); card.classList.remove('tocando') } }
+  }
   const desenhar = () => {
+    parar()
     for (const t of $$('[data-aba-mencao]', el)) t.classList.toggle('ativa', t.dataset.abaMencao === aba)
-    // as tags no canto (Banco e Motions): só filtram aqui; editar é na página de cada um
+    // as tags no canto (Banco, Motions, Referências): só filtram aqui; editar é na página de cada um
     const comTags = daAba(aba).some((x) => x.tags?.length)
     if (tagDa[aba] && !daAba(aba).some((x) => temTag(x.tags, tagDa[aba]))) tagDa[aba] = ''
     $('.mencao-tags', el).innerHTML = comTags ? barraDeTags(daAba(aba).map((x) => ({ chave: x.codigo, tags: x.tags })), tagDa[aba] || '', `mencao.${aba}`, { editar: false }) : ''
     el.querySelector('.mencao-corpo').classList.toggle('com-tags', comTags)
     const l = lista()
-    $('.mencao-grade', el).innerHTML = l.length ? l.map((x) => `<button class="mencao-card" data-mencao="${esc(x.codigo)}">
-        <span class="mencao-mini">${x.mini ? `<img src="${esc(x.mini)}" alt="" loading="lazy">` : x.clipe ? `<video muted loop playsinline preload="none" data-src="${esc(x.clipe)}"></video>` : `<span class="mencao-icone">${x.audio ? ICONE.tocar : ICONE.motion || ''}</span>`}</span>
-        <span class="mencao-rotulo"><b>${esc(x.codigo)}</b><span>${esc(x.nome)}</span></span>${x.audio ? `<audio preload="none" src="${esc(x.audio)}"></audio>` : ''}</button>`).join('')
+    const quando = (d) => (d ? new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '')
+    $('.mencao-grade', el).innerHTML = l.length ? l.map((x) => `<div class="mencao-card" data-mencao="${esc(x.codigo)}" title="Clique para tocar a prévia">
+        <span class="mencao-mini${x.tipo === 'referencia' || x.tipo === 'motion' ? ' em-pe' : ''}">${x.mini ? `<img src="${esc(x.mini)}" alt="" loading="lazy">` : `<span class="mencao-icone">${x.audio ? ICONE.tocar : iconeAba(x.tipo === 'motion' ? 'motions' : x.tipo === 'preset' ? 'presets' : 'transicoes')}</span>`}
+          ${x.clipe || x.audio || x.tipo === 'motion' ? `<span class="mencao-play">${ICONE.tocar}</span>` : ''}
+          ${x.usado_em ? `<span class="mencao-uso" title="Usado por último em ${esc(quando(x.usado_em))}">usado ${esc(quando(x.usado_em))}</span>` : ''}</span>
+        <span class="mencao-rotulo"><b>${esc(x.codigo)}</b><span>${esc(x.nome)}</span></span>
+        <button class="botao pequeno mencao-usar" data-usar="${esc(x.codigo)}" title="Marcar no comentário">Usar</button></div>`).join('')
       : '<p class="vazio">Nada aqui ainda.</p>'
-    for (const card of $$('.mencao-card', el)) {
-      const v = $('video', card)
-      const a = $('audio', card)
-      card.addEventListener('mouseenter', () => {
-        if (v) {
-          if (!v.src) v.src = v.dataset.src
-          v.play().catch(() => {})
-        }
-        if (a) a.play().catch(() => {})
-      })
-      card.addEventListener('mouseleave', () => {
-        v?.pause()
-        if (a) {
-          a.pause()
-          a.currentTime = 0
-        }
-      })
-    }
   }
   const escolher = (codigo) => {
     escolhido = true
+    parar()
     // o @ digitado vira @CÓDIGO e um espaço; o cursor fica depois
     const v = campo.value
     const novo = `@${codigo} `
@@ -97,7 +143,14 @@ async function abrirSeletor(campo, posArroba) {
     campo.setSelectionRange(p, p)
     campo.dispatchEvent(new Event('input', { bubbles: true }))
   }
+  el.addEventListener('change', (e) => {
+    if (!e.target.matches('[data-ordem-mencao]')) return
+    ordem = preferencia('mencao.ordem', 'uso', e.target.value)
+    desenhar()
+  })
   el.addEventListener('click', (e) => {
+    const u = e.target.closest('[data-usar]')
+    if (u) return escolher(u.dataset.usar)
     const ab = e.target.closest('[data-abrir-tag]')
     if (ab) {
       const chave = `mencao.${aba}.tags.abertas`
@@ -115,9 +168,12 @@ async function abrirSeletor(campo, posArroba) {
       aba = t.dataset.abaMencao
       return desenhar()
     }
-    const c = e.target.closest('[data-mencao]')
-    if (c) escolher(c.dataset.mencao)
+    const c = e.target.closest('.mencao-card')
+    if (c) tocar(c)
+  })
+  el.addEventListener('dblclick', (e) => {
+    const c = e.target.closest('.mencao-card')
+    if (c && !e.target.closest('[data-usar]')) escolher(c.dataset.mencao) // duplo clique também usa
   })
   desenhar()
-  $('.mencao-card', el)?.focus()
 }

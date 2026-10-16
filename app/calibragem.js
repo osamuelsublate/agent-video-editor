@@ -53,12 +53,13 @@ export async function abrirCalibragem(tela) {
         ${r.status === 'analisando' || r.status === 'na_fila' ? `<span class="progresso"><i style="width:${Math.round((r.progresso ?? 0) * 100)}%"></i></span>` : ''}
         <span class="acoes-card"><button class="botao-icone pequeno" data-ocultar title="${r.oculto ? 'Mostrar de novo (volta a ensinar a direção)' : 'Ocultar (sai da grade e da direção)'}">${r.oculto ? OLHO : OLHO_FECHADO}</button>
           <button class="botao-icone pequeno" data-renomear title="Renomear">${ICONE.lapis}</button>
-          <button class="botao-icone pequeno" data-apagar title="Apagar">${ICONE.lixo}</button></span></div>`
+          <button class="botao-icone pequeno" data-apagar title="Apagar">${ICONE.lixo}</button></span>
+        ${r.oculto ? '' : interruptor(r)}</div>`
     return `<article class="card-ref${abrivel(r) ? ' abrivel' : ''}" data-id="${esc(r.id)}">
       ${abrivel(r) ? `<a href="#/calibragem/${encodeURIComponent(r.id)}" title="Abrir a revisão">${mini}</a>` : mini}
       ${editando === r.id ? `<input class="renomear" value="${esc(r.nome)}" maxlength="120">` : `<div class="card-titulo"><h3 data-renomear title="Dois cliques para renomear">${esc(r.nome)}</h3>${chipCodigo(cod[r.id], r.nome)}</div>`}
       <div class="pe-ref"><span class="sub" title="${r.largura ? `${r.largura}×${r.altura}` : ''}">${emAndamento(r) ? esc(passo || 'Na fila') : esc(dataHora(r.criado_em).slice(0, 5))}</span>
-        ${seletorCategoria(cats, r.tipo || 'reels')}${r.oculto ? '' : interruptor(r)}</div>
+        ${seletorCategoria(cats, r.tipo || 'reels')}</div>
       ${r.status === 'erro' ? `<p class="erro-ref">${esc(r.erro || 'A análise falhou.')}</p><button class="botao pequeno" data-tentar>${ICONE.refazer} Tentar de novo</button>` : ''}
     </article>`
   }

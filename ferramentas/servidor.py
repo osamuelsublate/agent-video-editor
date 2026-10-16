@@ -348,7 +348,17 @@ def _codigos(h, q):
 def _marcaveis(h, q):
     """O que se marca com @ nos comentários da revisão (codigo.marcaveis)."""
     import codigo
-    return {'itens': codigo.marcaveis()}
+    itens = codigo.marcaveis()
+    # os planos das Referências (REF-NN·pK): para mostrar outros vídeos que tiveram coisas legais
+    refs = codigo.mapa().get('referencia') or {}
+    for c in calibragem().clipes()['clipes']:
+        if c['ref'] not in refs or c.get('tipo') in ('full_ator', 'full_ator_lettering'):
+            continue  # só o ator não é exemplo de edição
+        itens.append({'codigo': f"{refs[c['ref']]}·{c['id']}", 'tipo': 'referencia', 'id': f"{c['ref']}/{c['id']}",
+                      'nome': f"{c['ref_nome']} · {c['descricao'][:70]}" if c.get('descricao') else c['ref_nome'],
+                      'mini': c.get('miniatura'), 'clipe': c.get('video'), 'inicio': c['inicio'], 'fim': c['fim'],
+                      'tags': c.get('tags') or [], 'favorito': c.get('favorito'), 'plano': c.get('tipo'), 'usado_em': ''})
+    return {'itens': itens}
 
 
 # ---- calibragem e referências
