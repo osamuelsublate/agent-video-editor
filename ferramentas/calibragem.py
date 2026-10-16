@@ -1470,6 +1470,7 @@ def main() -> None:
             raise SystemExit(str(e)) from None
         print(f'categoria: {a.categoria}')
     elif a.comando == 'exemplos':
+        regenerar_exemplos()  # os roteiros na pasta seguem a Calibragem de agora (uma regra mudada não deixa a pasta velha)
         try:
             cat, pasta, n = exemplos_para(a.slug)
         except FileNotFoundError as e:
