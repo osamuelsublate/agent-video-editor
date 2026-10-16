@@ -82,6 +82,15 @@ o card pelo nome: se o criador já criou, preencha esse.
   Carrinho), Produto Black Friday, Público Black Friday (Público geral), Mídia 💰 Criativo. A pasta do Drive segue
   `XX Nome do Ad` (ex.: `21 Rodrigo 3 níveis de IA`).
 
+**Copy de tráfego (todo anúncio: perpétuo LP, VSL, ISCA e pico):** no corpo do card, um **toggle H2 "COPY DE TRÁFEGO"**
+com **3 títulos** diferentes (`### Títulos`, uma lista; curtos, até ~40 caracteres) e **2 textos principais**
+(`### Texto principal 1`, o longo, em 4–5 parágrafos; `### Texto principal 2`, o curto, num parágrafo), sempre terminando
+no CTA do funil (LP: comprar/começar hoje; VSL: assistir à aula gratuita, curiosidade, ainda não é venda; ISCA: pegar a
+isca; captura da Black: cadastrar na live). O template Criativo já traz um toggle vazio "Copy de Descrições (Tráfego)"
+com Texto principal 1–3: substitua esse bloco inteiro pelo novo (`notion-update-page` → `update_content`). Escreva a
+partir do roteiro do corpo e do CTA; preços só conferidos em https://asimov.academy/#assine (mudam); sem superlativos
+que a fala não sustenta.
+
 ## 5. Entrega
 
 Mande ao criador **todos os links do Notion criados/preenchidos** (para conferência) e os das pastas do Drive. Depois,
