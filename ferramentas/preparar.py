@@ -43,7 +43,7 @@ FALHA = {
     'nivel': 'Não consegui medir o nível da voz',
 }
 # os padrões do 18 para um projeto novo (look.PADRAO, audio.PADRAO, o fundo dos inserts no front)
-LOOK = {'lut': 'claro', 'intensidade': 1, 'vinheta': 'sem', 'nitidez': 'leve'}
+LOOK = {'lut': None, 'intensidade': 1, 'vinheta': 'leve', 'nitidez': 'leve'}
 FUNDO_INSERTS = 'gradiente'
 
 

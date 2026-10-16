@@ -14,7 +14,7 @@ VINHETAS = {'sem': 0.0, 'leve': 0.25, 'normal': 0.4, 'forte': 0.55}
 # a nitidez (unsharp na luma): a força de cada opção; o tamanho da máscara acompanha a altura do vídeo (5 px a 720p)
 NITIDEZ = {'sem': 0.0, 'leve': 0.45, 'mais': 0.8}
 FORMA = {'cy': 0.45, 'rx': 0.62, 'ry': 0.62, 'ini': 0.45, 'fim': 1.25}
-PADRAO = {'lut': 'claro', 'intensidade': 1.0, 'vinheta': 'sem', 'nitidez': 'sem'}  # o "Claro" (mvi-0719 v1: o Casa escuro demais); o preparar.py dá nitidez Leve aos novos
+PADRAO = {'lut': None, 'intensidade': 1.0, 'vinheta': 'leve', 'nitidez': 'sem'}  # sem LUT e vinheta Leve (o criador, mvi-0719: o LUT estragava a cor); o preparar.py dá nitidez Leve aos novos
 
 
 def arquivo_lut(lut: str) -> Path:

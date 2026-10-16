@@ -22,7 +22,7 @@ uv run ferramentas/preparar.py "<caminho do bruto>" --nome "<nome curto do víde
   tentativas ficam, porque é delas que os cortes decidem). Sem plano B: se falhar, pare e diga o motivo ao criador.
 - Rosto do ator (MediaPipe) → `midia/rosto/f1.json` (enquadra o ator na tela dividida e centra o zoom do Full ator).
 - Voz limpa Leve (DeepFilterNet) → `midia/voz/f1_leve.wav`; nível da voz (`nivel_voz`, regula os sons).
-- `edicao.json` inicial com os padrões: look Claro 100%, sem vinheta, nitidez Leve, velocidade 1×, legenda palavra a palavra,
+- `edicao.json` inicial com os padrões: look sem LUT, vinheta Leve, nitidez Leve, velocidade 1×, legenda palavra a palavra,
   limpeza Leve, timbre Natural, sem trilha (você escolhe no Áudio).
 
 ## Conferir
