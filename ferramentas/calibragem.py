@@ -35,6 +35,7 @@ das funções que os usam). Erros para o app: FileNotFoundError (referência que
 mensagem pronta para mostrar.
 """
 import argparse
+import bisect
 import fcntl
 import json
 import os
@@ -517,13 +518,14 @@ def renomear_tag(de: str, para: str) -> int:
     return n
 
 
-def entrada(t: float, palavras: list[dict]) -> dict | None:
+def entrada(t: float, palavras: list[dict], inicios: list[float], fins: list[float]) -> dict | None:
     """Como um plano entra em relação à fala: numa pausa (≥ 150 ms sem fala), entre palavras coladas ou no meio de uma
-    palavra; no começo ou no meio de uma frase; e a quantos ms do começo da palavra mais próxima."""
+    palavra; no começo ou no meio de uma frase; e a quantos ms do começo da palavra mais próxima. `inicios` e `fins`:
+    os tempos das palavras (em ordem), para a busca binária."""
     if not palavras:
         return None
-    prox = next((k for k, w in enumerate(palavras) if w['fim'] > t), None)
-    if prox is None:
+    prox = bisect.bisect_right(fins, t)
+    if prox == len(palavras):
         return {'onde': 'depois_da_fala', 'frase': None, 'palavra': None, 'ms': None}
     w, ant = palavras[prox], palavras[prox - 1] if prox else None
     if w['inicio'] < t:
@@ -533,7 +535,8 @@ def entrada(t: float, palavras: list[dict]) -> dict | None:
     else:
         onde = 'entre_palavras'
     comeco = onde != 'dentro_da_palavra' and (ant is None or ant['texto'].rstrip().endswith(FIM_DE_FRASE))
-    perto = min(palavras, key=lambda x: abs(x['inicio'] - t))
+    k = bisect.bisect_left(inicios, t)
+    perto = min(palavras[max(k - 1, 0):k + 1], key=lambda x: abs(x['inicio'] - t))
     return {'onde': onde, 'frase': 'inicio' if comeco else 'meio', 'palavra': perto['texto'], 'ms': round((t - perto['inicio']) * 1000)}
 
 
@@ -549,8 +552,9 @@ def _clipes_de(ref: dict, itens: list[dict], palavras: list[dict]) -> tuple[list
     for p in planos:
         resumo['proporcao'][p['tipo']] = round(resumo['proporcao'].get(p['tipo'], 0) + (p['fim'] - p['inicio']) / dur, 3)
     lista = []
+    inicios, fins = [w['inicio'] for w in palavras], [w['fim'] for w in palavras]
     for k, p in enumerate(planos):
-        faladas = [w for w in palavras if w['fim'] > p['inicio'] + 0.01 and w['inicio'] < p['fim']]
+        faladas = palavras[bisect.bisect_right(fins, p['inicio'] + 0.01):bisect.bisect_left(inicios, p['fim'])]
         d = p['fim'] - p['inicio']
         vizinho = lambda q: {'tipo': q['tipo'], 'duracao': round(q['fim'] - q['inicio'], 2)} if q else None  # noqa: E731
         lista.append({
@@ -561,7 +565,7 @@ def _clipes_de(ref: dict, itens: list[dict], palavras: list[dict]) -> tuple[list
             'fala': ' '.join(w['texto'] for w in faladas),
             'numero': k + 1, 'total': len(planos), 'posicao': round(p['inicio'] / dur, 3) if dur else 0,
             'palavras': len(faladas), 'por_minuto': round(len(faladas) / d * 60) if d >= 2 and len(faladas) >= 3 else None,
-            'entrada': entrada(p['inicio'], palavras) if k else None,
+            'entrada': entrada(p['inicio'], palavras, inicios, fins) if k else None,
             'anterior': vizinho(planos[k - 1] if k else None), 'seguinte': vizinho(planos[k + 1] if k + 1 < len(planos) else None),
             'elementos': [{'tipo': e['tipo'], 'texto': e.get('texto'), 'inicio': e['inicio'], 'fim': e['fim']}
                           for e in elementos if e['fim'] > p['inicio'] and e['inicio'] < p['fim']],

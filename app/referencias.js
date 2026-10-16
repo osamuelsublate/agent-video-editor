@@ -58,8 +58,13 @@ export async function abrirReferencias(tela) {
 
   const chaveDo = (c) => `${c.ref}|${c.inicio}`
   let tagAtiva = ''
+  // a busca: todas as palavras digitadas, sem acento, no nome do vídeo, na marcação, na fala, no texto, nas tags e no código
+  let busca = ''
+  const semAcento = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  const textoDo = (c) => (c.busca ||= semAcento([c.ref_nome, nomePlano(c.tipo), c.descricao, c.fala, c.texto, codigoDo(c), ...(c.tags || []).map((t) => `#${t}`)].join(' ')))
+  const acha = (c) => semAcento(busca).split(/\s+/).filter(Boolean).every((p) => textoDo(c).includes(p))
   // os filtros de cima (sem a tag): o que a barra de tags conta
-  const semTag = () => clipes.filter((c) => (!semAtor || !SO_ATOR.includes(c.tipo)) && (conteudo === 'todos' || conteudoDo(c.tipo) === conteudo)
+  const semTag = () => clipes.filter((c) => (!busca || acha(c)) && (!semAtor || !SO_ATOR.includes(c.tipo)) && (conteudo === 'todos' || conteudoDo(c.tipo) === conteudo)
     && (!categoria || (c.tipo_video || 'reels') === categoria))
   const base = () => semTag().filter((c) => !tagAtiva || temTag(c.tags, tagAtiva))
   const card = (c, k) => `<article class="card-clipe" data-k="${k}">
@@ -96,12 +101,18 @@ export async function abrirReferencias(tela) {
         ${chip('favoritos', `${filtro === 'favoritos' ? ESTRELA_CHEIA : ICONE.estrela} Favoritos <span class="conta">${nFav}</span>`, ' chip-favoritos')}
         ${chip('todos', `${icone('todos')} Todos <span class="conta">${l.length}</span>`)}
         ${ativos.map(([id, nome, tipos]) => chip(id, `${icone(id)} ${esc(nome)} <span class="conta">${contar(tipos)}</span>`)).join('')}
-        <span class="filtros-dir"><label class="caixa">Categoria <select data-categoria-ref><option value="">Todas</option>${cats.map((c) => `<option value="${esc(c.id)}"${c.id === categoria ? ' selected' : ''}>${esc(rotuloCategoria(cats, c.id))}</option>`).join('')}</select></label>
+        <span class="filtros-dir"><input class="busca-ref" type="search" data-busca placeholder="Buscar (nome, marcação, fala, #tag)" value="${esc(busca)}">
+          <label class="caixa">Categoria <select data-categoria-ref><option value="">Todas</option>${cats.map((c) => `<option value="${esc(c.id)}"${c.id === categoria ? ' selected' : ''}>${esc(rotuloCategoria(cats, c.id))}</option>`).join('')}</select></label>
           <span class="alternar">${Object.entries(CONTEUDOS).map(([k, n]) => `<button class="pilula${k === conteudo ? ' ativa' : ''}" data-conteudo="${k}">${n}</button>`).join('')}</span>
           <label class="caixa"><input type="checkbox" data-sem-ator ${semAtor ? 'checked' : ''}> Ignorar Full ator</label>
           <label class="caixa">Ordenar <select data-ordem>${Object.entries(ORDENS).map(([k, n]) => `<option value="${k}"${k === ordem ? ' selected' : ''}>${n}</option>`).join('')}</select></label></span></div>
       ${!clipes.length ? '<p class="vazio">Nenhum clipe ainda. Suba vídeos editados na <a href="#/calibragem">Calibragem</a>: quando a análise terminar, cada plano aparece aqui.</p>'
         : `${datalistTags('tags-conhecidas-ref', conhecidas())}<div class="banco-com-tags">${barraDeTags(semTag().map((c) => ({ chave: chaveDo(c), tags: c.tags })), tagAtiva, 'refs')}<div class="banco-grade">${visiveis.length ? `<div class="grade grade-clipes">${visiveis.map(card).join('')}</div>` : '<p class="vazio">Nenhum clipe com esses filtros.</p>'}</div></div>`}`
+    // a barra de tags gruda logo abaixo dos filtros (que também grudam e mudam de altura quando quebram a linha)
+    const filtros = $('.filtros', tela)
+    tela.altura?.disconnect()
+    tela.altura = new ResizeObserver(() => tela.style.setProperty('--alto-filtros', `${filtros.offsetHeight}px`))
+    tela.altura.observe(filtros)
     ligarTags(tela, {
       onde: 'referencias',
       pref: 'refs',
@@ -111,6 +122,7 @@ export async function abrirReferencias(tela) {
       gravar: async (c, tags) => {
         const r = await enviar('PUT', `/api/referencias/${encodeURIComponent(c.ref)}/tags`, { inicio: c.inicio, fim: c.fim, tags })
         c.tags = r.tags
+        delete c.busca
       },
       recarregar: desenhar,
       aposRenomear: () => abrirReferencias(tela),
@@ -184,7 +196,20 @@ export async function abrirReferencias(tela) {
     previa.remove()
     abrirClipe(+card.dataset.k)
   })
+  let esperaBusca = null
+  tela.addEventListener('input', (e) => {
+    if (!e.target.matches('[data-busca]')) return
+    clearTimeout(esperaBusca)
+    esperaBusca = setTimeout(() => {
+      busca = e.target.value
+      desenhar()
+      const campo = $('[data-busca]', tela) // o redesenho troca o campo: o foco e o cursor voltam
+      campo.focus()
+      campo.setSelectionRange(campo.value.length, campo.value.length)
+    }, 150)
+  })
   tela.addEventListener('change', (e) => {
+    if (e.target.matches('[data-busca]')) return
     if (e.target.matches('[data-sem-ator]')) semAtor = preferencia('semFullAtor', true, e.target.checked)
     if (e.target.matches('[data-ordem]')) ordem = e.target.value
     if (e.target.matches('[data-categoria-ref]')) categoria = preferencia('refCategoria', '', e.target.value)
