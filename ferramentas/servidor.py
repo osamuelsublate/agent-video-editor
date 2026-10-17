@@ -96,7 +96,7 @@ def projetos() -> list[dict]:
         estado = 'aprovado' if rev.get('aprovado') else 'enviada' if rev.get('enviado_em') else 'em_revisao'
         ed = ler_json(p / 'edicao.json', {}) or {}
         lista.append({'slug': p.name, 'nome': ed.get('nome') or p.name, 'formato': ed.get('formato') or 'reels',
-                      'versoes': vs, 'ultima': ultima, 'duracao': info.get('duracao'), 'estado': estado,
+                      'tags': ed.get('tags') or [], 'versoes': vs, 'ultima': ultima, 'duracao': info.get('duracao'), 'estado': estado,
                       'comentarios': len(rev.get('comentarios', [])),
                       'saidas': len(ed.get('saidas') or []), 'tem_final': any((p / 'final').rglob('*.mp4')) if (p / 'final').is_dir() else False,
                       'atualizado': (p / 'versoes' / f'v{ultima}' / 'proxy.mp4').stat().st_mtime})
@@ -442,6 +442,19 @@ def _nome_projeto(h, q, slug):
     edicao['nome'] = nome
     gravar_json(arq, edicao)
     return {'nome': nome}
+
+
+@rota('PUT', r'/api/projetos/([\w-]+)/tags')
+def _tags_projeto(h, q, slug):
+    tags = tags_limpas(h.corpo().get('tags'))
+    arq = _edicao(slug)
+    edicao = ler_json(arq, {})
+    if tags:
+        edicao['tags'] = tags
+    else:
+        edicao.pop('tags', None)
+    gravar_json(arq, edicao)
+    return {'tags': tags}
 
 
 @rota('PUT', r'/api/projetos/([\w-]+)/categoria')
@@ -858,10 +871,10 @@ def _tags_referencia(h, q, id_):
     return calibragem().marcar_tags(id_, float(c['inicio']), float(c['fim']), c.get('tags') or [])
 
 
-@rota('POST', r'/api/tags/(banco|motions|referencias)')
+@rota('POST', r'/api/tags/(banco|motions|referencias|projetos)')
 def _renomear_tag(h, q, onde):
-    """Renomeia (ou, com `para` vazio, tira) uma tag, com as de dentro dela, em tudo do Banco, dos Motions ou das
-    Referências."""
+    """Renomeia (ou, com `para` vazio, tira) uma tag, com as de dentro dela, em tudo do Banco, dos Motions, das
+    Referências ou dos Projetos."""
     c = h.corpo()
     de, para = tag_limpa(c.get('de')), tag_limpa(c.get('para'))
     if not de:
@@ -870,6 +883,20 @@ def _renomear_tag(h, q, onde):
         return {'mudaram': _banco().renomear_tag(de, para)}
     if onde == 'referencias':
         return {'mudaram': calibragem().renomear_tag(de, para)}
+    if onde == 'projetos':
+        n = 0
+        for p in projetos():
+            arq = _edicao(p['slug'])
+            edicao = ler_json(arq, {})
+            novas = renomear_tags(edicao.get('tags'), de, para)
+            if novas != (edicao.get('tags') or []):
+                if novas:
+                    edicao['tags'] = novas
+                else:
+                    edicao.pop('tags')
+                gravar_json(arq, edicao)
+                n += 1
+        return {'mudaram': n}
     mapa, n = ler_json(MOTION_TAGS, {}) or {}, 0
     for k, tags in list(mapa.items()):
         novas = renomear_tags(tags, de, para)

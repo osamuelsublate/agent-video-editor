@@ -1146,8 +1146,11 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 
 
 /* a categoria de vídeo (Reels, Ad…) de um projeto ou de uma referência, embaixo do card (app/categorias.js) */
-.pe-projeto { display: flex; align-items: center; gap: 8px; margin-top: 6px; min-width: 0; }
-.pe-projeto .codigo { margin-left: auto; flex: none; }
+/* sobre a miniatura do projeto (fora do link, para o seletor e o copiar não abrirem o projeto): a categoria e o código */
+.sobre-mini { position: absolute; inset: 0 0 auto; aspect-ratio: 9 / 16; z-index: 3; display: flex; align-items: flex-end; gap: 6px; padding: 10px; pointer-events: none; }
+.sobre-mini > * { pointer-events: auto; }
+.sobre-mini .cta-categoria, .sobre-mini .codigo { border-color: transparent; background: var(--color-ink-85); color: var(--color-cream); }
+.sobre-mini .codigo { margin-left: auto; height: 23px; }
 .chip-saidas { position: absolute; left: 10px; bottom: 38px; z-index: 2; padding: 2px 8px; border-radius: var(--radius-full); background: var(--color-green); color: var(--color-ink); font-size: 10px; font-weight: 600; }
 .filtro-categorias { display: flex; align-items: center; gap: 8px; }
 
@@ -1237,7 +1240,7 @@ button.tag:hover { background: rgba(185, 166, 242, 0.26); }
 .tags-card .tag:hover .tag-tirar { opacity: 0.7; }
 .tags-card .tag-tirar:hover { opacity: 1 !important; }
 .tags-card .tag-mais { padding: 0 8px; background: none; border: 1px dashed rgba(185, 166, 242, 0.35); color: var(--color-fog); opacity: 0; transition: opacity .12s; }
-.card-banco:hover .tag-mais, .tags-card .tag-mais:focus-visible { opacity: 1; }
+.card-banco:hover .tag-mais, .caixa-projeto:hover .tag-mais, .tags-card .tag-mais:focus-visible { opacity: 1; }
 .tags-card .tag-mais:hover { color: var(--color-lilac); border-color: var(--color-lilac); }
 .tag-campo { height: 22px; width: 130px; padding: 0 8px; border-radius: 999px; border: 1px solid var(--color-lilac); background: rgba(0, 0, 0, 0.2);
   color: var(--color-cream); font: 500 12px/1 inherit; outline: none; }

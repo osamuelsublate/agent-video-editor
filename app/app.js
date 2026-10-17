@@ -6,6 +6,7 @@ import { abrirRevisao } from './revisao.js'
 import { abrirBiblioteca, PAGINAS_BIBLIOTECA } from './biblioteca.js'
 import { abrirCalibragem, abrirRevisaoReferencia } from './calibragem.js'
 import { abrirAprendizados, abrirHeuristica, abrirReferencias } from './referencias.js'
+import { barraDeTags, datalistTags, htmlTagsCard, ligarTags, tagEscolhida, temTag } from './tags.js'
 import { botaoCategorias, carregarCategorias, editarCategorias, pilulasCategoria, rotuloCategoria, seletorCategoria } from './categorias.js'
 
 const ESTADOS = {
@@ -67,14 +68,17 @@ async function inicio(tela) {
       ${p.tem_final ? `<button class="abrir-exports" data-abrir-final title="Abrir a pasta dos exports no Finder" aria-label="Abrir os exports de ${esc(p.nome)}">${ICONE.abrir}</button>` : ''}
       <a class="card-projeto" href="#/p/${encodeURIComponent(p.slug)}">
       <div class="mini mini-916"><video muted playsinline preload="metadata" src="${proxy}#t=1.5"></video>
-        <span class="selo ${cor}">${estado}</span>${p.duracao ? `<span class="duracao duracao-baixo">${mmss(p.duracao)}</span>` : ''}
-        <span class="chip-formato">${esc(rotuloCategoria(cats, p.formato || 'reels'))}</span>${p.saidas ? `<span class="chip-saidas" title="O corpo encaixado em ${p.saidas} CTAs (final/saidas/)">${p.saidas} ${p.saidas === 1 ? 'saída' : 'saídas'}</span>` : ''}</div>
+        <span class="selo ${cor}">${estado}</span>${p.saidas ? `<span class="chip-saidas" title="O corpo encaixado em ${p.saidas} CTAs (final/saidas/)">${p.saidas} ${p.saidas === 1 ? 'saída' : 'saídas'}</span>` : ''}</div>
       <div class="card-titulo"><h3 title="${esc(p.nome)}">${esc(p.nome)}</h3><button class="botao-icone pequeno renomear" data-renomear title="Renomear" aria-label="Renomear ${esc(p.nome)}">${ICONE.lapis}</button></div>
-      <p class="sub" title="${esc(p.slug)}">${quandoFoi(p.atualizado)} · v${p.ultima}${n > 1 ? ` · ${n} versões` : ''}${p.comentarios ? ` · ${p.comentarios} ${p.comentarios === 1 ? 'comentário' : 'comentários'}` : ''}</p>
-    </a><div class="pe-projeto">${seletorCategoria(cats, p.formato || 'reels')}${chipCodigo(cods.projeto?.[p.slug], p.nome)}</div></div>`
+      <p class="sub" title="${esc(p.slug)}">${p.duracao ? `${mmss(p.duracao)} · ` : ''}${quandoFoi(p.atualizado)} · v${p.ultima}${n > 1 ? ` · ${n} versões` : ''}${p.comentarios ? ` · ${p.comentarios} ${p.comentarios === 1 ? 'comentário' : 'comentários'}` : ''}</p>
+    </a><div class="sobre-mini">${seletorCategoria(cats, p.formato || 'reels')}${chipCodigo(cods.projeto?.[p.slug], p.nome)}</div>
+    ${htmlTagsCard(p.tags)}</div>`
   }
+  // as tags (como no Banco): a barra à esquerda conta os projetos da categoria escolhida e filtra a lista
+  const daCategoria = () => projetos.filter((p) => !filtro || (p.formato || 'reels') === filtro)
+  let tagAtiva = ''
   const lista = () => {
-    const l = projetos.filter((p) => !filtro || (p.formato || 'reels') === filtro)
+    const l = daCategoria().filter((p) => !tagAtiva || temTag(p.tags, tagAtiva))
     if (ordem === 'nome') return [['', l.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))]]
     l.sort((a, b) => (ordem === 'antigos' ? a.atualizado - b.atualizado : b.atualizado - a.atualizado))
     const grupos = []
@@ -87,9 +91,29 @@ async function inicio(tela) {
   }
   const desenhar = () => {
     $('.filtro-categorias', tela).innerHTML = pilulasCategoria(cats, filtro, { contar: (id) => projetos.filter((p) => !id || (p.formato || 'reels') === id).length }) + botaoCategorias()
-    $('.lista-projetos', tela).innerHTML = projetos.length
-      ? lista().map(([g, ps]) => `${g ? `<h4 class="grupo-data">${g}</h4>` : ''}<div class="grade grade-projetos">${ps.map(card).join('')}</div>`).join('')
+    const itens = daCategoria().map((p) => ({ chave: p.slug, tags: p.tags }))
+    tagAtiva = tagEscolhida('projetos', itens)
+    const conhecidas = [...new Set(projetos.flatMap((p) => p.tags || []))].sort()
+    const corpo = $('.corpo-projetos', tela)
+    corpo.innerHTML = projetos.length
+      ? `${datalistTags('tags-conhecidas-projeto', conhecidas)}<div class="banco-com-tags">${barraDeTags(itens, tagAtiva, 'projetos')}<div class="lista-projetos">${
+        lista().map(([g, ps]) => `${g ? `<h4 class="grupo-data">${g}</h4>` : ''}<div class="grade grade-projetos">${ps.map(card).join('')}</div>`).join('') || '<p class="vazio">Nenhum projeto com esses filtros.</p>'}</div></div>`
       : '<p class="vazio">Nenhum projeto com versão ainda. Mande um vídeo bruto ao Claude Code: quando ele entregar a v1, ela aparece aqui.</p>'
+    ligarTags(corpo, {
+      onde: 'projetos',
+      pref: 'projetos',
+      lista: 'tags-conhecidas-projeto',
+      conhecidas,
+      itemDo: (b) => projetos.find((p) => p.slug === b.closest('.caixa-projeto').dataset.slug),
+      gravar: async (p, tags) => {
+        p.tags = (await enviar('PUT', `/api/projetos/${encodeURIComponent(p.slug)}/tags`, { tags })).tags
+      },
+      recarregar: desenhar,
+      aposRenomear: async () => {
+        projetos.splice(0, projetos.length, ...(await json('/api/projetos', [])))
+        desenhar()
+      },
+    })
     for (const b of $$('[data-ordem]', tela)) b.classList.toggle('ativa', b.dataset.ordem === ordem)
     // o vídeo toca mudo com o mouse em cima
     for (const c of $$('.card-projeto', tela)) {
@@ -104,7 +128,7 @@ async function inicio(tela) {
   tela.innerHTML = `<div class="cabeca-secao"><span class="eyebrow">Projetos · ${String(projetos.length).padStart(2, '0')}</span>
       <div class="filtro-categorias"></div>
       <div class="ordens">${Object.entries(ORDENS).map(([k, nome]) => `<button class="pilula pequena" data-ordem="${k}">${nome}</button>`).join('')}</div></div>
-    <div class="lista-projetos"></div>`
+    <div class="corpo-projetos"></div>`
   desenhar()
   tela.addEventListener('click', (e) => {
     const b = e.target.closest('[data-abrir-final]')
