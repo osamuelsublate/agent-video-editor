@@ -65,7 +65,8 @@ export async function abrirCalibragem(tela) {
 
   const desenhar = () => {
     const naVista = refs.filter((r) => !!r.oculto === verOcultos)
-    const visiveis = naVista.filter((r) => !filtro || (r.tipo || 'reels') === filtro)
+    // os ativos (ensinam a direção) antes dos inativos; dentro de cada grupo, a ordem de sempre (sort estável)
+    const visiveis = naVista.filter((r) => !filtro || (r.tipo || 'reels') === filtro).sort((a, b) => (a.ensina === false) - (b.ensina === false))
     const nOcultos = refs.filter((r) => r.oculto).length
     const n = (s) => visiveis.filter((r) => r.status === s).length
     const numeros = [[n('revisado'), 'revisada', 'revisadas'], [n('a_revisar'), 'a revisar', 'a revisar'], [n('analisando'), 'analisando', 'analisando'], [n('na_fila'), 'na fila', 'na fila'], [n('erro'), 'com erro', 'com erro']]
