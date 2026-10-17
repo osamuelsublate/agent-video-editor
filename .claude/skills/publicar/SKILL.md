@@ -130,6 +130,16 @@ hora); só agende depois de um "sim". Data = o Prazo do card; sem hora definida,
 Por rede: Instagram `instagramData.type: "REEL"`; YouTube `youtubeData.type: "short"`, com `title` e
 `madeForKids: false`; TikTok `tiktokData` com o `title`. `autoPublish: true` (publica sozinho).
 
+O Metricool copia o vídeo do Drive para ele na hora (`media` volta como `static.metricool.com/...`): o link
+`https://drive.google.com/file/d/<id>/view` basta (id pelo `rclone lsjson`). Ele recusa horário no passado: confira a
+hora (`TZ=America/Sao_Paulo date`) antes de propor o horário.
+
+**Repost** (vídeo antigo, já pronto no Drive): ache o card no Notion e a nota no Obsidian; card com **Prazo = a nova
+data** e **Status ✔️ Aguardando Publicação**; baixe o final da pasta do Drive (`rclone copy`), transcreva
+(`ferramentas/transcricao.py`: `extrair_audio` + `transcrever`) e troque o Roteiro do card pela **fala real**; gere a
+descrição (`roteiro-to-descricao`) e ponha nos dois (card: `## Descrição`; nota: `# Corpo` e `# Descrição`); a nota
+vai para `1 Priorizar` com o nome do card e 👁️. Sem CTA "comente X", segue o "Sem ManyChat".
+
 **Sem ManyChat:** tudo pelo Metricool, na data do Prazo, numa postagem só com as redes.
 
 **Com ManyChat ("comente X para receber o link")**, um Reels por vez:
