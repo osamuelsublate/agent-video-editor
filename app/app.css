@@ -455,7 +455,7 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 .midia-nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-cream); }
 .midia-fonte { margin-left: auto; font-size: 11px; color: var(--color-fog); text-decoration: none; white-space: nowrap; }
 .midia-fonte:hover { color: var(--color-cream); }
-.lado-dir { padding-bottom: 4px; }
+.lado-dir { padding-bottom: 4px; min-height: 0; overflow-y: auto; scrollbar-width: thin; } /* o que não cabe rola aqui, sem vazar por cima dos controles e da linha do tempo */
 .resumo-versao { font-size: 13px; color: var(--color-cream); }
 
 .controles {
@@ -690,7 +690,6 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 .selo-origem { max-width: calc(100% - 18px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-transform: none; letter-spacing: 0; font-weight: 600; }
 .trilha-projeto .selo-origem { flex: none; max-width: 260px; }
 .correcoes { flex: none; max-width: 300px; margin: 0; }
-.revisao-ref .lado-dir { overflow-y: auto; } /* o painel aberto não empurra os atalhos por cima dos controles */
 .trilha-projeto .dica { white-space: nowrap; }
 .correcoes summary { padding: 9px 12px; font-size: 12.5px; }
 .lista-correcoes { display: flex; flex-direction: column; gap: 10px; max-height: 42vh; overflow-y: auto; padding: 10px 12px; border-top: 1px solid var(--color-line-dark); }
