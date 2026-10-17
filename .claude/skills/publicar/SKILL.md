@@ -104,7 +104,10 @@ era `🧑🏼‍🔧📱💰 Quizz Descubra teu nível de IA`). Ao fechar o víd
   do rascunho vira a 📱 (renomeada); atualize os `[[links]]` que apontavam para ela.
 - **Corpo da nota = a transcrição final**, a fala de `roteiro.md` (só as linhas entre aspas, sem marcações), em
   `# Corpo` e `# CTA <tipo>`. Corrija o que a transcrição errou (Cloud → Claude, Zmove → Asimov). Mantenha a linha
-  `Referência:` e o frontmatter (a tag `💰pico/black26` só nas notas com CTA da Black).
+  `Referência:` e o frontmatter.
+- **Tags** = `<produto>/<funil>`: produto `🤖fia` (agentes de IA, skills) ou `🖼️fid` (design com IA: sites, front-end,
+  edição); funil `ad-lp`, `ad-vsl`, `reels-vsl` (Reels com CTA para a VSL) ou `isca` (ex.: `🤖fia/ad-vsl`). Pico tem
+  a tag do pico (`💰pico/black26`) no lugar, inclusive o Reels com CTA da Black.
 - **`scheduled`** = o **Prazo** do card correspondente no Notion (a data de publicação), entre aspas: `"2026-10-16"`.
 - Sem nota: crie em `1 Copies/1 Priorizar/` com o frontmatter do template `2 Notas/Engine/templates/T-Copy.md`
   (`publicado:`, `scheduled:`, `tags:`).
