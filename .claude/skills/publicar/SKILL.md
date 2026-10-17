@@ -1,6 +1,6 @@
 ---
 name: publicar
-description: Exporta e publica os vídeos aprovados no editor (Reels e anúncios de perpétuo e pico da Asimov) — encaixa o corpo de um Reels nos CTAs, exporta em 4K/24 fps, cria as pastas no Google Drive, sobe os arquivos, cria/preenche os cards no Notion ("Edição e Publicação - 2026") e atualiza a nota da copy no Obsidian. Use quando o criador aprovar um Reels e pedir para exportar, subir, organizar ou publicar (VSL, aulas e YouTube ficam de fora).
+description: Exporta e publica os vídeos aprovados no editor (Reels e anúncios de perpétuo e pico da Asimov) — encaixa o corpo de um Reels nos CTAs, exporta em 4K/24 fps, cria as pastas no Google Drive, sobe os arquivos, cria/preenche os cards no Notion ("Edição e Publicação - 2026"), atualiza a nota da copy no Obsidian e agenda os Reels (Metricool; automação "comente X" no ManyChat). Use quando o criador aprovar um Reels e pedir para exportar, subir, organizar ou publicar (VSL, aulas e YouTube longo ficam de fora).
 ---
 
 # Publicar: do aprovado ao Drive e ao Notion
@@ -18,6 +18,9 @@ encaixe vira**. Os CTAs são projetos do editor (categoria 💰 CTA), gravados p
 continua a trilha do corpo (`audio.continua: "<corpo>"` no edicao.json do CTA, `audio.fade_fim: false` no do corpo).
 Exemplo (mvi-0719, 16/10): corpo + CTA ManyChat → **Reels**; + CTA VSL → **Perpétuo VSL**; + CTA LP → **Perpétuo LP**;
 + CTA da live da Black → **Pico · Captura**.
+**Reels com ManyChat ("comente X") tem duas versões**: a do Instagram, com o CTA "comente X", e a do TikTok/YouTube
+Shorts, com um CTA "acesse o link da descrição" (lá não há ManyChat). Se o CTA "link da descrição" não foi gravado,
+avise o criador antes de exportar.
 
 ## 2. Exportar e encaixar
 
@@ -116,9 +119,32 @@ era `🧑🏼‍🔧📱💰 Quizz Descubra teu nível de IA`). Ao fechar o víd
 - Sem nota: crie em `1 Copies/1 Priorizar/` com o frontmatter do template `2 Notas/Engine/templates/T-Copy.md`
   (`publicado:`, `scheduled:`, `tags:`).
 
-## 6. Entrega
+## 6. Agendar (Metricool e ManyChat)
 
-Mande ao criador **todos os links do Notion criados/preenchidos** (para conferência), os das pastas do Drive e a lista das notas 👁️ do Obsidian para conferir. Depois,
+Só os orgânicos (Reels; os anúncios sobem pelo gerenciador de anúncios, fora daqui). Pelo MCP do **Metricool**: marca
+`rodrigotadewald` (`blogId` 7482213, fuso `America/Sao_Paulo`), com Instagram, TikTok, YouTube e Facebook. O vídeo
+entra em `media` como **link do Drive** (a pasta do passo 3; o Drive está vinculado no Metricool), não como arquivo.
+Antes de agendar, liste o que já está na fila (`getScheduledPosts`) e mostre o plano (vídeo, legenda, redes, data e
+hora); só agende depois de um "sim". Data = o Prazo do card; sem hora definida, `getBestTimeToPostByNetwork`.
+Por rede: Instagram `instagramData.type: "REEL"`; YouTube `youtubeData.type: "short"`, com `title` e
+`madeForKids: false`; TikTok `tiktokData` com o `title`. `autoPublish: true` (publica sozinho).
+
+**Sem ManyChat:** tudo pelo Metricool, na data do Prazo, numa postagem só com as redes.
+
+**Com ManyChat ("comente X para receber o link")**, um Reels por vez:
+1. **Instagram (versão "comente X")**: agende pelo Metricool **para o mesmo dia** (nunca dias antes).
+2. **ManyChat, no navegador do criador (Claude in Chrome)**: crie a automação com o gatilho **"próxima publicação ou
+   Reel"**, a palavra-chave, as respostas públicas no comentário e a DM com o link. Antes, confira no Metricool que nada
+   (outro post, carrossel, outro Reels) sai antes deste: a automação se prende ao **próximo** post publicado. Modelo:
+   Automação → "Auto-DM de links dos comentários" (conta `fb3802114`). Mostre a automação e só publique com o "sim".
+3. **TikTok e YouTube Shorts (versão "acesse o link da descrição")**: pelo Metricool, numa postagem à parte, com a
+   descrição dizendo **onde está o link** em cada rede.
+
+Depois que sair, confira que a automação ficou presa no Reels certo (ManyChat → a automação → o post do gatilho).
+
+## 7. Entrega
+
+Mande ao criador **todos os links do Notion criados/preenchidos** (para conferência), os das pastas do Drive, a lista das notas 👁️ do Obsidian para conferir e o que ficou agendado (Metricool, com o link do planner, e a automação do ManyChat). Depois,
 os vídeos seguem a etapa de conclusão do editor (Calibragem e aprendizados).
 
 ## Aprendizados (manter atualizado)
