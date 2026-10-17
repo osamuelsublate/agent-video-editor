@@ -246,7 +246,7 @@ async function rotear() {
   $('#barra-versao').innerHTML = ''
   desenharAbas()
   // os projetos abrem pela marca; num projeto, acende a aba dele; o endereço antigo dos motions (#/banco/motions) acende Motions
-  const aba = partes[0] === 'banco' && partes[1] === 'motions' ? 'motions' : partes[0]
+  const aba = partes[0] === 'banco' && partes[1] === 'motions' ? 'motions' : partes[0] === 'transicoes' ? 'presets' : partes[0] // as transições moram na aba Presets
   for (const a of $$('.abas a')) a.classList.toggle('ativa', a.dataset.aba === aba)
   document.body.classList.toggle('em-revisao', (partes[0] === 'p' || partes[0] === 'calibragem') && !!partes[1])
   let s

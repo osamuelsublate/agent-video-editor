@@ -1279,3 +1279,7 @@ button.tag:hover { background: rgba(185, 166, 242, 0.26); }
 .mini .interruptor i { width: 32px; height: 18px; }
 .mini .interruptor i::after { top: 3px; left: 3px; width: 10px; height: 10px; }
 .mini .interruptor.ligado i::after { transform: translateX(14px); }
+
+/* a aba Presets: o seletor entre os presets e as transições */
+.troca-presets { margin-right: 8px; }
+.lado-pares .troca-presets { margin: 0 0 14px; align-self: flex-start; }

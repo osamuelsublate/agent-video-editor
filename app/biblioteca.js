@@ -18,6 +18,10 @@ export async function abrirBiblioteca(tela, aba, resto = []) {
   }
 }
 
+/** O seletor da aba Presets: os presets dos inserts ou as transições (as duas páginas moram na mesma aba). */
+const trocaPresets = (atual) => `<div class="troca-presets alternar">${[['presets', 'Presets'], ['transicoes', 'Transições']]
+  .map(([k, n]) => `<a class="pilula${k === atual ? ' ativa' : ''}" href="#/${k}">${n}</a>`).join('')}</div>`
+
 /** Os JSONs de uma pasta (menos os que não são itens). */
 export async function jsons(pasta, fora = []) {
   const nomes = (await lista(pasta)).filter((n) => n.endsWith('.json') && !fora.includes(n))
@@ -726,7 +730,7 @@ async function presets(el) {
     pararCard()
     const n = { todos: ps.length, revisar: ps.filter((p) => !p.aprovado).length, aprovados: ps.filter((p) => p.aprovado).length }
     const vis = ps.filter((p) => filtro === 'todos' || (filtro === 'aprovados') === !!p.aprovado)
-    el.innerHTML = `<div class="filtros filtros-topo">${[['todos', 'Todos'], ['revisar', 'A revisar'], ['aprovados', 'Aprovados']].map(([k, nome]) => chip(filtro === k, `${nome} <span class="conta">${n[k]}</span>`, `data-filtro="${k}"`)).join('')}
+    el.innerHTML = `<div class="filtros filtros-topo">${trocaPresets('presets')}${[['todos', 'Todos'], ['revisar', 'A revisar'], ['aprovados', 'Aprovados']].map(([k, nome]) => chip(filtro === k, `${nome} <span class="conta">${n[k]}</span>`, `data-filtro="${k}"`)).join('')}
         ${ajuda('Os movimentos dos inserts, recriados das referências. Clique na miniatura para tocar a referência com som, ao lado da recriação; no nome ou na engrenagem, simule em outras telas. Só os aprovados entram nas edições.')}
         <button class="pilula pequena filtros-fim" data-recomendados title="Os favoritos de cada situação, que ficam em cima nas edições">${ICONE.estrela} Recomendados</button></div>
       ${vis.length ? `<div class="grade grade-presets">${vis.map(card).join('')}</div>` : '<p class="vazio">Nenhum preset aqui. Mande ao Claude o trecho de uma referência e ele monta o preset.</p>'}`
@@ -1092,6 +1096,7 @@ async function transicoes(el, resto) {
   }
 
   const lado = `<aside class="lado-pares">
+      ${trocaPresets('transicoes')}
       <a class="par-link${par ? '' : ' ativo'}" href="#/transicoes"><b>Todas as transições</b><span class="conta">${ts.length}</span><small>ver, ouvir e aprovar</small></a>
       <span class="eyebrow">De onde sai → para onde vai</span>
       ${GRUPOS.map(([de, nomeDe]) => `<div class="grupo-pares"><span class="grupo-nome">${nomeDe}<span class="conta">${GRUPOS.reduce((n, [para]) => n + (cortes[`${de}>${para}`]?.n || 0), 0)}</span></span>
