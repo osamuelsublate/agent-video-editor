@@ -94,14 +94,18 @@ que a fala não sustenta.
 
 ## 5. Obsidian
 
-O paralelo do Notion no vault (`~/Obsidian Notes/1 Copies/`): cada vídeo tem uma **nota de copy**, com o emoji do
-formato no início do nome (📱 Reels, 🎥 YouTube, 📺 VSL, 💰 ads; vários juntos quando o vídeo vira mais de um). Ache a
-nota pelo nome ou por uma frase da fala (`grep -rl` em `1 Copies/`). O título dela costuma ser o do rascunho, não o
-do vídeo (ex.: "3 níveis de IA" é `1 Priorizar/🧑🏼‍🔧📱💰 Quizz Descubra teu nível de IA.md`). Ao fechar o vídeo:
-- **Corpo da nota = a transcrição final**, a fala de `roteiro.md` (só as linhas entre aspas, sem marcações), uma
-  seção `# Corpo` e uma `# CTA <tipo>` por saída. Corrija o que a transcrição errou (Cloud → Claude, Zmove → Asimov).
-  Mantenha a linha `Referência:` e o frontmatter.
-- **`scheduled`** = a mesma data de publicação do card do Notion (Data de Entrega), entre aspas: `"2026-10-16"`.
+O paralelo do Notion no vault (`~/Obsidian Notes/1 Copies/`): **uma nota de copy por card**, com só o emoji do
+formato no início do nome (📱 Reels, 🎥 YouTube, 📺 VSL, 💰 ads), sem outros emojis antes. Ache a nota pelo nome ou
+por uma frase da fala (`grep -rl` em `1 Copies/`); o título costuma ser o do rascunho, não o do vídeo (ex.: "3 níveis
+de IA" é `Quizz Descubra teu nível de IA`). Ao fechar o vídeo:
+- **Várias saídas = várias notas**, todas com o mesmo nome base: **📱 `<nome>`** com o corpo e os CTAs orgânicos
+  (ManyChat, TikTok: publicados juntos) e uma **💰 `<nome> - <VSL|LP|ISCA|Pico Captura|Pico Carrinho>`** por saída
+  de anúncio, cada uma com o corpo e o CTA dela. A nota do rascunho vira a 📱 (ou sai, se o rascunho tinha vários
+  emojis); atualize os `[[links]]` que apontavam para ela.
+- **Corpo da nota = a transcrição final**, a fala de `roteiro.md` (só as linhas entre aspas, sem marcações), em
+  `# Corpo` e `# CTA <tipo>`. Corrija o que a transcrição errou (Cloud → Claude, Zmove → Asimov). Mantenha a linha
+  `Referência:` e o frontmatter (a tag `💰pico/black26` só nas notas com CTA da Black).
+- **`scheduled`** = o **Prazo** do card correspondente no Notion (a data de publicação), entre aspas: `"2026-10-16"`.
 - Sem nota: crie em `1 Copies/1 Priorizar/` com o frontmatter do template `2 Notas/Engine/templates/T-Copy.md`
   (`publicado:`, `scheduled:`, `tags:`).
 
