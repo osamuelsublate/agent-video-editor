@@ -9,7 +9,8 @@ cada um (`render.py <slug> --final`) e não mexe neles.
     uv run ferramentas/encaixar.py <corpo> <cta> --tipo <Reels|VSL|LP|ISCA|Captura|Carrinho> [--transicao brilho-branco]
 
 Sai em `projetos/<corpo>/final/saidas/<nome do corpo> - <tipo>.mp4` (a pasta que o app abre pelo botão dos exports) e
-fica registrada em `edicao.json` → `saidas` do corpo: `[{tipo, cta, arquivo, transicao, criado_em}]` (a publicação
+ao lado sai `<nome do corpo> - <tipo>.md`, a transcrição da saída (a fala do corpo e a do CTA, dos `roteiro.md`, com a
+grafia corrigida). Fica registrada em `edicao.json` → `saidas` do corpo: `[{tipo, cta, arquivo, transicao, criado_em}]` (a publicação
 acrescenta `drive` e `notion`). Assim o app mostra que o projeto tem várias saídas.
 
 Antes de montar, confere se os dois lados casam: a sonoridade (LUFS) dos últimos 4 s do corpo e dos primeiros 4 s do CTA
@@ -84,6 +85,39 @@ def conferir(corpo: Path, cta: Path, dc: float) -> tuple[list[str], float]:
     return avisos, ajuste
 
 
+# o que a transcrição costuma errar nos nomes (a legenda e o Obsidian corrigem igual)
+GRAFIA = {r'\bCloud\b': 'Claude', r'\bZmove\b': 'Asimov', r'\bOpenClau\b': 'OpenClaw'}
+
+
+def fala(slug: str) -> str:
+    """A fala do vídeo em parágrafos: as linhas entre aspas do roteiro.md, sem as marcações (lettering), com a grafia
+    corrigida; um parágrafo novo a cada ~300 caracteres, sempre num fim de frase."""
+    txt = (pasta(slug) / 'roteiro.md').read_text()
+    blocos = [re.sub(r'<lettering[^>]*>(.*?)</lettering>', r'\1', b).strip() for b in re.findall(r'“(.*?)”', txt, re.S)]
+    pars, atual = [], ''
+    for b in blocos:
+        atual = f'{atual} {b}'.strip()
+        if len(atual) >= 300 and atual[-1:] in '.?!':
+            pars.append(atual)
+            atual = ''
+    if atual:
+        pars.append(atual)
+    out = '\n\n'.join(p[:1].upper() + p[1:] for p in pars)
+    for errado, certo in GRAFIA.items():
+        out = re.sub(errado, certo, out)
+    return re.sub(r'([.?!] )([a-zà-ú])', lambda m: m.group(1) + m.group(2).upper(), out)  # maiúscula depois do ponto
+
+
+def transcricao(corpo_slug: str, cta_slug: str, tipo: str, saida: Path, dur_corpo: float, dur_total: float) -> Path:
+    """O .md ao lado da saída: a transcrição do corpo e do CTA, com os tempos da emenda."""
+    nome = (ler_json(pasta(corpo_slug) / 'edicao.json', {}) or {}).get('nome') or corpo_slug
+    mmss = lambda t: f'{int(t // 60)}:{int(t % 60):02d}'  # noqa: E731
+    md = saida.with_suffix('.md')
+    md.write_text(f'# {nome} · {tipo}\n\n`{saida.name}` · {mmss(dur_total)} · corpo `{corpo_slug}` + CTA `{cta_slug}` '
+                  f'(emenda em {mmss(dur_corpo)})\n\n## Corpo\n\n{fala(corpo_slug)}\n\n## CTA ({tipo})\n\n{fala(cta_slug)}\n')
+    return md
+
+
 def registrar(corpo_slug: str, cta_slug: str, tipo: str, saida: Path, transicao: str) -> None:
     """A saída no edicao.json do corpo (uma por tipo: encaixar de novo substitui o registro, nunca o arquivo antigo)."""
     arq = pasta(corpo_slug) / 'edicao.json'
@@ -131,6 +165,7 @@ def encaixar(corpo_slug: str, cta_slug: str, saida: Path, transicao: str, tipo: 
     subprocess.run(cmd, check=True)
     s = sonda(saida)
     registrar(corpo_slug, cta_slug, tipo, saida, transicao)
+    print(f'Transcrição: {transcricao(corpo_slug, cta_slug, tipo, saida, t, s["dur"])}')
     print(f'Pronto: {saida} ({s["w"]}×{s["h"]}, {s["dur"]:.2f} s, emenda em {t:.2f} s com {tr["nome"]})')
     for x in avisos:
         print(f'Aviso: {x}')

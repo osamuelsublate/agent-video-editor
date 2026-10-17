@@ -32,7 +32,8 @@ Exemplo (mvi-0719, 16/10): corpo + CTA ManyChat → **Reels**; + CTA VSL → **P
    corpo e volta ao dele numa rampa de 6 s) e cor (luma/saturação dos quadros da emenda), e avisa se a troca vai
    assustar. Com aviso de cor, corrija o look e encaixe de novo antes de subir.
 4. As saídas ficam no próprio projeto, em `projetos/<corpo>/final/saidas/<nome> - <tipo>.mp4` (nunca em `~/Movies`), e
-   registradas no `edicao.json` → `saidas` do corpo; no app, o card mostra "N saídas" e o botão de pasta abre os exports
+   registradas no `edicao.json` → `saidas` do corpo. Ao lado de cada vídeo sai a **transcrição** da saída
+   (`<nome> - <tipo>.md`: a fala do corpo e a do CTA, dos `roteiro.md`, com a grafia corrigida e o tempo da emenda); no app, o card mostra "N saídas" e o botão de pasta abre os exports
    no Finder. Se houver saídas por plataforma (Instagram, TikTok, Shorts), uma por arquivo.
 
 ## 3. Drive
