@@ -65,8 +65,9 @@ export async function abrirCalibragem(tela) {
 
   const desenhar = () => {
     const naVista = refs.filter((r) => !!r.oculto === verOcultos)
-    // os ativos (ensinam a direção) antes dos inativos; dentro de cada grupo, a ordem de sempre (sort estável)
-    const visiveis = naVista.filter((r) => !filtro || (r.tipo || 'reels') === filtro).sort((a, b) => (a.ensina === false) - (b.ensina === false))
+    const visiveis = naVista.filter((r) => !filtro || (r.tipo || 'reels') === filtro)
+    // dois grupos: os ativos (ensinam a direção) em cima, os inativos embaixo; dentro de cada um, a ordem de sempre
+    const grupos = [['Ativos', visiveis.filter((r) => r.ensina !== false)], ['Inativos', visiveis.filter((r) => r.ensina === false)]].filter(([, l]) => l.length)
     const nOcultos = refs.filter((r) => r.oculto).length
     const n = (s) => visiveis.filter((r) => r.status === s).length
     const numeros = [[n('revisado'), 'revisada', 'revisadas'], [n('a_revisar'), 'a revisar', 'a revisar'], [n('analisando'), 'analisando', 'analisando'], [n('na_fila'), 'na fila', 'na fila'], [n('erro'), 'com erro', 'com erro']]
@@ -77,7 +78,7 @@ export async function abrirCalibragem(tela) {
         ${ajuda('Seus Reels já editados: a IA descobre como cada um foi dirigido, você corrige e marca como revisado. Cada um vira um roteiro de exemplo que o Claude lê antes de dirigir.')}
         <label class="botao botao-coral"><input type="file" accept="video/*,.mp4,.mov,.m4v,.webm" multiple hidden>${enviando ? `Enviando ${enviando}…` : `${ICONE.subir} Adicionar vídeos`}</label></div>
       ${recusadas.length ? `<div class="caixa-erro"><b>${recusadas.length} ${recusadas.length === 1 ? 'vídeo não entrou' : 'vídeos não entraram'}:</b><ul>${recusadas.map((x) => `<li><b>${esc(x.nome)}</b> — ${esc(x.motivo)}</li>`).join('')}</ul><button class="botao pequeno" data-ok>ok</button></div>` : ''}
-      ${visiveis.length ? `<div class="grade grade-projetos">${visiveis.map(card).join('')}</div>` : verOcultos ? '<p class="vazio">Nenhum vídeo oculto.</p>' : refs.length ? '<p class="vazio">Nenhum vídeo desta categoria ainda: os que você subir agora entram nela.</p>' : '<p class="vazio">Nenhuma referência ainda. Comece com 5 a 10 Reels editados que você considera bons: arraste os vídeos para cá.</p>'}
+      ${visiveis.length ? grupos.map(([g, l]) => `<h4 class="grupo-data">${g} · ${l.length}</h4><div class="grade grade-projetos">${l.map(card).join('')}</div>`).join('') : verOcultos ? '<p class="vazio">Nenhum vídeo oculto.</p>' : refs.length ? '<p class="vazio">Nenhum vídeo desta categoria ainda: os que você subir agora entram nela.</p>' : '<p class="vazio">Nenhuma referência ainda. Comece com 5 a 10 Reels editados que você considera bons: arraste os vídeos para cá.</p>'}
       <div class="soltar-aqui">Solte os vídeos para analisar</div>`
     const campo = $('.renomear', tela)
     if (campo) {
