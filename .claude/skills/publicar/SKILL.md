@@ -116,6 +116,7 @@ era `🧑🏼‍🔧📱💰 Quizz Descubra teu nível de IA`). Ao fechar o víd
 - **Renomear pelo shell não atualiza os links** (só o Obsidian faz isso): antes de `mv`, confira que o destino não
   existe; depois, `grep -rl "<nome antigo>]]"` no vault (fora de `.obsidian/`) e troque cada `[[link]]`.
 - **`scheduled`** = o **Prazo** do card correspondente no Notion (a data de publicação), entre aspas: `"2026-10-16"`.
+- **Puxou uma nota (repost, nota de outra pasta)? Ela vai para `1 Copies/1 Priorizar/`**, com o `publicado` limpo.
 - Sem nota: crie em `1 Copies/1 Priorizar/` com o frontmatter do template `2 Notas/Engine/templates/T-Copy.md`
   (`publicado:`, `scheduled:`, `tags:`).
 
