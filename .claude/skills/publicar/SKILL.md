@@ -109,14 +109,16 @@ era `🧑🏼‍🔧📱💰 Quizz Descubra teu nível de IA`). Ao fechar o víd
   edição); funil `ad-lp`, `ad-vsl`, `reels-vsl` (Reels com CTA para a VSL) ou `isca` (ex.: `🤖fia/ad-vsl`). Pico tem
   a tag do pico (`💰pico/black26`) no lugar, inclusive o Reels com CTA da Black.
 - **👁️ na frente do nome de toda nota que você criar ou editar** (ex.: `👁️📱 3 níveis de IA`): o criador confere e
-  tira o 👁️. Renomeou? Atualize os `[[links]]`.
+  tira o 👁️. Uma nota em que você só trocou um `[[link]]` não ganha 👁️ (renomeá-la quebraria os links para ela).
+- **Renomear pelo shell não atualiza os links** (só o Obsidian faz isso): antes de `mv`, confira que o destino não
+  existe; depois, `grep -rl "<nome antigo>]]"` no vault (fora de `.obsidian/`) e troque cada `[[link]]`.
 - **`scheduled`** = o **Prazo** do card correspondente no Notion (a data de publicação), entre aspas: `"2026-10-16"`.
 - Sem nota: crie em `1 Copies/1 Priorizar/` com o frontmatter do template `2 Notas/Engine/templates/T-Copy.md`
   (`publicado:`, `scheduled:`, `tags:`).
 
 ## 6. Entrega
 
-Mande ao criador **todos os links do Notion criados/preenchidos** (para conferência), os das pastas do Drive e a nota do Obsidian. Depois,
+Mande ao criador **todos os links do Notion criados/preenchidos** (para conferência), os das pastas do Drive e a lista das notas 👁️ do Obsidian para conferir. Depois,
 os vídeos seguem a etapa de conclusão do editor (Calibragem e aprendizados).
 
 ## Aprendizados (manter atualizado)
