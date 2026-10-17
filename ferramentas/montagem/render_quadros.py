@@ -35,7 +35,8 @@ def iniciar(url: str, w: int, h: int) -> None:
 
     pw = sync_playwright().start()
     browser = pw.chromium.launch(channel='chromium', args=[
-        '--force-color-profile=srgb', '--hide-scrollbars', '--enable-gpu-rasterization', '--ignore-gpu-blocklist'])
+        '--force-color-profile=srgb', '--hide-scrollbars', '--enable-gpu-rasterization', '--ignore-gpu-blocklist',
+        f'--window-size={w},{h}'])  # a janela padrão é deitada (1280×720): a foto de um quadro em pé saía cortada
     # a janela tem o tamanho do vídeo; a página amplia o desenho da prévia (540 px de largura) com zoom
     _pagina = abrir_render(browser, url, w, h)
     _cdp = _pagina.context.new_cdp_session(_pagina)
@@ -53,12 +54,29 @@ def _ir(t: float) -> str | None:
             esperar_render(_pagina)
 
 
-def _rgba(png: bytes, w: int, h: int) -> bytes:
-    """O PNG em RGBA cru (o Chrome tira o alfa dos quadros todo opacos; o ffmpeg precisa do mesmo formato sempre)."""
+def _rgba(png: bytes, w: int, h: int) -> bytes | None:
+    """O PNG em RGBA cru (o Chrome tira o alfa dos quadros todo opacos; o ffmpeg precisa do mesmo formato sempre). None
+    se a foto não veio do tamanho do quadro: com muitos navegadores, o Chrome às vezes devolve a janela menor (~720×790), e
+    esticá-la deixava a camada 1,6× mais alta (vsl-isca-fid v2: o ator coberto, os cards esticados)."""
     from PIL import Image
     img = Image.open(BytesIO(png))
     img = img if img.mode == 'RGBA' else img.convert('RGBA')
-    return (img if img.size == (w, h) else img.resize((w, h), Image.LANCZOS)).tobytes()
+    return img.tobytes() if img.size == (w, h) else None
+
+
+def _foto(w: int, h: int) -> bytes:
+    """Uma foto do quadro no tamanho certo: se vier menor, devolve o tamanho à janela e fotografa de novo."""
+    for _ in range(4):
+        png = base64.b64decode(_cdp.send('Page.captureScreenshot', {
+            'format': 'png', 'optimizeForSpeed': True, 'captureBeyondViewport': True,
+            'clip': {'x': 0, 'y': 0, 'width': w, 'height': h, 'scale': 1}})['data'])
+        cru = _rgba(png, w, h)
+        if cru is not None:
+            return cru
+        print(f'      foto da camada em tamanho errado, de novo', flush=True)
+        _pagina.set_viewport_size({'width': w, 'height': h})
+        _pagina.wait_for_timeout(200)
+    raise RuntimeError(f'A foto da camada não saiu em {w}×{h} (o navegador encolheu a janela).')
 
 
 def pedaco(args: tuple[list[float], int, int, int, str]) -> int:
@@ -74,8 +92,7 @@ def pedaco(args: tuple[list[float], int, int, int, str]) -> int:
         if chave and chave == anterior[0]:
             cru = anterior[1]  # insert parado: o mesmo quadro de antes, sem fotografar
         else:
-            png = base64.b64decode(_cdp.send('Page.captureScreenshot', {'format': 'png', 'optimizeForSpeed': True})['data'])
-            cru = _rgba(png, w, h)
+            cru = _foto(w, h)
         ff.stdin.write(cru)
         anterior = (chave, cru)
     ff.stdin.close()
