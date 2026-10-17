@@ -254,9 +254,11 @@ def som(p: Path, edicao: dict, fonte: dict, clipes: list[dict], transcricao: lis
     fundo = audio.arquivo_trilha(a['fundo'])
     if a['fundo'] and not fundo:
         avisos.append(f"A faixa de fundo {a['fundo']} não está em biblioteca/trilhas/: o vídeo saiu sem fundo.")
+    laco = audio.laco(fundo) if fundo else None
+    # a trilha entra já no trecho cheio do laço, sem a introdução baixa (o criador sentiu falta da música no começo)
     return {'voz': voz, 'voz_lufs': voz_lufs, 'timbre': a['voz']['timbre'], 'niveis': a['niveis'], 'fundo': fundo,
-            'laco': audio.laco(fundo) if fundo else None, 'fundo_mudo': a['fundo_mudo'], 'fade_fim': a['fade_fim'],
-            'desde': duracao_antes(a['continua'], avisos) if a['continua'] else 0.0,
+            'laco': laco, 'fundo_mudo': a['fundo_mudo'], 'fade_fim': a['fade_fim'],
+            'desde': (laco[0] if laco else 0.0) + (duracao_antes(a['continua'], avisos) if a['continua'] else 0.0),
             'falas': audio.falas(palavras_na_saida(transcricao, clipes)), 'ducking_db': audio.DUCKING_DB, 'limpeza': limpeza}
 
 
