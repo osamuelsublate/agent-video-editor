@@ -1283,3 +1283,6 @@ button.tag:hover { background: rgba(185, 166, 242, 0.26); }
 /* a aba Presets: o seletor entre os presets e as transições */
 .troca-presets { margin-right: 8px; }
 .lado-pares .troca-presets { margin: 0 0 14px; align-self: flex-start; }
+/* a Calibragem: 8 cards por linha nas telas largas */
+.pagina-calibragem .grade-projetos { grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 1500px) { .pagina-calibragem .grade-projetos { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); } }

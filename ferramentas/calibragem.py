@@ -1208,7 +1208,13 @@ def analisar_trecho(video: Path, palavras: list[dict], n: int, a: float, b: floa
             f'Responda os tempos em segundos do vídeo inteiro (some {a:.2f}).')},
             gemini.bloco(_clipe(video, a, b, tmp / 'trecho.mp4'), tmp, preparado=True)]
         # saída limitada (o OpenRouter reserva crédito pelo máximo) e timeout curto: uma chamada travada não prende a fila
-        r, uso = _perguntar(_sistema(PROMPT), conteudo, ESQUEMA_TRECHO, 4096, 90)
+        try:
+            r, uso = _perguntar(_sistema(PROMPT), conteudo, ESQUEMA_TRECHO, 4096, 90)
+        except RuntimeError as e:
+            # trecho cheio de planos: a resposta passou do limite e veio cortada no meio do JSON; de novo, com o dobro
+            if 'formato' not in str(e):
+                raise
+            r, uso = _perguntar(_sistema(PROMPT), conteudo, ESQUEMA_TRECHO, 8192, 120)
     analise = _no_video_inteiro(_conferir(r), a, b)
     return {'inicio': a, 'fim': b, **analise, 'tokens': uso.get('total_tokens'), 'custo': uso.get('cost')}
 
