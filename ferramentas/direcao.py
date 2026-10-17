@@ -19,7 +19,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 from base import gravar, ler  # noqa: E402
-from cortes import dur_saida, mantidas_por_indice, num, palavras, seg, v1_tocada  # noqa: E402
+from cortes import dur_saida, mantidas_por_indice, num, ordem, palavras, seg, v1_tocada  # noqa: E402
 
 FIM_DE_FRASE = ('.', '?', '!', '…')
 # do 18: direcao.PLANOS / PLANOS_COM_TEXTO / ELEMENTOS
@@ -49,7 +49,7 @@ NOMES = {chave_nome(v): k for k, v in PLANOS.items()} | {'tela dividida': 'tela_
 def palavras_na_saida(palavras: list[dict], clipes: list[dict]) -> list[dict]:
     """As palavras que tocam no vídeo final, com início e fim no tempo da saída (do 18, igual)."""
     acc, posicoes = 0.0, []
-    for c in sorted(clipes, key=lambda c: c['inicio']):
+    for c in sorted(clipes, key=ordem):
         posicoes.append((c, acc))
         acc += dur_saida(c)
     out = []
@@ -60,7 +60,7 @@ def palavras_na_saida(palavras: list[dict], clipes: list[dict]) -> list[dict]:
                 out.append({**w, 'clipe': (c.get('id'), c['inicio']), 'clipe_saida': round(base, 3), 'saida_ini': round(base + (max(w['inicio'], c['inicio']) - c['inicio']) / v, 3),
                             'saida_fim': round(base + (min(w['fim'], c['fim']) - c['inicio']) / v, 3)})
                 break
-    return out
+    return sorted(out, key=lambda w: w['saida_ini'])
 
 
 def saida_do(slug: str, edicao: dict) -> list[dict]:

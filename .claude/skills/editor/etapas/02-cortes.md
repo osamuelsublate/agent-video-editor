@@ -52,6 +52,8 @@ diferentes se o texto resultante fizer sentido. "Última" não vale se a tentati
 - Repetição usada como ênfase.
 
 **Não fazer sem pedido:** encurtar argumentos corretos para caber numa duração, reordenar ou criar nova abertura.
+Reordenar a pedido do criador (ele às vezes pede na própria gravação): `"mover": [{"trecho": [ini, fim], "antes_de": id}]`
+no `selecao.json`; o trecho são clipes inteiros e `antes_de` é a 1ª palavra de um clipe.
 
 **Na dúvida com impacto no sentido:** manter e sinalizar.
 

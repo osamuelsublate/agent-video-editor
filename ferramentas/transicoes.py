@@ -59,7 +59,9 @@ def padrao_do_par(o: dict, ts: dict, de: str, para: str) -> str:
 def planos_em_ordem(slug: str, edicao: dict) -> list[dict]:
     """Os planos da direção que aparecem no vídeo (algumas palavras deles ficaram), na ordem da fala."""
     ordem = {w['id']: k for k, w in enumerate(ler_json(pasta(slug) / 'transcricao.json')['palavras'])}
-    ficaram = sorted(ordem[w['id']] for w in saida_do(slug, edicao))
+    saida = saida_do(slug, edicao)
+    toca = {w['id']: w['saida_ini'] for w in saida}  # um trecho movido toca fora da ordem da fala
+    ficaram = sorted(ordem[w['id']] for w in saida)
     out = []
     for p in (edicao.get('direcao') or {}).get('itens') or []:
         if p['camada'] != 'plano':
@@ -68,7 +70,8 @@ def planos_em_ordem(slug: str, edicao: dict) -> list[dict]:
         i = bisect.bisect_left(ficaram, ordem.get(p['palavra_ini'], -1))
         if i < len(ficaram) and ficaram[i] <= ordem.get(p['palavra_fim'], -1):
             out.append((ficaram[i], p))
-    return [p for _, p in sorted(out, key=lambda x: x[0])]
+    ids = {k: w for w, k in ordem.items()}
+    return [p for _, p in sorted(out, key=lambda x: toca[ids[x[0]]])]
 
 
 def nome(ts: dict, tid: str) -> str:

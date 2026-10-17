@@ -6,7 +6,7 @@ export type Curva = [number, number, number, number]
 export type Palavra = { id: string; texto: string; inicio: number; fim: number; mantida?: boolean }
 /** Itens das trilhas ficam presos a palavras (SPEC §9); o tempo na saída é sempre calculado. */
 export type Ancora = { palavra_ini: string; palavra_fim: string }
-export type Clipe = Ancora & { id: string; fonte: string; inicio: number; fim: number; auto?: { inicio: number; fim: number } }
+export type Clipe = Ancora & { id: string; fonte: string; inicio: number; fim: number; ordem?: number; auto?: { inicio: number; fim: number } }
 export type Timeline = { V1: Clipe[] }
 
 export type ItemDirecaoProjeto = {

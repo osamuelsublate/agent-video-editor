@@ -422,7 +422,7 @@
   // src/sequencia.ts
   function montarSequencia(timeline, palavras, vel = 1) {
     let acc = 0;
-    const clipes = [...timeline.V1].sort((a, b) => a.inicio - b.inicio).map((c) => {
+    const clipes = [...timeline.V1].sort((a, b) => (a.ordem ?? a.inicio) - (b.ordem ?? b.inicio)).map((c) => {
       const saida_ini = acc;
       acc += (c.fim - c.inicio) / vel;
       return { ...c, saida_ini, saida_fim: acc };

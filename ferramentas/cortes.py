@@ -6,7 +6,8 @@
 e as pausas longas cortadas (do 18: backend/app/cortes.py, sem a LLM).
 
     uv run ferramentas/cortes.py texto <slug>                    a transcrição, uma palavra por linha (ID<TAB>texto) + pausas
-    uv run ferramentas/cortes.py aplicar <slug> <selecao.json>   {"manter": [["w00004","w00011"], …], "duvidas": [{ini, fim, motivo}]}
+    uv run ferramentas/cortes.py aplicar <slug> <selecao.json>   {"manter": [["w00004","w00011"], …], "duvidas": [{ini, fim, motivo}],
+                                                                  "mover": [{"trecho": [ini, fim], "antes_de": id}]}
 """
 import json
 import sys
@@ -45,10 +46,15 @@ def velocidade(edicao: dict) -> float:
     return round(min(max(v, VELOCIDADE[0]), VELOCIDADE[1]), 3)
 
 
+def ordem(c: dict) -> float:
+    """Onde o clipe toca: no seu tempo do bruto, ou em `ordem` (um trecho movido, só a pedido do criador)."""
+    return c.get('ordem', c['inicio'])
+
+
 def v1_tocada(edicao: dict) -> list[dict]:
     """Os clipes da V1 em ordem, cada um com a aceleração (`vel`) (do 18: projeto.v1_tocada)."""
     v = velocidade(edicao)
-    return [{**c, 'vel': v} for c in sorted((edicao.get('timeline') or {}).get('V1') or [], key=lambda c: c['inicio'])]
+    return [{**c, 'vel': v} for c in sorted((edicao.get('timeline') or {}).get('V1') or [], key=ordem)]
 
 
 def dur_saida(c: dict) -> float:
@@ -192,7 +198,11 @@ def resumo(edicao: dict, palavras: list[dict], fica: list[bool]) -> str:
     for c in clipes:
         a, b = pos[c['palavra_ini']], pos[c['palavra_fim']]
         fora = [p['texto'] for p, ok in zip(palavras[ultimo + 1:a], fica[ultimo + 1:a]) if not ok]
-        if c is not clipes[0] or c['inicio'] > 0.05:
+        if 'ordem' in c:
+            out.append('      ↷ movido para cá (gravado depois)')
+        elif c is not clipes[0] and 'ordem' in clipes[clipes.index(c) - 1]:
+            out.append('      ↩ volta à ordem da fala')
+        elif c is not clipes[0] or c['inicio'] > 0.05:
             ant_fim = clipes[clipes.index(c) - 1]['fim'] if c is not clipes[0] else 0.0
             out.append(f'      ✂ −{num(c["inicio"] - ant_fim)} s' + (f'  ~{" ".join(fora)}~' if fora else ' (pausa)'))
         texto = []
@@ -200,11 +210,28 @@ def resumo(edicao: dict, palavras: list[dict], fica: list[bool]) -> str:
             texto.append(p['texto'] if ok else f'~{p["texto"]}~')
         out.append(f'{c["id"]:>4}  {seg(t)}  {" ".join(texto)}')
         t += dur_saida(c)
-        ultimo = b
+        ultimo = max(ultimo, b)
     resto = [p['texto'] for p, ok in zip(palavras[ultimo + 1:], fica[ultimo + 1:]) if not ok]
     if clipes and (resto or duracao - clipes[-1]['fim'] > 0.05):
         out.append(f'      ✂ −{num(duracao - clipes[-1]["fim"])} s' + (f'  ~{" ".join(resto)}~' if resto else ' (pausa)'))
     return '\n'.join(out)
+
+
+def mover_clipes(clipes: list[dict], mover: list, palavras: list[dict]) -> None:
+    """Os trechos que o criador pediu para tocar noutro lugar: os clipes de dentro de `trecho` ganham `ordem` logo antes
+    do clipe que começa em `antes_de`."""
+    pos = {p['id']: i for i, p in enumerate(palavras)}
+    for m in mover:
+        (ini, fim), alvo = m['trecho'], m['antes_de']
+        if ini not in pos or fim not in pos or alvo not in pos:
+            raise SystemExit(f'mover: ID que não existe na transcrição: {m}')
+        dentro = [c for c in clipes if pos[ini] <= pos[c['palavra_ini']] and pos[c['palavra_fim']] <= pos[fim]]
+        partidos = [c for c in clipes if c not in dentro and pos[c['palavra_ini']] <= pos[fim] and pos[c['palavra_fim']] >= pos[ini]]
+        destino = next((c for c in clipes if c['palavra_ini'] == alvo), None)
+        if not dentro or partidos or not destino:
+            raise SystemExit(f'mover: o trecho precisa ser clipes inteiros e `antes_de` o começo de um clipe: {m}')
+        for k, c in enumerate(dentro):
+            c['ordem'] = round(ordem(destino) - 0.001 * (len(dentro) - k), 4)
 
 
 def aplicar(slug: str, arquivo: str) -> None:
@@ -227,7 +254,9 @@ def aplicar(slug: str, arquivo: str) -> None:
     parametros = {k: float(guardados.get(k, v)) for k, v in PARAMETROS.items()}
     fica = mantidas_por_indice(ws, mantidas)
     clipes = montar_clipes(ws, fica, silencios(slug), edicao['fontes'][0]['duracao'], **parametros)
-    edicao['cortes'] = {'mantidas': mantidas, 'duvidas': duvidas, 'parametros': parametros}
+    mover = sel.get('mover') or []
+    mover_clipes(clipes, mover, ws)
+    edicao['cortes'] = {'mantidas': mantidas, 'duvidas': duvidas, 'parametros': parametros} | ({'mover': mover} if mover else {})
     edicao.setdefault('timeline', {})['V1'] = clipes
     gravar(slug, edicao)
     print(resumo(edicao, ws, fica))

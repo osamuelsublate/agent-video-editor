@@ -40,7 +40,7 @@ projetos/<slug>/
   "velocidade": 1.0,                              // 1 a 1,5
   "nivel_voz": {"fonte": "f1", "db": -23.3},      // a fala do bruto (sons.nivel_da_voz)
   "timeline": {"V1": [{"id": "c1", "fonte": "f1", "inicio": 7.235, "fim": 9.045,
-                       "palavra_ini": "w00004", "palavra_fim": "w00011"}]},   // s do bruto
+                       "palavra_ini": "w00004", "palavra_fim": "w00011"}]},   // s do bruto; `ordem` (s do bruto em que toca) só num trecho movido
   "cortes": {"mantidas": [["w00004", "w00011"]], "duvidas": [{"ini": "w00090", "fim": "w00095", "motivo": "…"}],
              "parametros": {"pausa_max": 2.0, "folga_inicio": 0.1, "folga_fim": 0.1}},
   "direcao": {
