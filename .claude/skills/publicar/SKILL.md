@@ -1,6 +1,6 @@
 ---
 name: publicar
-description: Exporta e publica os vídeos aprovados no editor (Reels e anúncios de perpétuo e pico da Asimov) — encaixa o corpo de um Reels nos CTAs, exporta em 4K/24 fps, cria as pastas no Google Drive, sobe os arquivos e cria/preenche os cards no Notion ("Edição e Publicação - 2026"). Use quando o criador aprovar um Reels e pedir para exportar, subir, organizar ou publicar (VSL, aulas e YouTube ficam de fora).
+description: Exporta e publica os vídeos aprovados no editor (Reels e anúncios de perpétuo e pico da Asimov) — encaixa o corpo de um Reels nos CTAs, exporta em 4K/24 fps, cria as pastas no Google Drive, sobe os arquivos, cria/preenche os cards no Notion ("Edição e Publicação - 2026") e atualiza a nota da copy no Obsidian. Use quando o criador aprovar um Reels e pedir para exportar, subir, organizar ou publicar (VSL, aulas e YouTube ficam de fora).
 ---
 
 # Publicar: do aprovado ao Drive e ao Notion
@@ -91,9 +91,22 @@ com Texto principal 1–3: substitua esse bloco inteiro pelo novo (`notion-updat
 partir do roteiro do corpo e do CTA; preços só conferidos em https://asimov.academy/#assine (mudam); sem superlativos
 que a fala não sustenta.
 
-## 5. Entrega
+## 5. Obsidian
 
-Mande ao criador **todos os links do Notion criados/preenchidos** (para conferência) e os das pastas do Drive. Depois,
+O paralelo do Notion no vault (`~/Obsidian Notes/1 Copies/`): cada vídeo tem uma **nota de copy**, com o emoji do
+formato no início do nome (📱 Reels, 🎥 YouTube, 📺 VSL, 💰 ads; vários juntos quando o vídeo vira mais de um). Ache a
+nota pelo nome ou por uma frase da fala (`grep -rl` em `1 Copies/`). O título dela costuma ser o do rascunho, não o
+do vídeo (ex.: "3 níveis de IA" é `1 Priorizar/🧑🏼‍🔧📱💰 Quizz Descubra teu nível de IA.md`). Ao fechar o vídeo:
+- **Corpo da nota = a transcrição final**, a fala de `roteiro.md` (só as linhas entre aspas, sem marcações), uma
+  seção `# Corpo` e uma `# CTA <tipo>` por saída. Corrija o que a transcrição errou (Cloud → Claude, Zmove → Asimov).
+  Mantenha a linha `Referência:` e o frontmatter.
+- **`scheduled`** = a mesma data de publicação do card do Notion (Data de Entrega), entre aspas: `"2026-10-16"`.
+- Sem nota: crie em `1 Copies/1 Priorizar/` com o frontmatter do template `2 Notas/Engine/templates/T-Copy.md`
+  (`publicado:`, `scheduled:`, `tags:`).
+
+## 6. Entrega
+
+Mande ao criador **todos os links do Notion criados/preenchidos** (para conferência), os das pastas do Drive e a nota do Obsidian. Depois,
 os vídeos seguem a etapa de conclusão do editor (Calibragem e aprendizados).
 
 ## Aprendizados (manter atualizado)
