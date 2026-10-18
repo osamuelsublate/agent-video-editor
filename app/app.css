@@ -590,6 +590,36 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 .resposta-aplicado .status { color: var(--color-sage); }
 .resposta-nao-aplicado { background: rgba(245, 119, 87, 0.1); }
 .resposta-nao-aplicado .status { color: var(--color-coral); }
+/* a versão anterior: a aba do painel (os comentários dela, a resposta do Claude e as suas réplicas) e a linha "Anterior" */
+.abas-painel { display: flex; gap: 6px; padding: 12px 16px 0; }
+.abas-painel .pilula { flex: 1; justify-content: center; min-width: 0; padding: 0 10px; }
+.lista-anterior, .painel.vendo-anterior #lista, .painel.vendo-anterior #caixa-nova, .painel.vendo-anterior #estado { display: none; }
+.painel.vendo-anterior .lista-anterior { display: flex; }
+.item-anterior .num { background: var(--color-fog-60); color: var(--color-ink); }
+.item-anterior .anexo-tirar { display: none; }
+.item-anterior .item-acoes { opacity: 1; }
+.botao-concluir { color: var(--color-fog); border: 1px solid var(--color-line-dark); }
+.botao-concluir:hover { color: var(--color-cream); border-color: var(--color-sage); }
+.botao-concluir.feito { background: var(--color-sage); border-color: var(--color-sage); color: var(--color-ink); }
+.item-concluido { opacity: 0.55; }
+.item-concluido:hover { opacity: 1; }
+.chip-cortada { font-size: 10.5px; color: var(--color-yellow); }
+.sobre-original { margin-top: 6px; font-size: 11.5px; color: var(--color-fog); font-style: italic; }
+.replica { margin: 10px 0 0 14px; padding-left: 10px; border-left: 2px solid var(--color-line-strong); }
+.replica-cabeca { display: flex; align-items: center; justify-content: space-between; }
+.replica .quem { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-coral); }
+.replica .botao-icone { opacity: 0; }
+.replica:hover .botao-icone { opacity: 1; }
+.replica .texto { margin-top: 2px; }
+.botao-responder { margin-top: 10px; }
+.editor-replica { margin-top: 10px; }
+.marca-anterior { background: transparent; color: var(--color-cream); box-shadow: inset 0 0 0 1.5px var(--color-fog-60), 0 0 0 1px var(--color-deep); }
+.marca-anterior.marca-aplicado { background: transparent; color: var(--color-sage); box-shadow: inset 0 0 0 1.5px var(--color-sage); }
+.marca-anterior.marca-nao-aplicado { color: var(--color-coral); box-shadow: inset 0 0 0 1.5px var(--color-coral); }
+.marca-anterior.marca-respondido { color: var(--color-blue-light); box-shadow: inset 0 0 0 1.5px var(--color-blue-light); }
+.marca-anterior.marca-com-replica::after { content: ''; position: absolute; top: -2px; right: -2px; width: 7px; height: 7px; border-radius: 50%; background: var(--color-coral); }
+.marca-anterior.marca-concluido { opacity: 0.4; }
+.marca-anterior.marca-sel { box-shadow: 0 0 0 2px var(--color-yellow); }
 .editor { padding: 12px 14px; border: 1px solid var(--color-coral); border-radius: var(--radius-2xl); background: var(--color-deep); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25); }
 .item .editor { margin-top: 10px; }
 .editor textarea, .caixa-nova textarea {

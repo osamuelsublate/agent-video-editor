@@ -5,25 +5,37 @@ criador corrigiu num vídeo não pode se repetir no próximo.
 
 ## 1. Aprendizados (com o criador)
 
-1. **Junte o que aconteceu no vídeo:** `uv run ferramentas/revisao.py ler <slug> vN`, para cada versão revisada (as
-   revisões ficam em `projetos/<slug>/revisoes/v*.json`, com as suas respostas e os anexos); o que ele respondeu no chat às suas
-   dúvidas; e o que você mesmo teve de corrigir na autorrevisão.
-2. **Extraia os aprendizados.** Para cada comentário, pergunte: isso vale para os próximos vídeos ou só para este?
+1. **Junte o que aconteceu no vídeo:** `uv run ferramentas/revisao.py historico <slug>` (todas as revisões como
+   conversas: cada comentário, a sua resposta, as réplicas dele nas versões seguintes e o que ele marcou como
+   concluído; os anexos de cada um com `revisao.py ler <slug> vN`); o que ele respondeu no chat às suas dúvidas; e o que
+   você mesmo teve de corrigir na autorrevisão.
+2. **Analise por que errou.** Cada comentário é um erro seu que o criador teve de apontar; os que voltaram em réplica
+   (a primeira solução não resolveu) ou ficaram `nao_aplicado` pesam mais. Para cada um, a causa:
+   - **pedido mal entendido** (você fez outra coisa): o que na fala dele devia ter guiado, e como perguntar ou ler melhor;
+   - **faltava regra** (a skill não dizia): a regra nova, na área certa;
+   - **a regra existia e não foi seguida** (está no `aprendizados/` ou na etapa e você não leu ou não aplicou): reescreva
+     mais curta e mais visível, ou leve-a para o passo da etapa em que o erro acontece;
+   - **defeito de ferramenta**: corrija o script;
+   - **gosto novo** do criador: um aprendizado `[gosto]`.
+   Junte os erros de mesma causa: três correções de legenda pelo mesmo motivo são um aprendizado, não três.
+3. **Extraia os aprendizados.** Para cada comentário, pergunte: isso vale para os próximos vídeos ou só para este?
    - Correção pontual ("aqui prefiro o outro site") **não** é aprendizado.
    - Um gosto que pode se repetir ("lettering demais", "esse tipo de motion fica poluído", "música alta") é.
    - Um **defeito** técnico (palavra cortada no meio, captura com tela branca, som estourado) é aprendizado **e** pede
      correção na ferramenta, se der: corrija o script e anote "corrigido em <script>".
    - Antes, leia o `biblioteca/aprendizados/<área>.md`: se o aprendizado já existe, reforce (some a origem nova) em vez de repetir.
-3. **Mostre ao criador antes de gravar**, numa lista curta por área:
+4. **Mostre ao criador antes de gravar**, numa lista curta por área, com o porquê de cada erro:
    ```text
    Aprendizados do PRJ-03 (v3 aprovada):
-   inserts · [gosto] prefira gravação de tela rolando a print parado quando a fala cita um site  (c2, c5)
-   elementos · [gosto] no máximo 1 lettering a cada ~10 s; nunca dois seguidos  (c4)
+   inserts · [gosto] prefira gravação de tela rolando a print parado quando a fala cita um site  (v1·c2, v2·c5)
+     por que errei: a regra não existia; escolhi o print por ser mais rápido de achar
+   elementos · [gosto] no máximo 1 lettering a cada ~10 s; nunca dois seguidos  (v1·c4 → réplica na v2)
+     por que errei: a regra estava em elementos.md e não li antes da direção → movida para o passo 3 de 03-direcao.md
    cortes · [defeito] o "m" de "mas" vazou na emenda do ✂3 → borda ajustada; regra: …  (autorrevisão)
    Confirma? Pode cortar, mudar o texto ou acrescentar.
    ```
    Grave só o que ele confirmar, com o texto que ele aprovar.
-4. **Grave** cada aprendizado no arquivo da área (abaixo), no formato:
+5. **Grave** cada aprendizado no arquivo da área (abaixo), no formato:
    ```markdown
    - **[gosto]** Prefira gravação de tela rolando a print parado quando a fala cita um site.
      _PRJ-03·v2 c2, PRJ-05·v1 c1 · 2026-10-14_ · ![exemplo](imagens/prj03-c2.png)
