@@ -1,6 +1,6 @@
 // A revisão de uma versão: o player do proxy, a linha do tempo (planos, fala e comentários) e os
 // comentários do criador, gravados sozinhos em projetos/<slug>/revisoes/vN.json (o Claude responde no mesmo arquivo).
-import { $, $$, ICONE, ICONE_ATALHO, abrirAba, barraDaLinha, agora, aviso, chipCodigo, codigos, confirmar, copiar, dataHora, enviar, esc, fecharAba, janela, json, mmss, modalAberto, nomePlano, num, PLANOS, preferencia, tempo } from './comum.js'
+import { $, $$, ESTRELA_CHEIA, ICONE, ICONE_ATALHO, abrirAba, barraDaLinha, agora, aviso, chipCodigo, codigos, confirmar, copiar, dataHora, enviar, esc, fecharAba, janela, json, mmss, modalAberto, nomePlano, num, PLANOS, preferencia, tempo } from './comum.js'
 import { carregarCategorias, categoriaCta } from './categorias.js'
 
 const QUADRO = 1 / 24
@@ -113,6 +113,7 @@ class Revisao {
     this.dur = this.info.duracao || this.palavras.at(-1)?.fim || 60
     this.prepararBlocos()
     this.montar()
+    if (this.blocos) this.carregarVersoesBlocos().then(() => !this.fechado && this.renderBlocos())
     if (this.blocosNovos && this.v === this.proj.ultima) this.agendarSalvar() // os blocos nascem (ou vêm da versão anterior) no arquivo desta
     this.ligar()
     this.mostrarSalvo(rev ? 'salvo' : '')
@@ -164,6 +165,12 @@ class Revisao {
     this.blocos = l.filter((b) => b.fim - b.ini > 0.05)
   }
 
+  /** O começo de um bloco, um quadro para dentro: o vídeo para alguns ms antes do pedido, e o painel (que acompanha o
+   *  cursor) trocaria para o bloco de trás. */
+  irAoBloco(b) {
+    this.buscar(Math.min(b.ini + 0.05, b.fim - 0.01))
+  }
+
   blocoEm(t) {
     return this.blocos?.find((b) => t >= b.ini && t < b.fim) || (t != null ? this.blocos?.at(-1) : null)
   }
@@ -181,6 +188,14 @@ class Revisao {
     const foco = this.blocos.find((b) => b.id === this.blocoSel)
     $('#divisas').innerHTML = this.blocos.slice(1).map((b) => `<i class="divisa" style="left:${(b.ini * px).toFixed(1)}px"></i>`).join('')
       + (foco ? `<i class="bloco-faixa-sel" style="left:${(foco.ini * px).toFixed(1)}px;width:${((foco.fim - foco.ini) * px).toFixed(1)}px"></i>` : '')
+    // o que há de novo em cada bloco: um ícone pulsando sobre ele
+    $('#novidades').innerHTML = this.blocos.map((b) => {
+      const n = this.novidade(b)
+      if (!n) return ''
+      const dica = n.tipo === 'nova' ? `O ${b.id} mudou na v${n.v}: abrir lá` : `O ${b.id} mudou nesta versão: ainda não foi visto`
+      return `<button class="bloco-novidade${n.tipo === 'nova' ? ' novidade-nova' : ''}" data-novidade="${b.id}" ${n.v ? `data-v="${n.v}"` : ''} title="${dica}" aria-label="${dica}"
+        style="left:${(b.fim * px - 14).toFixed(1)}px">${ESTRELA_CHEIA}</button>`
+    }).join('')
     el.innerHTML = this.blocos.map((b) => {
       const n = this.doBloco(b).length
       const cls = b.def.aprovado ? 'bloco-aprovado' : n ? 'bloco-com' : ''
@@ -200,10 +215,31 @@ class Revisao {
         <button class="botao pequeno${ok ? ' feito' : ''}" data-aprovar-bloco="${b.id}" title="${ok ? 'Reabrir o bloco' : 'Marcar o bloco como finalizado: ele fica travado para o Claude'}">${ICONE.check} ${ok ? 'Finalizado' : 'Finalizar'}</button></span></div>`
   }
 
+  /** O que há de novo num bloco: `nova` (uma versão mais nova do vídeo mudou o bloco: abrir lá) ou `mudou` (mudou
+   *  nesta versão e ainda não foi aberto aqui). */
+  novidade(b) {
+    const vb = this.versoesBloco?.[b.id]
+    if (!vb?.length) return null
+    const ultimaB = vb.at(-1)
+    if (ultimaB.vs[0] > this.v) return { tipo: 'nova', v: ultimaB.vs[0] }
+    const aqui = vb.find((x) => x.vs.includes(this.v))
+    this.vistos ||= preferencia(`vistos.${this.slug}.v${this.v}`, {})
+    if (aqui && aqui.bv > 1 && aqui.vs[0] === this.v && !this.vistos[b.id]) return { tipo: 'mudou' }
+    return null
+  }
+
+  marcarVisto(id) {
+    this.vistos ||= preferencia(`vistos.${this.slug}.v${this.v}`, {})
+    if (this.vistos[id]) return
+    this.vistos[id] = true
+    preferencia(`vistos.${this.slug}.v${this.v}`, {}, this.vistos)
+  }
+
   /** Escolher um bloco (na faixa ou no cabeçalho): o painel mostra só ele e o seletor de cima, a versão dele; `null`
    *  volta a todos. */
   escolherBloco(id) {
     this.blocoSel = id
+    if (id) this.marcarVisto(id)
     this.menuVersoes = null
     this.renderLista()
     this.renderMarcas()
@@ -219,7 +255,10 @@ class Revisao {
     if (this.versoesBloco) return
     const s = encodeURIComponent(this.slug)
     const vs = this.proj.versoes.filter((x) => x <= this.proj.ultima)
-    const dados = await Promise.all(vs.map((x) => Promise.all(['palavras', 'planos', 'edicao'].map((f) => json(`/projetos/${s}/versoes/v${x}/${f}.json`, null)))))
+    this.dadosVersao ||= {} // o que já foi lido de cada versão (uma versão nova lê só a dela)
+    await Promise.all(vs.filter((x) => !this.dadosVersao[x]).map(async (x) =>
+      (this.dadosVersao[x] = await Promise.all(['palavras', 'planos', 'edicao'].map((f) => json(`/projetos/${s}/versoes/v${x}/${f}.json`, null))))))
+    const dados = vs.map((x) => this.dadosVersao[x])
     const assinatura = (def, prox, [pal, pla, ed]) => {
       const ws = listaDe(pal, 'palavras').slice().sort((a, b) => a.ini - b.ini)
       const ini = (ws.find((w) => w.id === def.palavra) || ws.find((w) => w.id > def.palavra))?.ini ?? 0
@@ -260,7 +299,7 @@ class Revisao {
     const b = this.blocos.find((x) => x.id === id)
     this.loop = this.loop?.id === id ? null : b
     if (this.loop) {
-      this.buscar(b.ini)
+      this.irAoBloco(b)
       this.video.play().catch(() => {})
     }
     this.renderLista()
@@ -442,6 +481,7 @@ class Revisao {
           <div class="faixa faixa-palavras" id="f-palavras"></div>
           <div class="faixa faixa-comentarios" id="f-comentarios"></div>
           <div id="divisas"></div>
+          <div id="novidades"></div>
           <div id="io"></div>
           <div class="cabeca" id="cabeca"></div>
         </div></div>
@@ -1214,7 +1254,15 @@ class Revisao {
       this.proj = p
       this.renderVersoes()
       this.renderEstado()
-      if (nova) aviso(`A v${nova} chegou`)
+      if (nova && this.blocos) {
+        this.versoesBloco = null
+        await this.carregarVersoesBlocos()
+        if (this.fechado) return
+        this.renderBlocos()
+        this.renderVersoes()
+        const k = this.blocos.filter((b) => this.novidade(b)?.tipo === 'nova').length
+        aviso(`A v${nova} chegou${k ? ` · ${k} ${k === 1 ? 'bloco mudou' : 'blocos mudaram'}: veja o ✦ na linha do tempo` : ''}`)
+      } else if (nova) aviso(`A v${nova} chegou`)
     }
   }
 
@@ -1380,7 +1428,7 @@ class Revisao {
     const conteudo = $('#conteudo')
     // clicar busca; arrastar na régua percorre o vídeo; arrastar nas faixas marca um trecho (como I e O)
     conteudo.addEventListener('pointerdown', (e) => {
-      if (e.target.closest('.marca, .bloco-faixa') || e.button !== 0) return
+      if (e.target.closest('.marca, .bloco-faixa, .bloco-novidade') || e.button !== 0) return
       e.preventDefault()
       const tDe = (ev) => Math.min(Math.max((ev.clientX - conteudo.getBoundingClientRect().left) / this.pxs, 0), this.dur)
       const naRegua = !!e.target.closest('#regua')
@@ -1457,8 +1505,18 @@ class Revisao {
     if (d.aprovarBloco) return this.aprovarBloco(d.aprovarBloco)
     if (d.loopBloco) return this.alternarLoop(d.loopBloco)
     if (d.sairBloco != null) return this.escolherBloco(null)
+    if (d.novidade) {
+      const b = this.blocos.find((x) => x.id === d.novidade)
+      if (!d.v) {
+        this.irAoBloco(b)
+        return this.escolherBloco(b.id)
+      }
+      preferencia(`painel.${this.slug}.v${d.v}`, null, { bloco: b.id, irAoBloco: true }) // lá, o bloco escolhido, desde o começo
+      location.hash = `#/p/${encodeURIComponent(this.slug)}/v${d.v}`
+      return
+    }
     if (d.bloco) {
-      this.buscar(+d.ir)
+      this.irAoBloco(this.blocos.find((x) => x.id === d.bloco))
       return this.escolherBloco(d.bloco)
     }
     if (d.marca) return this.selecionar(d.marca, +d.ir)
@@ -1564,7 +1622,7 @@ class Revisao {
     if (bloco) {
       this.blocoSel = bloco.id
       this.carregarVersoesBlocos().then(() => !this.fechado && this.renderVersoes())
-      if (p.irAoBloco) this.video.addEventListener('loadedmetadata', () => this.buscar(bloco.ini), { once: true })
+      if (p.irAoBloco) this.video.addEventListener('loadedmetadata', () => this.irAoBloco(bloco), { once: true })
     }
     this.renderLista()
     this.renderMarcas()
