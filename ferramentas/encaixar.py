@@ -86,14 +86,19 @@ def conferir(corpo: Path, cta: Path, dc: float) -> tuple[list[str], float]:
 
 
 # o que a transcrição costuma errar nos nomes (a legenda e o Obsidian corrigem igual)
-GRAFIA = {r'\bCloud\b': 'Claude', r'\bZmove\b': 'Asimov', r'\bOpenClau\b': 'OpenClaw'}
+GRAFIA = {r'\bCloudCode\b': 'Claude Code', r'\bCloud\b': 'Claude', r'\bZmove\b': 'Asimov', r'\bOpenClau\b': 'OpenClaw',
+          r'\bTadeval\b': 'Tadewald', r'\bAI slope\b': 'AI slop', r'/imagetohtml\b': '/img-to-html'}
 
 
 def fala(slug: str) -> str:
-    """A fala do vídeo em parágrafos: as linhas entre aspas do roteiro.md, sem as marcações (lettering), com a grafia
-    corrigida; um parágrafo novo a cada ~300 caracteres, sempre num fim de frase."""
+    """A fala do vídeo em parágrafos: as linhas entre aspas do roteiro.md, sem as marcações (lettering)."""
     txt = (pasta(slug) / 'roteiro.md').read_text()
-    blocos = [re.sub(r'<lettering[^>]*>(.*?)</lettering>', r'\1', b).strip() for b in re.findall(r'“(.*?)”', txt, re.S)]
+    return paragrafos([re.sub(r'<lettering[^>]*>(.*?)</lettering>', r'\1', b).strip() for b in re.findall(r'“(.*?)”', txt, re.S)])
+
+
+def paragrafos(blocos: list[str]) -> str:
+    """Pedaços de fala em parágrafos, com a grafia corrigida: um parágrafo novo a cada ~300 caracteres, sempre num fim
+    de frase. O mesmo texto nas saídas daqui e no export final (`render.py --final`)."""
     pars, atual = [], ''
     for b in blocos:
         atual = f'{atual} {b}'.strip()

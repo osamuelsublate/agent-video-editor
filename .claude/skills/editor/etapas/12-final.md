@@ -11,7 +11,10 @@ uv run ferramentas/render.py <slug> --final
 
 - Usa o `edicao.json` atual. Se ele mudou depois da vN aprovada (confira com `versoes/vN/edicao.json`), avise e pergunte
   antes: o aprovado é a vN.
-- Sai em `projetos/<slug>/final/<nome> · <data>.mp4`: 2160×3840 (4K), HEVC, 24 fps, AAC 320 kbps, −14 LUFS.
+- Sai em `projetos/<slug>/final/<nome> · <data>.mp4`: 2160×3840 (4K), HEVC, 24 fps, AAC 320 kbps, −14 LUFS. **Sempre
+  junto, na mesma pasta, `<nome> · <data>.md`: a transcrição do vídeo** (a fala que ficou no corte, em parágrafos, com
+  a grafia corrigida), que o criador usa para a legenda do post e o Obsidian. O render grava os dois; confira que o
+  `.md` saiu e entregue os dois caminhos. As saídas com CTA (`encaixar.py`) também saem com o `.md` ao lado.
 - Entregue com o caminho e `open -R "<arquivo>"` (abre o Finder no arquivo).
 - Depois, a vN aprovada vira referência da Calibragem (sem Gemini; refazer substitui):
 

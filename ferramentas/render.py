@@ -5,7 +5,8 @@
 """O render: o vídeo do projeto com tudo queimado (cortes, 9:16, look, inserts, motions, transições, legenda e áudio).
 
     uv run ferramentas/render.py <slug>            → projetos/<slug>/versoes/vN/ (proxy.mp4 720×1280 H.264 + os JSONs da revisão)
-    uv run ferramentas/render.py <slug> --final    → projetos/<slug>/final/<nome> · <AAAA-MM-DD HHhMM>.mp4 (2160×3840 HEVC)
+    uv run ferramentas/render.py <slug> --final    → projetos/<slug>/final/<nome> · <AAAA-MM-DD HHhMM>.mp4 (2160×3840 HEVC) e,
+        ao lado, o .md com a transcrição (a fala que ficou no corte)
     uv run ferramentas/render.py <slug> --camadas  → só fotografa a camada dos inserts e motions para o cache (o pré-render:
         rode em segundo plano enquanto a edição segue; o render da entrega espera ele e acha tudo pronto)
     uv run ferramentas/render.py amostra-look <slug> <t> <lut|-> <intensidade> <vinheta> [nitidez]
@@ -568,6 +569,12 @@ def render(slug: str, final: bool = False) -> Path:
 
     fases['total'] = round(time.time() - t_ini, 1)
     duracao_real = inspecionar(destino)['duracao']
+    if final:  # ao lado do vídeo, a transcrição dele (a fala que ficou no corte), como as saídas do encaixar
+        import encaixar
+        md = destino.with_suffix('.md')
+        md.write_text(f"# {edicao.get('nome') or slug}\n\n`{destino.name}` · {int(duracao_real // 60)}:{int(duracao_real % 60):02d}\n\n"
+                      f"{encaixar.paragrafos([w['texto'] for w in palavras_na_saida(transcricao, clipes)])}\n", encoding='utf-8')
+        print(f'Transcrição: {md}')
     if not final:
         gravar_json(pasta_versao / 'edicao.json', edicao)
         for campo in ('palavras', 'planos'):
