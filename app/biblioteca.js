@@ -3,7 +3,7 @@
 // O Claude é quem cria; aqui o criador vê, aprova e marca os melhores.
 import { marcarTrechos } from './trechos.js'
 import { barraDeTags, datalistTags, htmlTagsCard, ligarTags, tagEscolhida, tagLimpa, temTag } from './tags.js'
-import { $, $$, ESTRELA_CHEIA, ICONE, achaBusca, ajuda, aviso, chipCodigo, codigos, confirmar, dataHora, enviar, esc, janela, json, lista, mmss, num, preferencia, seg, semAcento, tocarTrecho, urlRef } from './comum.js'
+import { $, $$, ESTRELA_CHEIA, ICONE, achaBusca, ajuda, aviso, chipCodigo, codigos, confirmar, dataHora, enviar, esc, janela, json, lista, mmss, num, preferencia, seg, semAcento, tempo, tocarTrecho, urlRef } from './comum.js'
 
 export const PAGINAS_BIBLIOTECA = ['presets', 'transicoes', 'banco', 'motions', 'trilhas']
 
@@ -350,7 +350,7 @@ async function detalheBanco(id, recarregar, cod = {}, est = null, cods = {}) {
             ${it.estado ? '<button class="botao pequeno" type="button" data-selo="">Automático</button>' : ''}`}</div>
           ${est?.usos?.length ? `<div class="estado-banco">${chipsDeUso(est.usos, cods)}</div>` : ''}</div>
         <div class="acoes-linha"><button class="botao botao-coral" type="submit" disabled>Salvar</button>
-          ${!it.pai && it.largura && it.altura ? `<button class="botao" type="button" data-recortar title="Recorte o quadro (ex.: o vídeo 9:16 que veio num 16:9 com laterais pretas): vira uma mídia nova, o original fica">${ICONE.recortar} Recortar</button>` : ''}
+          ${!it.pai && it.largura && it.altura ? `<button class="botao" type="button" data-recortar title="Recorte o quadro (ex.: o vídeo 9:16 que veio num 16:9 com laterais pretas) e, num vídeo, corte o começo e o fim: vira uma mídia nova, o original fica">${ICONE.recortar} Recortar</button>` : ''}
           ${video && !it.pai ? `<button class="botao" type="button" data-marcar-trechos title="Selecione na linha do tempo os pedaços que servem: cada trecho vira uma mídia com código próprio">${ICONE.tesoura} Marcar trechos</button>` : ''}
           <button class="botao botao-perigo-contorno" type="button" data-apagar>${ICONE.lixo} Apagar do banco</button></div>
         <p class="erro-linha" hidden></p>
@@ -446,11 +446,13 @@ async function detalheBanco(id, recarregar, cod = {}, est = null, cods = {}) {
   })
 }
 
-const PROPS_RECORTE = { '9:16': 9 / 16, '16:9': 16 / 9, '1:1': 1, '4:5': 4 / 5, Livre: null }
+const PROPS_RECORTE = { Original: 'original', '9:16': 9 / 16, '16:9': 16 / 9, '1:1': 1, '4:5': 4 / 5, Livre: null }
+const MIN_TRECHO = 0.2 // s, como o MIN_TRECHO do banco.py
 const MIN_RECORTE = 16 // px do original, como o MIN_RECORTE do banco.py
 
 /** Recortar o quadro de um original no modal da mídia: o retângulo sobre a prévia (arrastar move; as alças redimensionam,
- * presas à proporção, menos no Livre). Tudo em px do original; "Salvar recorte" cria um item novo (o original fica). */
+ * presas à proporção, menos no Livre; Original é o quadro inteiro) e, num vídeo, a barra do tempo embaixo (as pontas
+ * cortam o começo e o fim). Tudo em px e s do original; "Salvar recorte" cria um item novo (o original fica). */
 function recortarQuadro(el, it, aoCancelar, aoSalvar) {
   const W = it.largura
   const H = it.altura
@@ -461,11 +463,12 @@ function recortarQuadro(el, it, aoCancelar, aoSalvar) {
   const barra = $('.recorte-barra', el)
   const par = (n) => (it.tipo === 'video' ? n - (n % 2) : n) // o H.264 pede lados pares (o banco.py arredonda igual)
   const limita = (n, a, b) => Math.max(a, Math.min(b, n))
-  let prop = W > H ? '9:16' : '1:1'
+  let prop = 'Original'
   let r = { x: 0, y: 0, w: W, h: H }
+  const aspecto = (p) => (PROPS_RECORTE[p] === 'original' ? W / H : PROPS_RECORTE[p])
   const centrar = (p) => { // a maior caixa da proporção, no meio; o Livre mantém a que está
     prop = p
-    const a = PROPS_RECORTE[p]
+    const a = aspecto(p)
     if (a) {
       const [w, h] = W / H > a ? [H * a, H] : [W, W / a]
       r = { x: (W - w) / 2, y: (H - h) / 2, w, h }
@@ -491,12 +494,69 @@ function recortarQuadro(el, it, aoCancelar, aoSalvar) {
   caber()
   centrar(prop)
 
+  // o tempo (só vídeo): a tira de quadros com as pontas de início e fim; o vídeo toca só o que fica
+  const video = midia.tagName === 'VIDEO'
+  const D = video ? it.duracao || midia.duration || 0 : 0
+  let ini = 0
+  let fim = D
+  let faixa = null
+  let laco = 0
+  if (D) {
+    faixa = document.createElement('div')
+    faixa.className = 'corte-tempo'
+    faixa.innerHTML = `<div class="ct-trilha"><div class="ct-fora ct-antes"></div><div class="ct-fora ct-depois"></div>
+        <div class="ct-sel"><i data-ponta="ini" title="Arraste: o começo"></i><i data-ponta="fim" title="Arraste: o fim"></i></div><div class="ct-cabeca"></div></div>
+      <div class="ct-rotulo"><span data-ct-tempos></span><span class="dica">arraste as pontas para cortar o começo e o fim</span></div>`
+    barra.before(faixa)
+    const trilha = $('.ct-trilha', faixa)
+    json(`/api/banco/${it.id}/tira`, null).then((d) => d?.url && (trilha.style.backgroundImage = `url('${d.url}')`))
+    const pct = (t) => `${(t / D) * 100}%`
+    const desenharTempo = () => {
+      Object.assign($('.ct-sel', faixa).style, { left: pct(ini), width: pct(fim - ini) })
+      $('.ct-antes', faixa).style.width = pct(ini)
+      Object.assign($('.ct-depois', faixa).style, { left: pct(fim), width: pct(D - fim) })
+      $('[data-ct-tempos]', faixa).textContent = ini > 0.05 || fim < D - 0.05 ? `${tempo(ini)} – ${tempo(fim)} · ${num(fim - ini, 1)} s de ${num(D, 1)} s` : `o vídeo inteiro · ${num(D, 1)} s`
+    }
+    desenharTempo()
+    // o vídeo fica no trecho escolhido (volta ao começo dele ao chegar no fim) e a cabeça acompanha
+    const passo = () => {
+      if (midia.currentTime >= fim - 0.02 || midia.currentTime < ini - 0.05) midia.currentTime = ini
+      $('.ct-cabeca', faixa).style.left = pct(midia.currentTime)
+      laco = requestAnimationFrame(passo)
+    }
+    laco = requestAnimationFrame(passo)
+    trilha.addEventListener('pointerdown', (e) => {
+      e.preventDefault()
+      const caixaT = trilha.getBoundingClientRect()
+      const tDe = (ev) => Math.max(0, Math.min(D, ((ev.clientX - caixaT.left) / caixaT.width) * D))
+      const ponta = e.target.dataset.ponta
+      if (!ponta) return (midia.currentTime = Math.max(ini, Math.min(fim - 0.05, tDe(e)))) // clicar na tira: vai àquele ponto
+      const tocava = !midia.paused
+      midia.pause()
+      const mover = (ev) => {
+        const t = tDe(ev)
+        if (ponta === 'ini') ini = Math.min(t, fim - MIN_TRECHO)
+        else fim = Math.max(t, ini + MIN_TRECHO)
+        midia.currentTime = ponta === 'ini' ? ini : Math.max(ini, fim - 0.04)
+        desenharTempo()
+      }
+      const soltar = () => {
+        removeEventListener('pointermove', mover)
+        removeEventListener('pointerup', soltar)
+        midia.currentTime = ini
+        if (tocava) midia.play().catch(() => {})
+      }
+      addEventListener('pointermove', mover)
+      addEventListener('pointerup', soltar)
+    })
+  }
+
   caixa.addEventListener('pointerdown', (e) => {
     e.preventDefault()
     const k = camada.getBoundingClientRect().width / W
     const canto = e.target.dataset.canto
     const [x0, y0, r0] = [e.clientX, e.clientY, { ...r }]
-    const a = PROPS_RECORTE[prop]
+    const a = aspecto(prop)
     const mover = (ev) => {
       if (!canto) {
         r.x = limita(r0.x + (ev.clientX - x0) / k, 0, W - r.w)
@@ -527,6 +587,8 @@ function recortarQuadro(el, it, aoCancelar, aoSalvar) {
     window.addEventListener('pointerup', soltar)
   })
   const sair = () => {
+    cancelAnimationFrame(laco)
+    faixa?.remove()
     obs.disconnect()
     camada.hidden = barra.hidden = true
     if (midia.tagName === 'VIDEO') midia.controls = true
@@ -544,7 +606,8 @@ function recortarQuadro(el, it, aoCancelar, aoSalvar) {
     b.disabled = true
     b.textContent = 'Recortando…'
     try {
-      const { item } = await enviar('POST', `/api/banco/${it.id}/recorte`, { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.w), h: Math.round(r.h) })
+      const corte = D && (ini > 0.05 || fim < D - 0.05) ? { inicio: +ini.toFixed(3), fim: +fim.toFixed(3) } : {}
+      const { item } = await enviar('POST', `/api/banco/${it.id}/recorte`, { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.w), h: Math.round(r.h), ...corte })
       const c = (await codigos()).midia?.[item.id]
       aviso(`Recorte salvo · ${c || item.id}`)
       sair()

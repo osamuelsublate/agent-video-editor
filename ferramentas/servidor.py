@@ -823,11 +823,13 @@ def descrever_depois(b, id_: str) -> None:
 
 @rota('POST', r'/api/banco/(\w+)/recorte')
 def _recortar(h, q, id_):
-    """Recorta o quadro de um original ({x, y, w, h} em px dele) num item novo, feito pelo criador no app (nasce Aprovado)."""
+    """Recorta o quadro de um original ({x, y, w, h} em px dele) e, num vídeo, o tempo ({inicio, fim} em s) num item
+    novo, feito pelo criador no app (nasce Aprovado)."""
     b, c = _banco(), h.corpo()
     ler_midia(b, id_)
     try:
-        item = b.recortar(id_, *(float(c[k]) for k in ('x', 'y', 'w', 'h')))
+        tempo = {k: float(c[k]) for k in ('inicio', 'fim') if c.get(k) is not None}
+        item = b.recortar(id_, *(float(c[k]) for k in ('x', 'y', 'w', 'h')), **tempo)
     except (KeyError, TypeError, ValueError) as e:
         raise Erro('Mande x, y, w e h (px do original).', 422) from e
     except SystemExit as e:

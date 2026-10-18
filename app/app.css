@@ -929,6 +929,19 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 .recorte-caixa [data-canto="ne"] { right: -2px; top: -2px; border-width: 3px 3px 0 0; cursor: nesw-resize; }
 .recorte-caixa [data-canto="sw"] { left: -2px; bottom: -2px; border-width: 0 0 3px 3px; cursor: nesw-resize; }
 .recorte-caixa [data-canto="se"] { right: -2px; bottom: -2px; border-width: 0 3px 3px 0; cursor: nwse-resize; }
+/* o corte do tempo (Recortar de um vídeo): a tira de quadros com as pontas de início e fim */
+.corte-tempo { margin-top: 10px; }
+.ct-trilha { position: relative; height: 44px; border-radius: var(--radius-lg); background: var(--color-deeper) center / 100% 100% no-repeat; cursor: pointer; touch-action: none; }
+.ct-fora { position: absolute; top: 0; bottom: 0; background: rgba(17, 35, 31, 0.78); pointer-events: none; }
+.ct-antes { left: 0; border-radius: var(--radius-lg) 0 0 var(--radius-lg); }
+.ct-depois { border-radius: 0 var(--radius-lg) var(--radius-lg) 0; }
+.ct-sel { position: absolute; top: 0; bottom: 0; border: 2px solid var(--color-yellow); border-radius: 6px; pointer-events: none; }
+.ct-sel i { position: absolute; top: -2px; bottom: -2px; width: 12px; background: var(--color-yellow); cursor: ew-resize; pointer-events: auto; }
+.ct-sel i::after { content: ''; position: absolute; top: 50%; left: 50%; width: 2px; height: 14px; margin: -7px 0 0 -1px; border-radius: 1px; background: var(--color-ink); }
+.ct-sel [data-ponta="ini"] { left: -2px; border-radius: 6px 0 0 6px; }
+.ct-sel [data-ponta="fim"] { right: -2px; border-radius: 0 6px 6px 0; }
+.ct-cabeca { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--color-cream); pointer-events: none; }
+.ct-rotulo { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 6px; font-size: 12px; font-variant-numeric: tabular-nums; }
 .recorte-barra { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 10px; }
 .recorte-barra [data-recorte-px] { font-variant-numeric: tabular-nums; }
 .recorte-barra .acoes-linha { margin-left: auto; }

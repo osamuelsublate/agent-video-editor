@@ -8,7 +8,8 @@
     uv run ferramentas/banco.py adicionar <arquivo> [--nome N] [--descricao D] [--palavras "a,b"] [--fonte url|upload|captura] [--projeto slug]
     uv run ferramentas/banco.py buscar <termos…>          nome, descrição e palavras-chave, sem diferenciar acentos
     uv run ferramentas/banco.py trecho <id> <ini> <fim> [--nome N]   um pedaço de um vídeo (sem arquivo próprio)
-    uv run ferramentas/banco.py recortar <id> <x> <y> <w> <h>   um pedaço do quadro (px do original), como item novo
+    uv run ferramentas/banco.py recortar <id> <x> <y> <w> <h> [--inicio s] [--fim s]   um pedaço do quadro (px do
+        original) e, num vídeo, do tempo, como item novo
     uv run ferramentas/banco.py apagar <id…>              apaga mídias que não serviram (recusa se alguma está em uso)
     uv run ferramentas/banco.py listar
     uv run ferramentas/banco.py descrever <id>            o Gemini descreve e sugere palavras-chave
@@ -329,10 +330,11 @@ def criar_trecho(pai: str, inicio: float, fim: float, nome: str | None = None) -
     return ler_item(tid)
 
 
-def recortar(bid: str, x: float, y: float, w: float, h: float) -> dict:
-    """Um pedaço do quadro de um original (x, y, w, h em px dele) como item novo do banco, em boa qualidade: o vídeo em
-    H.264 CRF 15 (com o áudio, se houver), a imagem em PNG (ou JPG, se era JPG). Segue o caminho do `adicionar` (proxy e
-    miniatura); o original não muda."""
+def recortar(bid: str, x: float, y: float, w: float, h: float, inicio: float | None = None, fim: float | None = None) -> dict:
+    """Um pedaço do quadro de um original (x, y, w, h em px dele) e, num vídeo, só de `inicio` a `fim` (s), como item
+    novo do banco, em boa qualidade: o vídeo em H.264 CRF 15 (com o áudio, se houver), a imagem em PNG (ou JPG, se era
+    JPG). O quadro inteiro com o tempo cortado também vale. Segue o caminho do `adicionar` (proxy e miniatura); o
+    original não muda."""
     original = ler_item(bid)
     if original.get('pai'):
         raise SystemExit('Trechos não têm arquivo próprio: recorte o original ' + original['pai'])
@@ -347,16 +349,26 @@ def recortar(bid: str, x: float, y: float, w: float, h: float) -> dict:
         w, h = w - w % 2, h - h % 2
     if w < MIN_RECORTE or h < MIN_RECORTE:
         raise SystemExit(f'Recorte pequeno demais (mínimo {MIN_RECORTE} px de cada lado)')
-    if (x, y, w, h) == (0, 0, W, H):
-        raise SystemExit('O recorte é o quadro inteiro: nada a recortar')
+    # o tempo (só vídeo): sem início nem fim, o vídeo inteiro
+    dur = float(info.get('duracao') or original.get('duracao') or 0)
+    ini = round(max(float(inicio or 0), 0.0), 3) if video else 0.0
+    ate = round(min(float(fim), dur), 3) if video and fim is not None and dur else dur
+    cortou_tempo = video and (ini > 0.05 or (dur and ate < dur - 0.05))
+    if video and ate - ini < MIN_TRECHO:
+        raise SystemExit(f'Trecho curto demais (mínimo {MIN_TRECHO} s)')
+    cortou_quadro = (x, y, w, h) != (0, 0, W, H)
+    if not cortou_quadro and not cortou_tempo:
+        raise SystemExit('Nada a recortar: é o quadro inteiro e o vídeo inteiro')
     prop = next((p for p in RAPIDAS if abs(math.log(w / h / PROPORCOES[p])) < 0.015), None)
-    nome = f'{original["nome"]} (recorte{" " + prop if prop else ""})'[:200]
+    partes = ([f'recorte{" " + prop if prop else ""}'] if cortou_quadro else []) + ([f'{ini:.1f}–{ate:.1f} s'.replace('.', ',')] if cortou_tempo else [])
+    nome = f'{original["nome"]} ({" · ".join(partes)})'[:200]
     ext = '.mp4' if video else ('.jpg' if fonte.suffix.lower() in ('.jpg', '.jpeg') else '.png')
     tmp = Path(tempfile.mkdtemp(prefix='recorte-'))
     try:
         saida = tmp / f'recorte{ext}'
         if video:
-            ffmpeg('-i', str(fonte), '-vf', f'crop={w}:{h}:{x}:{y}', '-c:v', 'libx264', '-crf', '15', '-preset', 'medium',
+            tempo = ['-ss', f'{ini:.3f}', '-t', f'{ate - ini:.3f}'] if cortou_tempo else []
+            ffmpeg(*tempo, '-i', str(fonte), *(['-vf', f'crop={w}:{h}:{x}:{y}'] if cortou_quadro else []), '-c:v', 'libx264', '-crf', '15', '-preset', 'medium',
                    '-pix_fmt', 'yuv420p', *(['-c:a', 'aac', '-b:a', '192k'] if info.get('tem_audio') else ['-an']),
                    '-movflags', '+faststart', str(saida))
         else:
@@ -365,7 +377,7 @@ def recortar(bid: str, x: float, y: float, w: float, h: float) -> dict:
                          origem=original.get('origem'), mover=True)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
-    item['recorte_de'] = {'id': bid, 'x': x, 'y': y, 'w': w, 'h': h}
+    item['recorte_de'] = {'id': bid, 'x': x, 'y': y, 'w': w, 'h': h, **({'inicio': ini, 'fim': ate} if cortou_tempo else {})}
     if original.get('tags'):
         item['tags'] = list(original['tags'])
     return salvar_item(item)
@@ -487,6 +499,8 @@ if __name__ == '__main__':
     r.add_argument('id')
     for k in ('x', 'y', 'w', 'h'):
         r.add_argument(k, type=float)
+    r.add_argument('--inicio', type=float)
+    r.add_argument('--fim', type=float)
     sub.add_parser('listar')
     d = sub.add_parser('descrever')
     d.add_argument('id')
@@ -502,7 +516,7 @@ if __name__ == '__main__':
         item = criar_trecho(args.id, args.ini, args.fim, args.nome)
         print(f'{item["id"]}  trecho {num(item["inicio"], 2)}–{num(item["fim"], 2)} s de {args.id}  {item["nome"]}')
     elif args.cmd == 'recortar':
-        item = recortar(args.id, args.x, args.y, args.w, args.h)
+        item = recortar(args.id, args.x, args.y, args.w, args.h, args.inicio, args.fim)
         c = item['recorte_de']
         print(f'{item["id"]}  {item["largura"]}×{item["altura"]} de {args.id} (x {c["x"]}, y {c["y"]})  {item["nome"]}')
     elif args.cmd == 'listar':
