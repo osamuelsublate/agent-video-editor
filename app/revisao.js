@@ -185,7 +185,8 @@ class Revisao {
       const n = this.doBloco(b).length
       const cls = b.def.aprovado ? 'bloco-aprovado' : n ? 'bloco-com' : ''
       return `<button class="bloco-faixa ${cls}${this.loop?.id === b.id ? ' bloco-loop' : ''}${this.blocoSel === b.id ? ' bloco-escolhido' : ''}" data-bloco="${b.id}" data-ir="${b.ini}" style="left:${(b.ini * px).toFixed(1)}px;width:${((b.fim - b.ini) * px).toFixed(1)}px"
-        title="${b.id} · ${tempo(b.ini)}–${tempo(b.fim)}${b.def.aprovado ? ' · finalizado (travado)' : n ? ` · ${n} comentário(s)` : ''}">${b.id}${b.def.aprovado ? ` ${ICONE.check}` : n ? ` <i>${n}</i>` : ''}</button>`
+        title="${b.id} · ${tempo(b.ini)}–${tempo(b.fim)}${b.def.aprovado ? ' · finalizado (travado)' : n ? ` · ${n} comentário(s)` : ''}">${b.id}${b.def.aprovado ? ` ${ICONE.check}` : n ? ` <i>${n}</i>` : ''}
+        <span class="bloco-check" data-check="${b.id}" title="${b.def.aprovado ? `Reabrir o ${b.id}` : `Finalizar o ${b.id}`}">${b.def.aprovado ? ICONE.fechar : ICONE.check}</span></button>`
     }).join('')
   }
 
@@ -1423,6 +1424,8 @@ class Revisao {
 
   clique(e) {
     if (e.target === this.video) return this.alternar()
+    const check = e.target.closest?.('[data-check]') // o check do bloco na linha do tempo (dentro do botão do bloco)
+    if (check) return this.aprovarBloco(check.dataset.check)
     const b = e.target.closest('button, a, [data-ir]')
     const editor = e.target.closest('.editor')
     if (!b || (editor && !editor.contains(b))) return // dentro do campo de comentário, só os botões dele
