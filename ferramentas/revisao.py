@@ -3,14 +3,15 @@
 # ///
 """A revisão do criador do lado do Claude (o app grava projetos/<slug>/revisoes/vN.json).
 
-    uv run ferramentas/revisao.py ler <slug> [vN]
+    uv run ferramentas/revisao.py ler <slug> [vN] [--bloco B3]
         a revisão (a da última versão, se não disser) no mesmo texto do "Copiar revisão" do app e, para cada
-        comentário, o id, a âncora (palavras), o plano sob ele e os prints anexados (abra com o Read antes de aplicar).
+        comentário, o id, a âncora (palavras), o bloco, o plano sob ele e os prints anexados (abra com o Read antes de
+        aplicar). Com --bloco, só os daquele bloco (o "Copiar" de um bloco no app).
     uv run ferramentas/revisao.py responder <slug> <vN> <id|geral> --status aplicado|respondido|nao_aplicado --resposta "…"
         grava a resposta no comentário (o app mostra embaixo dele); "geral" responde o geral de revisões antigas.
     uv run ferramentas/revisao.py historico <slug>
-        todas as revisões do projeto como conversas: cada comentário, a sua resposta, as réplicas do criador nas versões
-        seguintes (o `sobre` delas) e o que ele marcou como concluído. É o que a conclusão (14-concluir.md) lê.
+        todas as revisões do projeto, versão a versão (cada comentário com o bloco e a sua resposta) e os blocos que
+        voltaram a ser comentados. É o que a conclusão (14-concluir.md) lê.
     uv run ferramentas/revisao.py clipes [--refazer]
         recorta das referências os clipes das galerias da biblioteca: presets/clipes/<id>.mp4 (o trecho da 1ª fonte,
         480 px, com som) e transicoes/clipes/<id>.mp4 (1,5 s em volta do corte da 1ª fonte, com som). A referência vem
@@ -65,32 +66,64 @@ def curto(s: str, n: int = 60) -> str:
     return f'{t[:n - 1]}…' if len(t) > n else t
 
 
-def original(slug: str, c: dict) -> dict | None:
-    """O comentário de uma versão anterior que uma réplica (`sobre`) continua."""
-    s = c.get('sobre')
-    if not s:
+def versoes_com_revisao(slug: str) -> list[int]:
+    return sorted(int(p.stem[1:]) for p in (pasta(slug) / 'revisoes').glob('v*.json') if p.stem[1:].isdigit())
+
+
+def blocos(slug: str, n: int, rev: dict) -> list[dict]:
+    """Os blocos (~30 s) da vN como o app os mostra: os do arquivo dela ou, sem eles, os da última versão anterior que
+    tem (o app herda igual). Cada bloco começa numa palavra (id da transcrição) e vai até o começo do próximo; aqui
+    ganha `ini`/`fim` nesta versão. Vídeos curtos não têm blocos ([])."""
+    defs = rev.get('blocos') or []
+    if not defs:
+        for x in reversed([x for x in versoes_com_revisao(slug) if x < n]):
+            defs = (ler_json(pasta(slug) / 'revisoes' / f'v{x}.json', {}) or {}).get('blocos') or []
+            if defs:
+                break
+    if not defs:
+        return []
+    vdir = pasta(slug) / 'versoes' / f'v{n}'
+    palavras = ler_json(vdir / 'palavras.json', []) or []
+    palavras = palavras if isinstance(palavras, list) else palavras.get('palavras', [])
+    dur = (ler_json(vdir / 'info.json', {}) or {}).get('duracao') or (palavras[-1]['fim'] if palavras else 0)
+
+    def inicio(pid: str) -> float:
+        w = next((w for w in palavras if w['id'] == pid), None) or next((w for w in sorted(palavras, key=lambda w: w['id']) if w['id'] > pid), None)
+        return w['ini'] if w else dur
+
+    out = sorted(({**d, 'ini': 0.0 if k == 0 else inicio(d['palavra'])} for k, d in enumerate(defs)), key=lambda b: b['ini'])
+    for k, b in enumerate(out):
+        b['fim'] = out[k + 1]['ini'] if k + 1 < len(out) else dur
+    return [b for b in out if b['fim'] - b['ini'] > 0.05]
+
+
+def bloco_em(bs: list[dict], t: float | None) -> dict | None:
+    if t is None or not bs:
         return None
-    rev = ler_json(pasta(slug) / 'revisoes' / f'v{s["v"]}.json', {}) or {}
-    return next((x for x in rev.get('comentarios', []) if x.get('id') == s['id']), None)
+    return next((b for b in bs if b['ini'] <= t < b['fim']), bs[-1])
 
 
-def texto(slug: str, v: int, rev: dict) -> str:
-    """O texto do botão "Copiar revisão" (app/revisao.js, `texto()`): mude os dois juntos."""
-    linhas = [f'Revisão · {slug} · v{v}']
-    for c in sorted((c for c in rev.get('comentarios', []) if tem_conteudo(c)), key=ordem):
-        ancora = quando(c)
+def texto(slug: str, v: int, rev: dict, bloco: str | None = None) -> str:
+    """O texto do botão "Copiar revisão" (app/revisao.js, `texto()`): mude os dois juntos. Com `bloco`, o do botão
+    Copiar daquele bloco (só os comentários que caem nele)."""
+    bs = blocos(slug, v, rev)
+    b = next((x for x in bs if x['id'] == bloco), None) if bloco else None
+    if bloco and not b:
+        raise SystemExit(f'Não há o bloco {bloco} na v{v} (blocos: {", ".join(x["id"] for x in bs) or "nenhum"}).')
+    linhas = [f'Revisão · {slug} · v{v}' + (f' · bloco {b["id"]} ({tempo(b["ini"])}–{tempo(b["fim"])})' if b else '')]
+    cs = [c for c in rev.get('comentarios', []) if tem_conteudo(c) and (not b or (not c.get('geral') and bloco_em(bs, c['t']) is b))]
+    for c in sorted(cs, key=ordem):
         fala = f'"{c["fala"]}" — ' if c.get('fala') else ''
-        sobre = ''
-        if c.get('sobre'):  # uma réplica: continua a conversa de um comentário da versão anterior
-            o = original(slug, c)
-            sobre = f'↪ v{c["sobre"]["v"]}·{c["sobre"]["id"]}' + (f' "{curto(o.get("texto"))}"' if o else '') + ' — '
-        linhas.append(f'[{ancora}] {sobre}{fala}{uma_linha(c.get("texto") or "") or "(ver o print)"}')
+        linhas.append(f'[{quando(c)}] {fala}{uma_linha(c.get("texto") or "") or "(ver o print)"}')
         if c.get('anexos'):
             linhas.append(linha_anexos(slug, c['anexos']))
-    if (rev.get('geral') or '').strip() or rev.get('anexos_geral'):  # revisões antigas (o app de agora grava comentários gerais)
+    if not b and ((rev.get('geral') or '').strip() or rev.get('anexos_geral')):  # revisões antigas (o app de agora grava comentários gerais)
         linhas.append(f'Geral: {uma_linha(rev.get("geral") or "") or "(ver o print)"}')
         if rev.get('anexos_geral'):
             linhas.append(linha_anexos(slug, rev['anexos_geral']))
+    travados = [x for x in bs if x.get('aprovado')]
+    if travados:
+        linhas.append('Travados (finalizados, não mexa): ' + ', '.join(f'{x["id"]} {tempo(x["ini"])}–{tempo(x["fim"])}' for x in travados))
     linhas.append(f'(projetos/{slug}/revisoes/v{v}.json)')
     return '\n'.join(linhas)
 
@@ -104,7 +137,7 @@ def versao_da_revisao(slug: str, v: str | None) -> int:
     return feitas[-1]
 
 
-def ler(slug: str, v: str | None) -> None:
+def ler(slug: str, v: str | None, bloco: str | None = None) -> None:
     n = versao_da_revisao(slug, v)
     p = pasta(slug)
     rev = ler_json(p / 'revisoes' / f'v{n}.json')
@@ -113,6 +146,7 @@ def ler(slug: str, v: str | None) -> None:
     vdir = p / 'versoes' / f'v{n}'
     palavras = ler_json(vdir / 'palavras.json', []) or []
     planos = ler_json(vdir / 'planos.json', []) or []
+    bs = blocos(slug, n, rev)
 
     def palavra_em(t: float) -> dict | None:
         return min(palavras, key=lambda w: 0 if w['ini'] <= t < w['fim'] else min(abs(w['ini'] - t), abs(t - w['fim'])), default=None)
@@ -120,11 +154,16 @@ def ler(slug: str, v: str | None) -> None:
     def planos_em(a: float, b: float) -> list[dict]:
         return [q for q in planos if q['ini'] <= b and q['fim'] > a] if b > a else [q for q in planos if q['ini'] <= a < q['fim']]
 
-    print(texto(slug, n, rev))
+    print(texto(slug, n, rev, bloco))
     estado = 'APROVADA' if rev.get('aprovado') else f'enviada em {rev["enviado_em"]}' if rev.get('enviado_em') else 'ainda não enviada'
     print(f'\nEstado: {estado}. Para cada um: revisao.py responder {slug} v{n} <id> --status … --resposta "…"')
+    if bs:
+        print('Blocos: ' + ', '.join(f'{b["id"]} {tempo(b["ini"])}–{tempo(b["fim"])}{" ✓ finalizado" if b.get("aprovado") else ""}' for b in bs))
     for c in sorted(rev.get('comentarios', []), key=ordem):
         if not tem_conteudo(c):
+            continue
+        b = bloco_em(bs, None if c.get('geral') else c['t'])
+        if bloco and (not b or b['id'] != bloco):
             continue
         fim = c.get('fim')
         if c.get('geral'):
@@ -133,68 +172,48 @@ def ler(slug: str, v: str | None) -> None:
             w1 = palavra_em(fim) if fim is not None else None
             ancora = f'palavra {c.get("palavra")}' if w1 is None or w1['id'] == c.get('palavra') else f'palavras {c.get("palavra")}–{w1["id"]}'
             ps = ', '.join(f'{q["id"]} {q["tipo"]} ({tempo(q["ini"])}–{tempo(q["fim"])})' for q in planos_em(c['t'], fim if fim is not None else c['t']))
-            print(f'\n- {c["id"]} · {quando(c)} · {ancora} · plano {ps or "—"} · {c.get("status", "pendente")}')
-        o = original(slug, c)
-        if c.get('sobre'):
-            print(f'  ↪ réplica ao v{c["sobre"]["v"]}·{c["sobre"]["id"]}: a conversa até aqui')
-            if o:
-                print(f'    criador: {uma_linha(o.get("texto") or "") or "(só o print)"}')
-                print(f'    você ({o.get("status", "pendente")}): {o.get("resposta") or "(sem resposta)"}')
+            nome_bloco = f' · {b["id"]}' if b else ''
+            print(f'\n- {c["id"]} · {quando(c)}{nome_bloco} · {ancora} · plano {ps or "—"} · {c.get("status", "pendente")}')
         print(f'  {uma_linha(c.get("texto") or "") or "(só o print)"}')
         for a in c.get('anexos') or []:
             print(f'  anexo: projetos/{slug}/{a}{"" if (p / a).is_file() else " (o arquivo sumiu)"}')
         if c.get('resposta'):
             print(f'  ↳ resposta: {c["resposta"]}')
-    for a in rev.get('anexos_geral') or []:
-        print(f'\n- geral · anexo: projetos/{slug}/{a}')
-    g = rev.get('resposta_geral')
-    if g:
-        print(f'\n- geral · {g.get("status")} ↳ {g.get("resposta") or ""}')
-    if rev.get('concluidos'):
-        anterior = max((x for x in versoes_com_revisao(slug) if x < n), default=None)
-        print(f'\nConcluídos pelo criador (da v{anterior}): {", ".join(rev["concluidos"])}')
-
-
-def versoes_com_revisao(slug: str) -> list[int]:
-    return sorted(int(p.stem[1:]) for p in (pasta(slug) / 'revisoes').glob('v*.json') if p.stem[1:].isdigit())
+    if not bloco:
+        for a in rev.get('anexos_geral') or []:
+            print(f'\n- geral · anexo: projetos/{slug}/{a}')
+        g = rev.get('resposta_geral')
+        if g:
+            print(f'\n- geral · {g.get("status")} ↳ {g.get("resposta") or ""}')
 
 
 def historico(slug: str) -> None:
-    """As revisões como conversas: cada comentário com a resposta e o que veio depois (réplicas e concluídos)."""
-    revs = {n: ler_json(pasta(slug) / 'revisoes' / f'v{n}.json', {}) or {} for n in versoes_com_revisao(slug)}
-    if not revs:
+    """Todas as revisões do projeto, versão a versão: cada comentário (com o bloco, se o vídeo tem) e a sua resposta;
+    no fim, os blocos que voltaram a ser comentados em mais de uma versão (onde a correção não pegou de primeira)."""
+    vs = versoes_com_revisao(slug)
+    if not vs:
         raise SystemExit(f'O projeto {slug} ainda não tem revisão.')
-    # o que veio depois de cada comentário: as réplicas que o citam e o "concluído" da versão seguinte com revisão
-    replicas, concluidos = {}, {}
-    vs = sorted(revs)
-    for k, n in enumerate(vs):
-        for c in revs[n].get('comentarios', []):
-            if c.get('sobre') and tem_conteudo(c):
-                replicas.setdefault((c['sobre']['v'], c['sobre']['id']), []).append((n, c))
-        if k:
-            for cid in revs[n].get('concluidos') or []:
-                concluidos[(vs[k - 1], cid)] = n
-    rodadas = 0
+    voltas: dict[str, list[int]] = {}
     for n in vs:
-        cs = [c for c in revs[n].get('comentarios', []) if tem_conteudo(c) and not c.get('sobre')]
+        rev = ler_json(pasta(slug) / 'revisoes' / f'v{n}.json', {}) or {}
+        cs = [c for c in rev.get('comentarios', []) if tem_conteudo(c)]
         if not cs:
             continue
-        estado = ' · APROVADA' if revs[n].get('aprovado') else ''
-        print(f'\n## v{n}{estado}')
+        bs = blocos(slug, n, rev)
+        print(f'\n## v{n}{" · APROVADA" if rev.get("aprovado") else ""}')
         for c in sorted(cs, key=ordem):
-            print(f'\n- v{n}·{c["id"]} [{quando(c)}] {curto(c.get("texto"), 200) or "(só o print)"}')
-            fila = [(n, c)]
-            while fila:
-                v, x = fila.pop(0)
-                if x is not c:
-                    print(f'  criador (v{v}): {curto(x.get("texto"), 200)}')
-                print(f'  Claude ({x.get("status", "pendente")}): {x.get("resposta") or "(sem resposta)"}')
-                if (v, x['id']) in concluidos:
-                    print(f'  ✓ concluído pelo criador na v{concluidos[(v, x["id"])]}')
-                seguintes = replicas.get((v, x['id']), [])
-                rodadas += len(seguintes)
-                fila += seguintes
-    print(f'\n{rodadas} réplica(s) do criador: as conversas com mais de uma rodada são as que mais ensinam.')
+            b = bloco_em(bs, None if c.get('geral') else c['t'])
+            if b:
+                voltas.setdefault(b['id'], [])
+                if n not in voltas[b['id']]:
+                    voltas[b['id']].append(n)
+            nome_bloco = f' · {b["id"]}' if b else ''
+            print(f'\n- v{n}·{c["id"]} [{quando(c)}{nome_bloco}] {curto(c.get("texto"), 200) or "(só o print)"}')
+            print(f'  Claude ({c.get("status", "pendente")}): {c.get("resposta") or "(sem resposta)"}')
+    repetidos = {k: v for k, v in voltas.items() if len(v) > 1}
+    if repetidos:
+        print('\nBlocos comentados em mais de uma versão (a correção não pegou de primeira): '
+              + ', '.join(f'{k} ({", ".join(f"v{x}" for x in v)})' for k, v in sorted(repetidos.items(), key=lambda kv: int(kv[0][1:]))))
 
 
 def responder(slug: str, v: str, cid: str, status: str, resposta: str) -> None:
@@ -283,6 +302,7 @@ if __name__ == '__main__':
     a = sub.add_parser('ler')
     a.add_argument('slug')
     a.add_argument('versao', nargs='?')
+    a.add_argument('--bloco')
     a = sub.add_parser('responder')
     a.add_argument('slug')
     a.add_argument('versao')
@@ -295,7 +315,7 @@ if __name__ == '__main__':
     a.add_argument('--refazer', action='store_true')
     x = ap.parse_args()
     if x.cmd == 'ler':
-        ler(x.slug, x.versao)
+        ler(x.slug, x.versao, x.bloco)
     elif x.cmd == 'responder':
         responder(x.slug, x.versao, x.id, x.status, x.resposta)
     elif x.cmd == 'historico':

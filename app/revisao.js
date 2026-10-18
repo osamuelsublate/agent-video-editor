@@ -23,12 +23,6 @@ const ordem = (c) => (c.geral ? -1 : c.t)
 /** Um comentário que conta: com texto ou com print anexado. */
 const temConteudo = (c) => !!(c.texto?.trim() || c.anexos?.length)
 const numero = (id) => parseInt(String(id).replace(/\D/g, ''), 10) || 0
-/** Uma réplica: o comentário desta versão que continua a conversa de um comentário da versão anterior (`sobre`). */
-const replica = (c) => !!c.sobre
-const curto = (s, n = 60) => {
-  const t = umaLinha(s || '')
-  return t.length > n ? `${t.slice(0, n - 1)}…` : t
-}
 const VIDEO = /\.(mp4|mov|webm)$/i
 /** Uma caixa de texto que cresce com o que se escreve (até 40% da tela). */
 const crescer = (el) => {
@@ -116,146 +110,168 @@ class Revisao {
       delete this.rev.anexos_geral
       delete this.rev.resposta_geral
     }
-    this.rev.concluidos ||= []
-    await this.carregarAnterior()
+    await this.carregarAnteriores()
     this.dur = this.info.duracao || this.palavras.at(-1)?.fim || 60
+    this.prepararBlocos()
     this.montar()
+    if (this.blocosNovos && this.v === this.proj.ultima) this.agendarSalvar() // os blocos nascem (ou vêm da versão anterior) no arquivo desta
     this.ligar()
     this.mostrarSalvo(rev ? 'salvo' : '')
     this.relogio = setInterval(() => this.verDisco(), 4000)
   }
 
-  // ---------- a versão anterior: os comentários dela, a resposta do Claude e a conversa que continua aqui ----------
+  // ---------- os blocos (~30 s, nos vídeos de mais de 2 min): revisar, aprovar e mandar por trecho ----------
+  // Cada bloco começa numa palavra (o id da transcrição): continua o mesmo trecho nas versões seguintes, mesmo que os
+  // cortes antes dele mudem os tempos. O arquivo da revisão guarda {id, palavra, aprovado}; a versão nova herda os da
+  // anterior (com as aprovações: um bloco aprovado fica travado para o Claude).
 
-  /** A última versão antes desta com comentários (uma versão só de look não tem) e as anteriores a ela (o começo das conversas). */
-  async carregarAnterior() {
+  prepararBlocos() {
+    if (!this.rev.blocos?.length) {
+      const herdado = Object.keys(this.anteriores).map(Number).sort((a, b) => b - a).map((x) => this.anteriores[x]).find((r) => r?.blocos?.length)
+      const novos = herdado ? herdado.blocos.map((b) => ({ ...b })) : this.dur > 120 ? this.cortarBlocos() : null
+      if (novos?.length) {
+        this.rev.blocos = novos
+        this.blocosNovos = true
+      }
+    }
+    this.calcularBlocos()
+  }
+
+  /** Os blocos de uma versão sem blocos: a cada ~30 s, na troca de plano mais perto (até 12 s para cada lado); sem
+   *  troca de plano por perto, na palavra mais perto dos 30 s. Nenhum bloco com menos de 15 s. */
+  cortarBlocos() {
+    const ws = this.palavras
+    if (!ws.length) return null
+    const inicios = []
+    let ant = 0
+    for (let alvo = 30; alvo < this.dur - 15; alvo += 30) {
+      const perto = this.planos.map((q) => q.ini).filter((t) => t > ant + 15 && t < this.dur - 15 && Math.abs(t - alvo) <= 12)
+      const t = perto.length ? perto.reduce((a, b) => (Math.abs(b - alvo) < Math.abs(a - alvo) ? b : a)) : alvo
+      if (t <= ant + 15) continue
+      inicios.push(t)
+      ant = t
+    }
+    const palavras = [ws[0].id, ...inicios.map((t) => (ws.find((w) => w.ini >= t - 0.05) || ws.at(-1)).id)]
+    return [...new Set(palavras)].map((palavra, k) => ({ id: `B${k + 1}`, palavra, aprovado: false }))
+  }
+
+  /** Onde cada bloco cai nesta versão: do começo da palavra dele até o começo do próximo. */
+  calcularBlocos() {
+    const defs = this.rev.blocos || []
+    if (!defs.length) return (this.blocos = null)
+    const inicio = (id) => (this.palavras.find((w) => w.id === id) || this.palavras.find((w) => w.id > id))?.ini
+    const l = defs.map((def, k) => ({ id: def.id, def, ini: k === 0 ? 0 : inicio(def.palavra) ?? this.dur })).sort((a, b) => a.ini - b.ini)
+    l.forEach((b, k) => (b.fim = l[k + 1]?.ini ?? this.dur))
+    this.blocos = l.filter((b) => b.fim - b.ini > 0.05)
+  }
+
+  blocoEm(t) {
+    return this.blocos?.find((b) => t >= b.ini && t < b.fim) || (t != null ? this.blocos?.at(-1) : null)
+  }
+
+  /** Os comentários (e réplicas) que caem num bloco. */
+  doBloco(b) {
+    return this.rev.comentarios.filter((c) => temConteudo(c) && !c.geral && this.blocoEm(c.t)?.id === b.id)
+  }
+
+  renderBlocos() {
+    const el = $('#f-blocos')
+    if (!el || !this.blocos) return
+    const px = this.pxs
+    // as divisas atravessam todas as faixas; o bloco escolhido fica marcado de cima a baixo
+    const foco = this.blocos.find((b) => b.id === this.blocoSel)
+    $('#divisas').innerHTML = this.blocos.slice(1).map((b) => `<i class="divisa" style="left:${(b.ini * px).toFixed(1)}px"></i>`).join('')
+      + (foco ? `<i class="bloco-faixa-sel" style="left:${(foco.ini * px).toFixed(1)}px;width:${((foco.fim - foco.ini) * px).toFixed(1)}px"></i>` : '')
+    el.innerHTML = this.blocos.map((b) => {
+      const n = this.doBloco(b).length
+      const cls = b.def.aprovado ? 'bloco-aprovado' : n ? 'bloco-com' : ''
+      return `<button class="bloco-faixa ${cls}${this.loop?.id === b.id ? ' bloco-loop' : ''}${this.blocoSel === b.id ? ' bloco-escolhido' : ''}" data-bloco="${b.id}" data-ir="${b.ini}" style="left:${(b.ini * px).toFixed(1)}px;width:${((b.fim - b.ini) * px).toFixed(1)}px"
+        title="${b.id} · ${tempo(b.ini)}–${tempo(b.fim)}${b.def.aprovado ? ' · finalizado (travado)' : n ? ` · ${n} comentário(s)` : ''}">${b.id}${b.def.aprovado ? ` ${ICONE.check}` : n ? ` <i>${n}</i>` : ''}</button>`
+    }).join('')
+  }
+
+  htmlCabecaBloco(b, n, foco = false) {
+    const ok = b.def.aprovado
+    return `<div class="bloco-cabeca${ok ? ' bloco-ok' : ''}${foco ? ' bloco-sel' : ''}" data-cab-bloco="${b.id}">
+      ${foco ? `<button class="botao-icone pequeno" data-sair-bloco title="Voltar a todos os blocos">${ICONE.voltar || '‹'}</button>` : ''}
+      <button class="bloco-nome" data-bloco="${b.id}" data-ir="${b.ini}" title="Ir ao começo do bloco">${b.id} <span>${tempo(b.ini)}–${tempo(b.fim)}</span></button>
+      <span class="conta">${n ? `${n} ${n === 1 ? 'comentário' : 'comentários'}` : ok ? 'finalizado' : 'sem comentários'}</span>
+      <span class="bloco-acoes">
+        <button class="botao-icone pequeno${this.loop?.id === b.id ? ' ativo' : ''}" data-loop-bloco="${b.id}" title="${this.loop?.id === b.id ? 'Parar o loop' : 'Tocar só este bloco, em loop'}">${ICONE_ATALHO.plano}</button>
+        <button class="botao pequeno${ok ? ' feito' : ''}" data-aprovar-bloco="${b.id}" title="${ok ? 'Reabrir o bloco' : 'Marcar o bloco como finalizado: ele fica travado para o Claude'}">${ICONE.check} ${ok ? 'Finalizado' : 'Finalizar'}</button>
+        <button class="botao pequeno botao-coral" data-copiar-bloco="${b.id}" ${n ? '' : 'disabled'} title="Copiar a revisão só deste bloco">Copiar</button></span></div>`
+  }
+
+  /** Escolher um bloco (na faixa ou no cabeçalho): o painel mostra só ele; `null` volta a todos. */
+  escolherBloco(id) {
+    this.blocoSel = id
+    this.renderLista()
+    this.renderMarcas()
+    $('#lista').scrollTop = 0
+  }
+
+  aprovarBloco(id) {
+    const b = this.blocos.find((x) => x.id === id)
+    b.def.aprovado = !b.def.aprovado
+    aviso(b.def.aprovado ? `${id} finalizado: o Claude não mexe mais nele` : `${id} reaberto`)
+    this.renderLista()
+    this.renderMarcas()
+    this.agendarSalvar()
+  }
+
+  alternarLoop(id) {
+    const b = this.blocos.find((x) => x.id === id)
+    this.loop = this.loop?.id === id ? null : b
+    if (this.loop) {
+      this.buscar(b.ini)
+      this.video.play().catch(() => {})
+    }
+    this.renderLista()
+    this.renderMarcas()
+  }
+
+  async copiarBloco(id) {
+    if (this.editor) this.salvarEditor()
+    if ($('#nova-texto').value.trim() || this.nova.anexos.length) this.salvarNova()
+    const b = this.blocos.find((x) => x.id === id)
+    if (!this.doBloco(b).length) return aviso(`Nada para enviar no ${id} ainda.`, 'erro')
+    this.rev.enviado_em = agora()
+    await this.salvar()
+    await copiar(this.texto(b))
+    this.renderEstado()
+    aviso(`${id} copiado — cole no chat do Claude Code`)
+  }
+
+  // ---------- as versões anteriores: o que já foi pedido e respondido em cada bloco (só para ler) ----------
+
+  /** As revisões das versões antes desta (o histórico de cada bloco e os blocos que esta herda). */
+  async carregarAnteriores() {
     this.anteriores = {}
     const s = encodeURIComponent(this.slug)
     const vs = this.proj.versoes.filter((x) => x < this.v)
     const revs = await Promise.all(vs.map((x) => json(`/projetos/${s}/revisoes/v${x}.json`, null)))
     vs.forEach((x, k) => revs[k] && (this.anteriores[x] = revs[k]))
-    this.vAnterior = vs.slice().reverse().find((x) => this.anteriores[x]?.comentarios?.some(temConteudo)) ?? null
-    const ant = this.anteriores[this.vAnterior]
-    this.antigos = ant ? ant.comentarios.filter(temConteudo).sort((a, b) => ordem(a) - ordem(b)) : []
-    // os números da lista daquela versão (as réplicas de lá ficam sem número, como aqui)
-    let k = 0
-    this.numerosAnt = new Map(this.antigos.map((c) => [c.id, replica(c) ? '↪' : ++k]))
   }
 
   /** Onde um comentário de outra versão cai nesta: pela palavra em que ele foi feito (os ids da transcrição não mudam
-   *  entre as versões); se ela foi cortada, a próxima que ficou (`cortada`). */
+   *  entre as versões); se ela foi cortada, a próxima que ficou. */
   ondeAgora(c) {
     if (c.geral) return { t: null, fim: null }
     let w = c.palavra ? this.palavras.find((x) => x.id === c.palavra) : null
-    let cortada = false
-    if (!w && c.palavra) {
-      w = this.palavras.find((x) => x.id > c.palavra) || this.palavras.at(-1)
-      cortada = true
-    }
+    if (!w && c.palavra) w = this.palavras.find((x) => x.id > c.palavra) || this.palavras.at(-1)
     const t = w ? w.ini : Math.min(c.t || 0, this.dur)
-    return { t, fim: c.fim != null ? Math.min(t + (c.fim - c.t), this.dur) : null, cortada }
+    return { t, fim: c.fim != null ? Math.min(t + (c.fim - c.t), this.dur) : null }
   }
 
-  /** O comentário que um outro respondeu (`sobre`), em qualquer versão anterior. */
-  original(c) {
-    return c?.sobre ? this.anteriores[c.sobre.v]?.comentarios?.find((x) => x.id === c.sobre.id) : null
-  }
-
-  replicasDe(id) {
-    return this.rev.comentarios.filter((c) => c.sobre?.v === this.vAnterior && c.sobre.id === id && temConteudo(c))
-  }
-
-  concluido(id) {
-    return this.rev.concluidos.includes(id)
-  }
-
-  htmlAnterior(c) {
-    const onde = this.ondeAgora(c)
-    const orig = this.original(c)
-    const feito = this.concluido(c.id)
-    const reps = this.replicasDe(c.id)
-    return `<article class="item item-anterior${feito ? ' item-concluido' : ''}${this.sel === `ant:${c.id}` ? ' item-sel' : ''}" data-ant="${c.id}"${onde.t != null ? ` data-ir="${onde.t}"` : ''}>
-      <header class="item-cabeca"><span class="num">${this.numerosAnt.get(c.id)}</span>
-        ${onde.t == null ? '<span class="chip-tempo estatico">Geral</span>' : `<button class="chip-tempo" data-ir="${onde.t}" title="Na v${this.vAnterior}: ${quando(c)}">${quando(onde)}</button>`}
-        ${onde.cortada ? '<span class="chip-cortada" title="A fala deste comentário saiu nos cortes: ele fica na palavra seguinte">fala cortada</span>' : ''}
-        <span class="item-acoes"><button class="botao-icone pequeno botao-concluir${feito ? ' feito' : ''}" data-concluir="${c.id}" title="${feito ? 'Reabrir' : 'Marcar como concluído'}">${ICONE.check}</button></span></header>
-      ${orig ? `<p class="sobre-original">↪ sobre a v${c.sobre.v}: “${esc(curto(orig.texto, 90))}”</p>` : ''}
-      ${c.texto ? `<p class="texto">${esc(c.texto)}</p>` : ''}${this.htmlAnexos(c.anexos, `ant:${c.id}`)}
-      ${this.htmlResposta(c)}
-      ${reps.map((r) => `<div class="replica" data-id="${r.id}"><div class="replica-cabeca"><span class="quem">Você · v${this.v}</span>
-          <button class="botao-icone pequeno" data-apagar="${r.id}" title="Apagar a réplica">${ICONE.lixo}</button></div>
-        <p class="texto">${esc(r.texto)}</p>${this.htmlResposta(r)}</div>`).join('')}
-      ${this.respondendo === c.id
-        ? `<div class="editor editor-replica"><textarea id="replica-texto" rows="2" placeholder="Responder ao Claude: o que ainda falta, ou o que não ficou bom">${esc(this.rascunhoReplica || '')}</textarea>
-          <div class="editor-acoes"><span class="dica">Enter envia · Esc cancela</span><button class="botao pequeno" data-acao="cancelar-replica">Cancelar</button>
-          <button class="botao pequeno botao-coral" data-acao="salvar-replica">Responder</button></div></div>`
-        : `<button class="botao pequeno botao-responder" data-responder="${c.id}">${ICONE.balao} Responder</button>`}
-    </article>`
-  }
-
-  renderAnterior() {
-    const el = $('#lista-anterior')
-    if (!el) return
-    el.innerHTML = this.antigos.length ? this.antigos.map((c) => this.htmlAnterior(c)).join('')
-      : '<p class="vazio-lista">A versão anterior não teve comentários.</p>'
-    const campo = $('#replica-texto')
-    if (campo) {
-      crescer(campo)
-      campo.focus()
-      campo.setSelectionRange(campo.value.length, campo.value.length)
-      campo.closest('.item').scrollIntoView({ block: 'nearest' })
-    }
-    this.renderAbasPainel()
-  }
-
-  renderAbasPainel() {
-    const el = $('#abas-painel')
-    if (!el) return
-    const aqui = this.rev.comentarios.filter((c) => temConteudo(c) && !replica(c)).length
-    const abertos = this.antigos.filter((c) => !this.concluido(c.id)).length
-    el.innerHTML = `<button class="pilula pequena${this.aba === 'anterior' ? '' : ' ativa'}" data-aba-painel="atual">Esta versão · v${this.v} <span class="conta">${aqui}</span></button>
-      <button class="pilula pequena${this.aba === 'anterior' ? ' ativa' : ''}" data-aba-painel="anterior" title="Os comentários da v${this.vAnterior}, com a resposta do Claude: responda ou conclua">Anterior · v${this.vAnterior} <span class="conta">${abertos ? `${abertos} em aberto` : 'tudo concluído'}</span></button>`
-    this.tela.querySelector('.painel').classList.toggle('vendo-anterior', this.aba === 'anterior')
-  }
-
-  mostrarAba(aba) {
-    this.aba = aba
-    this.renderAbasPainel()
-    if (aba === 'anterior') this.renderAnterior()
-  }
-
-  responder(id) {
-    this.respondendo = id
-    this.rascunhoReplica = ''
-    this.mostrarAba('anterior')
-  }
-
-  salvarReplica() {
-    const campo = $('#replica-texto')
-    const texto = campo?.value.trim()
-    const c = this.antigos.find((x) => x.id === this.respondendo)
-    if (!texto || !c) return this.cancelarReplica()
-    const onde = this.ondeAgora(c)
-    const r = this.novoComentario(onde.t == null ? { geral: true } : { t: onde.t, fim: onde.fim }, texto)
-    r.sobre = { v: this.vAnterior, id: c.id }
-    this.rev.comentarios.push(r)
-    this.respondendo = null
-    this.renderAnterior()
-    this.renderMarcas()
-    this.agendarSalvar()
-  }
-
-  cancelarReplica() {
-    this.respondendo = null
-    this.renderAnterior()
-  }
-
-  alternarConcluido(id) {
-    const l = this.rev.concluidos
-    this.rev.concluidos = l.includes(id) ? l.filter((x) => x !== id) : [...l, id]
-    this.renderAnterior()
-    this.renderMarcas()
-    this.agendarSalvar()
+  /** As versões anteriores de um bloco: em cada uma, os comentários que caíram nele e a resposta do Claude. */
+  htmlHistoricoBloco(b) {
+    const vs = Object.keys(this.anteriores).map(Number).sort((a, b) => b - a)
+    const grupos = vs.map((x) => [x, (this.anteriores[x].comentarios || []).filter((c) => temConteudo(c) && !c.geral && this.blocoEm(this.ondeAgora(c).t)?.id === b.id)])
+      .filter(([, cs]) => cs.length)
+    if (!grupos.length) return ''
+    return `<div class="historico-bloco"><span class="eyebrow">Versões anteriores deste bloco</span>${grupos.map(([x, cs]) => `<details class="versao-bloco"${x === grupos[0][0] ? ' open' : ''}>
+        <summary><b>v${x}</b> · ${cs.length} ${cs.length === 1 ? 'comentário' : 'comentários'}</summary>
+        ${cs.sort((a, b) => a.t - b.t).map((c) => `<div class="item-velho"><p class="texto">${esc(c.texto || '(só o print)')}</p>${this.htmlResposta(c)}</div>`).join('')}</details>`).join('')}</div>`
   }
 
   // ---------- o provador de look (LUT, intensidade e vinheta do ator; servidor.py, render.py amostra-look) ----------
@@ -393,13 +409,14 @@ class Revisao {
       </div>
       <section class="linha">
         ${barraDaLinha(ATALHOS())}
-        <div class="linha-rotulos"><span class="r-regua"></span><span>Planos</span><span>Fala</span><span>Você</span>${this.vAnterior ? `<span title="Os comentários da v${this.vAnterior}, onde caem nesta versão">Anterior</span>` : ''}</div>
+        <div class="linha-rotulos"><span class="r-regua"></span>${this.blocos ? '<span title="Os blocos de ~30 s: revise, aprove e mande um de cada vez">Blocos</span>' : ''}<span class="r-planos">Planos</span><span>Fala</span><span>Você</span></div>
         <div class="linha-rolo" id="rolo"><div class="linha-conteudo" id="conteudo">
           <div class="regua" id="regua"></div>
+          ${this.blocos ? '<div class="faixa faixa-blocos" id="f-blocos"></div>' : ''}
           <div class="faixa faixa-planos" id="f-planos"></div>
           <div class="faixa faixa-palavras" id="f-palavras"></div>
           <div class="faixa faixa-comentarios" id="f-comentarios"></div>
-          ${this.vAnterior ? '<div class="faixa faixa-comentarios faixa-anterior" id="f-anterior"></div>' : ''}
+          <div id="divisas"></div>
           <div id="io"></div>
           <div class="cabeca" id="cabeca"></div>
         </div></div>
@@ -408,10 +425,9 @@ class Revisao {
         <div class="painel-cabeca"><div class="painel-titulo"><span class="eyebrow">Comentários · v${this.v}</span><span class="resumo" id="resumo"></span><span class="salvo" id="salvo"></span></div>
           <button class="botao" data-acao="aprovar" id="b-aprovar">Aprovar</button>
           <button class="botao botao-coral" data-acao="copiar">Copiar revisão <span class="seta">${ICONE.seta}</span></button></div>
-        ${this.vAnterior ? '<div class="abas-painel" id="abas-painel"></div>' : ''}
         <div id="estado"></div>
         <div class="lista" id="lista"></div>
-        <div class="lista lista-anterior" id="lista-anterior"></div>
+
         <div class="caixa-nova" id="caixa-nova">
           <div class="item-cabeca"><span class="eyebrow" id="nova-rotulo">Comentar em</span><button class="chip-tempo chip-alternar" data-acao="alternar-tempo" id="nova-quando" title="Desligar o tempo: vira um comentário geral (C)">0:00,0</button>
             <button class="botao-icone pequeno" data-acao="soltar" id="nova-soltar" hidden title="Soltar: a caixa volta a acompanhar o vídeo">${ICONE.fechar}</button></div>
@@ -425,7 +441,6 @@ class Revisao {
     this.renderVersoes()
     this.renderEstado()
     this.renderLista()
-    this.renderAnterior()
     this.renderLinha()
   }
 
@@ -505,6 +520,11 @@ class Revisao {
     const q = this.quandoNova()
     const c = this.novoComentario({ ...q, novoId: n.novoId, anexos: n.anexos }, texto)
     this.rev.comentarios.push(c)
+    const b = c.geral ? null : this.blocoEm(c.t)
+    if (b?.def.aprovado) {
+      b.def.aprovado = false
+      aviso(`${b.id} estava finalizado: com o comentário, ele volta a ficar aberto`)
+    }
     this.sel = c.id
     this.nova = { preso: false, geral: false, t: 0, fim: null, anexos: [], novoId: null }
     this.entrada = null
@@ -556,7 +576,7 @@ class Revisao {
   }
 
   renderResumo() {
-    const cs = this.rev.comentarios.filter((c) => temConteudo(c) && !replica(c))
+    const cs = this.rev.comentarios.filter(temConteudo)
     const n = (k) => cs.filter((c) => chaveStatus(c.status) === k).length
     const partes = [`${cs.length} ${cs.length === 1 ? 'comentário' : 'comentários'}`]
     for (const [k, um, varios] of [['aplicado', 'aplicado', 'aplicados'], ['respondido', 'respondido', 'respondidos'], ['nao_aplicado', 'não aplicado', 'não aplicados']]) {
@@ -571,13 +591,26 @@ class Revisao {
   renderLista() {
     const campo0 = $('#editor-texto')
     if (campo0 && this.editor) this.editor.texto = campo0.value // o que já foi digitado sobrevive ao redesenho
-    const comentarios = this.rev.comentarios.filter((c) => !replica(c)).sort((a, b) => ordem(a) - ordem(b))
+    const comentarios = this.rev.comentarios.slice().sort((a, b) => ordem(a) - ordem(b))
     this.numeros = new Map(comentarios.map((c, k) => [c.id, k + 1]))
     let html = comentarios.map((c) => this.htmlComentario(c)).join('')
-    if (!comentarios.length) html = `<p class="vazio-lista">Nenhum comentário ainda.<br>Escreva na caixa abaixo: o vídeo pausa e o comentário fica naquele instante (<kbd>I</kbd> e <kbd>O</kbd> marcam um trecho).</p>`
+    const foco = this.blocos?.find((b) => b.id === this.blocoSel)
+    if (foco) {
+      // um bloco escolhido: só os comentários dele e, embaixo, o que já foi pedido nele nas versões anteriores
+      const cs = comentarios.filter((c) => !c.geral && this.blocoEm(c.t)?.id === foco.id)
+      html = `<section class="bloco-grupo bloco-foco${foco.def.aprovado ? ' bloco-grupo-ok' : ''}">${this.htmlCabecaBloco(foco, cs.length, true)}
+        ${cs.map((c) => this.htmlComentario(c)).join('') || `<p class="vazio-lista">Nenhum comentário no ${foco.id} nesta versão.<br>Comente na caixa abaixo, com o vídeo dentro do bloco.</p>`}
+        ${this.htmlHistoricoBloco(foco)}</section>`
+    } else if (this.blocos) {
+      const gerais = comentarios.filter((c) => c.geral)
+      html = gerais.map((c) => this.htmlComentario(c)).join('') + this.blocos.map((b) => {
+        const cs = comentarios.filter((c) => !c.geral && this.blocoEm(c.t)?.id === b.id)
+        return `<section class="bloco-grupo${b.def.aprovado ? ' bloco-grupo-ok' : ''}">${this.htmlCabecaBloco(b, cs.length)}${cs.map((c) => this.htmlComentario(c)).join('')}</section>`
+      }).join('')
+    }
+    if (!comentarios.length && !this.blocos) html = `<p class="vazio-lista">Nenhum comentário ainda.<br>Escreva na caixa abaixo: o vídeo pausa e o comentário fica naquele instante (<kbd>I</kbd> e <kbd>O</kbd> marcam um trecho).</p>`
     $('#lista').innerHTML = html
     this.renderResumo()
-    this.renderAbasPainel()
     const campo = $('#editor-texto')
     if (campo) {
       crescer(campo)
@@ -636,6 +669,7 @@ class Revisao {
   // ---------- a linha do tempo ----------
 
   renderLinha() {
+    if (this.blocos) this.calcularBlocos() // a duração pode ter mudado (o vídeo carregou): o último bloco vai até o fim
     const rolo = $('#rolo')
     const ajuste = Math.max(rolo.clientWidth - 2, 100) / this.dur
     if (this.ajustar || this.pxs < ajuste) {
@@ -647,6 +681,7 @@ class Revisao {
     this.renderPlanos()
     this.renderPalavras()
     this.renderMarcas()
+    this.renderBlocos()
     this.iPalavra = this.iPlano = -2
     this.atualizar()
   }
@@ -709,16 +744,9 @@ class Revisao {
         return `<button class="marca marca-intervalo ${cls}${sel}" data-marca="${id}" data-ir="${t}" style="left:${(t * px).toFixed(1)}px;width:${((fim - t) * px).toFixed(1)}px" title="${esc(dica)}">${rotulo}</button>`
       return `<button class="marca marca-ponto ${cls}${sel}" data-marca="${id}" data-ir="${t}" style="left:${(t * px).toFixed(1)}px" title="${esc(dica)}">${rotulo}</button>`
     }
-    if ($('#f-anterior'))
-      $('#f-anterior').innerHTML = this.antigos.filter((c) => !c.geral).map((c) => {
-        const o = this.ondeAgora(c)
-        const k = chaveStatus(c.status)
-        const reps = this.replicasDe(c.id).length
-        const cls = `marca-anterior ${k === 'pendente' ? '' : `marca-${STATUS[k]?.[1] || 'respondido'}`}${this.concluido(c.id) ? ' marca-concluido' : ''}${reps ? ' marca-com-replica' : ''}`
-        return marca(`ant:${c.id}`, o.t, o.fim, this.numerosAnt.get(c.id), cls, `v${this.vAnterior} · ${c.texto}${c.resposta ? `\nClaude: ${c.resposta}` : ''}`)
-      }).join('')
+    this.renderBlocos()
     $('#f-comentarios').innerHTML = this.rev.comentarios
-      .filter((c) => !c.geral && !replica(c))
+      .filter((c) => !c.geral)
       .map((c) => {
         const k = chaveStatus(c.status)
         return marca(c.id, c.t, c.fim, this.numeros.get(c.id), k === 'pendente' ? '' : `marca-${STATUS[k]?.[1] || 'respondido'}`, `${quando(c)} · ${c.texto}`)
@@ -738,6 +766,7 @@ class Revisao {
 
   atualizar() {
     if (this.fechado) return // o vídeo ainda solta eventos depois de sair da tela
+    if (this.loop && !this.video.paused && (this.video.currentTime >= this.loop.fim - 0.03 || this.video.currentTime < this.loop.ini - 0.1)) this.video.currentTime = this.loop.ini
     const t = this.video.currentTime
     $('#t-atual').textContent = tempo(t)
     this.renderNova()
@@ -1038,7 +1067,6 @@ class Revisao {
     this.rev.comentarios.splice(this.rev.comentarios.indexOf(c), 1)
     for (const a of c.anexos || []) this.apagarAnexo(a)
     this.renderLista()
-    this.renderAnterior()
     this.renderMarcas()
     this.agendarSalvar()
   }
@@ -1046,11 +1074,6 @@ class Revisao {
   selecionar(id, t) {
     this.sel = id
     if (t != null) this.buscar(t)
-    if (id?.startsWith('ant:')) {
-      this.mostrarAba('anterior')
-      this.renderMarcas()
-      return $(`.item-anterior[data-ant="${id.slice(4)}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
-    }
     this.renderLista()
     this.renderMarcas()
     $(`.item[data-id="${id}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
@@ -1087,17 +1110,18 @@ class Revisao {
     return this.fila
   }
 
-  /** O texto que o criador cola no chat do Claude Code (o mesmo do `revisao.py ler`). */
-  texto() {
-    const linhas = [`Revisão · ${this.slug} · v${this.v}`]
+  /** O texto que o criador cola no chat do Claude Code (o mesmo do `revisao.py ler`); com `bloco`, só os dele. */
+  texto(bloco = null) {
+    const linhas = [`Revisão · ${this.slug} · v${this.v}${bloco ? ` · bloco ${bloco.id} (${tempo(bloco.ini)}–${tempo(bloco.fim)})` : ''}`]
     // como o `linha_anexos` do revisao.py: "print" quando são só imagens, "anexo" quando há vídeo
     const prints = (l) => `  ↳ ${l.some((a) => VIDEO.test(a)) ? 'anexo' : 'print'}: ${l.map((a) => `projetos/${this.slug}/${a}`).join(', ')}`
-    for (const c of this.rev.comentarios.filter(temConteudo).sort((a, b) => ordem(a) - ordem(b))) {
-      const o = this.original(c)
-      const sobre = c.sobre ? `↪ v${c.sobre.v}·${c.sobre.id}${o ? ` "${curto(o.texto)}"` : ''} — ` : ''
-      linhas.push(`[${quando(c)}] ${sobre}${c.fala ? `"${c.fala}" — ` : ''}${umaLinha(c.texto || '') || '(ver o print)'}`)
+    const lista = bloco ? this.doBloco(bloco) : this.rev.comentarios.filter(temConteudo)
+    for (const c of lista.sort((a, b) => ordem(a) - ordem(b))) {
+      linhas.push(`[${quando(c)}] ${c.fala ? `"${c.fala}" — ` : ''}${umaLinha(c.texto || '') || '(ver o print)'}`)
       if (c.anexos?.length) linhas.push(prints(c.anexos))
     }
+    const travados = (this.blocos || []).filter((b) => b.def.aprovado)
+    if (travados.length) linhas.push(`Travados (finalizados, não mexa): ${travados.map((b) => `${b.id} ${tempo(b.ini)}–${tempo(b.fim)}`).join(', ')}`)
     linhas.push(`(projetos/${this.slug}/revisoes/v${this.v}.json)`)
     return linhas.join('\n')
   }
@@ -1146,7 +1170,6 @@ class Revisao {
     if (disco && this.rev.comentarios.some((c) => !disco.comentarios?.some((d) => d.id === c.id))) this.agendarSalvar()
     if (mudou) {
       if (!this.editor) this.renderLista()
-      if (!this.respondendo) this.renderAnterior()
       this.renderMarcas()
       this.renderEstado()
       aviso('O Claude respondeu a revisão')
@@ -1268,12 +1291,6 @@ class Revisao {
     window.addEventListener('pagehide', this.saida)
 
     // a caixa do comentário novo: escrever prende o instante (e pausa); apagar tudo solta
-    this.tela.addEventListener('input', (e) => {
-      if (e.target.id === 'replica-texto') {
-        this.rascunhoReplica = e.target.value
-        crescer(e.target)
-      }
-    })
     $('#nova-texto').addEventListener('input', (e) => {
       crescer(e.target)
       if (e.target.value.trim()) this.prenderNova()
@@ -1329,7 +1346,7 @@ class Revisao {
     const conteudo = $('#conteudo')
     // clicar busca; arrastar na régua percorre o vídeo; arrastar nas faixas marca um trecho (como I e O)
     conteudo.addEventListener('pointerdown', (e) => {
-      if (e.target.closest('.marca') || e.button !== 0) return
+      if (e.target.closest('.marca, .bloco-faixa') || e.button !== 0) return
       e.preventDefault()
       const tDe = (ev) => Math.min(Math.max((ev.clientX - conteudo.getBoundingClientRect().left) / this.pxs, 0), this.dur)
       const naRegua = !!e.target.closest('#regua')
@@ -1400,13 +1417,16 @@ class Revisao {
       return c && this.abrirEditor({ id: c.id, t: c.t, fim: c.fim, geral: c.geral, texto: c.texto, anexos: [...(c.anexos || [])] })
     }
     if (d.apagar) return this.apagar(d.apagar)
-    if (d.abaPainel) return this.mostrarAba(d.abaPainel)
-    if (d.concluir) return this.alternarConcluido(d.concluir)
-    if (d.responder) return this.responder(d.responder)
+    if (d.aprovarBloco) return this.aprovarBloco(d.aprovarBloco)
+    if (d.loopBloco) return this.alternarLoop(d.loopBloco)
+    if (d.copiarBloco) return this.copiarBloco(d.copiarBloco)
+    if (d.sairBloco != null) return this.escolherBloco(null)
+    if (d.bloco) {
+      this.buscar(+d.ir)
+      return this.escolherBloco(d.bloco)
+    }
     if (d.marca) return this.selecionar(d.marca, +d.ir)
     if (d.ir != null) {
-      const ant = b.closest('.item-anterior')
-      if (ant) return window.getSelection()?.toString() ? undefined : this.selecionar(`ant:${ant.dataset.ant}`, +d.ir)
       const item = b.closest('.item')
       if (window.getSelection()?.toString()) return // selecionando texto
       return this.selecionar(item?.dataset.id || null, +d.ir)
@@ -1431,8 +1451,6 @@ class Revisao {
       'zoom+': () => this.zoom(1.6),
       cancelar: () => this.fecharEditor(),
       'salvar-editor': () => this.salvarEditor(),
-      'salvar-replica': () => this.salvarReplica(),
-      'cancelar-replica': () => this.cancelarReplica(),
       aprovar: () => this.aprovar(),
       copiar: () => this.copiarRevisao(),
       versoes: () => this.alternarVersoes(),
@@ -1445,16 +1463,6 @@ class Revisao {
     const campo = e.target.closest?.('input, textarea, select, [contenteditable]')
     if (campo) {
       const enter = e.key === 'Enter' && !e.shiftKey && !e.isComposing
-      if (campo.id === 'replica-texto') {
-        if (enter) {
-          e.preventDefault()
-          this.salvarReplica()
-        } else if (e.key === 'Escape') {
-          e.preventDefault()
-          this.cancelarReplica()
-        }
-        return
-      }
       if (campo.id === 'editor-texto' && enter) {
         e.preventDefault()
         this.salvarEditor()
@@ -1501,40 +1509,26 @@ class Revisao {
   }
 
   /** Ao sair da página: o instante do vídeo, o rascunho da caixa (texto, instante preso, prints) e onde o painel estava
-   *  (a aba, o comentário sendo editado, a réplica sendo escrita e a rolagem das listas) desta versão. */
+   *  (o bloco escolhido, o comentário sendo editado com o texto e a rolagem) desta versão. */
   guardarPosicao() {
     if (!this.video) return
     preferencia(`posicao.${this.slug}.v${this.v}`, 0, +this.video.currentTime.toFixed(3))
     const texto = $('#nova-texto')?.value || ''
     preferencia(`rascunho.${this.slug}.v${this.v}`, null, texto.trim() || this.nova.anexos.length ? { ...this.nova, texto } : null)
     const editor = this.editor ? { ...this.editor, texto: $('#editor-texto')?.value ?? this.editor.texto } : null
-    const replica = this.respondendo ? $('#replica-texto')?.value ?? this.rascunhoReplica : ''
-    preferencia(`painel.${this.slug}.v${this.v}`, null, {
-      aba: this.aba || 'atual', sel: this.sel, editor, respondendo: this.respondendo || null, replica,
-      rolagem: $('#lista')?.scrollTop || 0, rolagemAnt: $('#lista-anterior')?.scrollTop || 0,
-    })
+    preferencia(`painel.${this.slug}.v${this.v}`, null, { bloco: this.blocoSel || null, sel: this.sel, editor, rolagem: $('#lista')?.scrollTop || 0 })
   }
 
-  /** Volta o painel para onde estava ao sair (guardarPosicao): a aba, o editor aberto com o texto, a réplica e a rolagem. */
+  /** Volta o painel para onde estava ao sair (guardarPosicao): o bloco, o editor aberto com o texto e a rolagem. */
   voltarPainel() {
     const p = preferencia(`painel.${this.slug}.v${this.v}`, null)
     if (!p) return
     this.sel = p.sel ?? null
     if (p.editor && (!p.editor.id || this.rev.comentarios.some((c) => c.id === p.editor.id))) this.editor = p.editor
-    if (p.respondendo && this.antigos?.some((c) => c.id === p.respondendo)) {
-      this.respondendo = p.respondendo
-      this.rascunhoReplica = p.replica || ''
-    }
-    this.aba = this.vAnterior && p.aba === 'anterior' ? 'anterior' : 'atual'
+    if (this.blocos?.some((b) => b.id === p.bloco)) this.blocoSel = p.bloco
     this.renderLista()
-    this.renderAnterior()
     this.renderMarcas()
-    this.renderAbasPainel()
-    // a rolagem depois do foco (que rola até o campo aberto), para ficar onde estava
-    requestAnimationFrame(() => {
-      if ($('#lista')) $('#lista').scrollTop = p.rolagem || 0
-      if ($('#lista-anterior')) $('#lista-anterior').scrollTop = p.rolagemAnt || 0
-    })
+    requestAnimationFrame(() => $('#lista') && ($('#lista').scrollTop = p.rolagem || 0)) // depois do foco no campo aberto
   }
 
   fechar() {

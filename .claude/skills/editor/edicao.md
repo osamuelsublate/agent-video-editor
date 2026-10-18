@@ -23,8 +23,9 @@ projetos/<slug>/
 │   └── voz/f1_<limpeza>.wav  a voz limpa (DeepFilterNet), 48 kHz mono
 ├── inserts/<plano>.json   o que cada subagente de insert achou (ver etapas/04-inserts.md)
 ├── versoes/vN/            cada versão entregue: proxy.mp4, edicao.json (cópia), palavras.json, planos.json, info.json
-├── revisoes/vN.json       os comentários do criador sobre a vN (gravado pelo app); `sobre` numa réplica a um comentário
-│                          de uma versão anterior, `concluidos` os ids dela que ele deu por resolvidos
+├── revisoes/vN.json       os comentários do criador sobre a vN (gravado pelo app) e, nos vídeos de mais de 2 min, os
+│                          `blocos` de ~30 s ({id, palavra em que começa, aprovado = finalizado e travado}); a versão
+│                          seguinte herda os da anterior
 └── final/                 o MP4 final aprovado
 ```
 

@@ -5,12 +5,12 @@ criador corrigiu num vídeo não pode se repetir no próximo.
 
 ## 1. Aprendizados (com o criador)
 
-1. **Junte o que aconteceu no vídeo:** `uv run ferramentas/revisao.py historico <slug>` (todas as revisões como
-   conversas: cada comentário, a sua resposta, as réplicas dele nas versões seguintes e o que ele marcou como
-   concluído; os anexos de cada um com `revisao.py ler <slug> vN`); o que ele respondeu no chat às suas dúvidas; e o que
-   você mesmo teve de corrigir na autorrevisão.
-2. **Analise por que errou.** Cada comentário é um erro seu que o criador teve de apontar; os que voltaram em réplica
-   (a primeira solução não resolveu) ou ficaram `nao_aplicado` pesam mais. Para cada um, a causa:
+1. **Junte o que aconteceu no vídeo:** `uv run ferramentas/revisao.py historico <slug>` (todas as revisões, versão a
+   versão: cada comentário com o bloco e a sua resposta, e os blocos que voltaram a ser comentados; os anexos de cada
+   um com `revisao.py ler <slug> vN`); o que ele respondeu no chat às suas dúvidas; e o que você mesmo teve de corrigir
+   na autorrevisão.
+2. **Analise por que errou.** Cada comentário é um erro seu que o criador teve de apontar; os do mesmo assunto que
+   voltaram no mesmo bloco numa versão seguinte (a primeira solução não resolveu) ou ficaram `nao_aplicado` pesam mais. Para cada um, a causa:
    - **pedido mal entendido** (você fez outra coisa): o que na fala dele devia ter guiado, e como perguntar ou ler melhor;
    - **faltava regra** (a skill não dizia): a regra nova, na área certa;
    - **a regra existia e não foi seguida** (está no `aprendizados/` ou na etapa e você não leu ou não aplicou): reescreva
@@ -29,7 +29,7 @@ criador corrigiu num vídeo não pode se repetir no próximo.
    Aprendizados do PRJ-03 (v3 aprovada):
    inserts · [gosto] prefira gravação de tela rolando a print parado quando a fala cita um site  (v1·c2, v2·c5)
      por que errei: a regra não existia; escolhi o print por ser mais rápido de achar
-   elementos · [gosto] no máximo 1 lettering a cada ~10 s; nunca dois seguidos  (v1·c4 → réplica na v2)
+   elementos · [gosto] no máximo 1 lettering a cada ~10 s; nunca dois seguidos  (v1·c4, de novo no mesmo bloco na v2)
      por que errei: a regra estava em elementos.md e não li antes da direção → movida para o passo 3 de 03-direcao.md
    cortes · [defeito] o "m" de "mas" vazou na emenda do ✂3 → borda ajustada; regra: …  (autorrevisão)
    Confirma? Pode cortar, mudar o texto ou acrescentar.

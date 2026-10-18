@@ -7,7 +7,6 @@ Revisão · <slug> · v2
 [0:03,2] "a galera considera" — tira esse motion, prefiro tela dividida com o site
 [0:12,0–0:15,4] "esses dois sites" — mostra os dois, um de cada vez
   ↳ print: projetos/<slug>/revisoes/anexos/c2-1.png
-[0:20,1] ↪ v1·c4 "o card ficou grande demais" — "e aqui" — ainda grande, metade disso
 Geral: legenda um pouco mais baixa
 (projetos/<slug>/revisoes/v2.json)
 ```
@@ -15,13 +14,27 @@ Geral: legenda um pouco mais baixa
 ## Rodar
 
 ```bash
-uv run ferramentas/revisao.py ler <slug> [vN]     # cada comentário com id, âncora (palavra) e o plano sob ele
+uv run ferramentas/revisao.py ler <slug> [vN] [--bloco B3]   # cada comentário com id, âncora (palavra), bloco e plano
 ```
 
-**Réplicas (`↪ v1·c4 "…"`)**: no app, a versão anterior aparece numa linha própria ("Anterior") e numa aba do
-painel, com a sua resposta a cada comentário; o criador marca o que ficou bom como concluído e responde o que não ficou.
-Uma réplica continua aquela conversa: o `revisao.py ler` mostra o que ele pediu antes e o que você respondeu. Se ele
-voltou ao assunto, a primeira solução não resolveu: entenda por quê e não a repita.
+## Blocos (vídeos de mais de 2 min)
+
+O app divide o vídeo em blocos de ~30 s (B1, B2…), cada um começando numa palavra: o mesmo bloco continua o mesmo
+trecho nas versões seguintes. O criador revisa e manda **um bloco de cada vez** (o "Copiar" do bloco):
+
+```text
+Revisão · <slug> · v4 · bloco B3 (1:00,4–1:30,6)
+[1:02,0] "esses dois sites" — mostra os dois, um de cada vez
+Travados (finalizados, não mexa): B1 0:00,0–0:31,3, B2 0:31,3–1:00,4
+(projetos/<slug>/revisoes/v4.json)
+```
+
+- Leia com `revisao.py ler <slug> vN --bloco B3` e aplique **só o que cai nesse bloco**. Comentários de outros blocos
+  que estejam no arquivo e não vieram no texto colado não foram mandados ainda: não aplique nem responda.
+- **Travados** são os blocos que o criador marcou como finalizados: não mude nada que apareça neles (plano, insert,
+  motion, legenda, áudio). Se uma correção precisar atravessar a fronteira (um corte que puxa a fala do bloco vizinho),
+  pergunte antes.
+- A versão nova sai inteira (o render é do vídeo todo), mas só o bloco mexido muda; os outros ficam como estavam.
 
 ## Aplicar
 
@@ -46,10 +59,10 @@ voltou ao assunto, a primeira solução não resolveu: entenda por quê e não a
    uv run ferramentas/revisao.py responder <slug> vN <id> --status aplicado --resposta "troquei por tela dividida com o site do X"
    ```
    `status`: `aplicado` · `respondido` (era pergunta) · `nao_aplicado` (diga por quê). As respostas aparecem no app,
-   no comentário e, na versão seguinte, na conversa da aba "Anterior": é por elas que o criador sabe o que foi feito.
+   no comentário e, nas versões seguintes, no histórico do bloco: é por elas que o criador sabe o que foi feito.
    **Seja conciso:** uma frase curta (até ~25 palavras) com o que mudou no vídeo, nas palavras dele ("troquei por tela
-   dividida com o site do X"), ou por que não mudou. Sem explicar o processo nem a ferramenta. Responda as réplicas
-   do mesmo jeito (o id delas é o desta versão).
+   dividida com o site do X"), ou por que não mudou. Sem explicar o processo nem a ferramenta. Só responda os
+   comentários desta revisão (as versões anteriores não pedem resposta nova).
 5. Entregue como no `10-render.md`: o link, o que mudou em 3–5 linhas.
 
 ## Aprendizados: só na conclusão
