@@ -1268,12 +1268,19 @@ class Revisao {
     window.addEventListener('pagehide', this.saida)
 
     // a caixa do comentário novo: escrever prende o instante (e pausa); apagar tudo solta
+    this.tela.addEventListener('input', (e) => {
+      if (e.target.id === 'replica-texto') {
+        this.rascunhoReplica = e.target.value
+        crescer(e.target)
+      }
+    })
     $('#nova-texto').addEventListener('input', (e) => {
       crescer(e.target)
       if (e.target.value.trim()) this.prenderNova()
       else if (!this.nova.anexos.length && this.nova.fim == null) this.soltarNova()
     })
-    // o rascunho que ficou na caixa ao sair
+    // o painel (aba, editor, réplica, rolagem) e o rascunho que ficou na caixa ao sair
+    this.voltarPainel()
     const r = preferencia(`rascunho.${this.slug}.v${this.v}`, null)
     if (r) {
       const { texto, ...nova } = r
@@ -1439,7 +1446,6 @@ class Revisao {
     if (campo) {
       const enter = e.key === 'Enter' && !e.shiftKey && !e.isComposing
       if (campo.id === 'replica-texto') {
-        this.rascunhoReplica = campo.value
         if (enter) {
           e.preventDefault()
           this.salvarReplica()
@@ -1494,12 +1500,41 @@ class Revisao {
     }
   }
 
-  /** Ao sair da página: o instante do vídeo e o rascunho da caixa (texto, instante preso, prints) desta versão. */
+  /** Ao sair da página: o instante do vídeo, o rascunho da caixa (texto, instante preso, prints) e onde o painel estava
+   *  (a aba, o comentário sendo editado, a réplica sendo escrita e a rolagem das listas) desta versão. */
   guardarPosicao() {
     if (!this.video) return
     preferencia(`posicao.${this.slug}.v${this.v}`, 0, +this.video.currentTime.toFixed(3))
     const texto = $('#nova-texto')?.value || ''
     preferencia(`rascunho.${this.slug}.v${this.v}`, null, texto.trim() || this.nova.anexos.length ? { ...this.nova, texto } : null)
+    const editor = this.editor ? { ...this.editor, texto: $('#editor-texto')?.value ?? this.editor.texto } : null
+    const replica = this.respondendo ? $('#replica-texto')?.value ?? this.rascunhoReplica : ''
+    preferencia(`painel.${this.slug}.v${this.v}`, null, {
+      aba: this.aba || 'atual', sel: this.sel, editor, respondendo: this.respondendo || null, replica,
+      rolagem: $('#lista')?.scrollTop || 0, rolagemAnt: $('#lista-anterior')?.scrollTop || 0,
+    })
+  }
+
+  /** Volta o painel para onde estava ao sair (guardarPosicao): a aba, o editor aberto com o texto, a réplica e a rolagem. */
+  voltarPainel() {
+    const p = preferencia(`painel.${this.slug}.v${this.v}`, null)
+    if (!p) return
+    this.sel = p.sel ?? null
+    if (p.editor && (!p.editor.id || this.rev.comentarios.some((c) => c.id === p.editor.id))) this.editor = p.editor
+    if (p.respondendo && this.antigos?.some((c) => c.id === p.respondendo)) {
+      this.respondendo = p.respondendo
+      this.rascunhoReplica = p.replica || ''
+    }
+    this.aba = this.vAnterior && p.aba === 'anterior' ? 'anterior' : 'atual'
+    this.renderLista()
+    this.renderAnterior()
+    this.renderMarcas()
+    this.renderAbasPainel()
+    // a rolagem depois do foco (que rola até o campo aberto), para ficar onde estava
+    requestAnimationFrame(() => {
+      if ($('#lista')) $('#lista').scrollTop = p.rolagem || 0
+      if ($('#lista-anterior')) $('#lista-anterior').scrollTop = p.rolagemAnt || 0
+    })
   }
 
   fechar() {
