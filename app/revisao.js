@@ -202,12 +202,51 @@ class Revisao {
         <button class="botao pequeno botao-coral" data-copiar-bloco="${b.id}" ${n ? '' : 'disabled'} title="Copiar a revisão só deste bloco">Copiar</button></span></div>`
   }
 
-  /** Escolher um bloco (na faixa ou no cabeçalho): o painel mostra só ele; `null` volta a todos. */
+  /** Escolher um bloco (na faixa ou no cabeçalho): o painel mostra só ele e o seletor de cima, a versão dele; `null`
+   *  volta a todos. */
   escolherBloco(id) {
     this.blocoSel = id
+    this.menuVersoes = null
     this.renderLista()
     this.renderMarcas()
+    this.renderVersoes()
     $('#lista').scrollTop = 0
+    if (id) this.carregarVersoesBlocos().then(() => !this.fechado && this.blocoSel === id && this.renderVersoes())
+  }
+
+  /** As versões de cada bloco: o bloco só ganha versão nova quando o que há nele mudou de uma versão do vídeo para a
+   *  outra (as palavras que ficaram, os planos com o tipo, o texto e a mídia, os motions e os presets). Lido uma vez,
+   *  na primeira escolha de bloco. `this.versoesBloco[id]`: [{bv, vs: [versões do vídeo com esse conteúdo]}]. */
+  async carregarVersoesBlocos() {
+    if (this.versoesBloco) return
+    const s = encodeURIComponent(this.slug)
+    const vs = this.proj.versoes.filter((x) => x <= this.proj.ultima)
+    const dados = await Promise.all(vs.map((x) => Promise.all(['palavras', 'planos', 'edicao'].map((f) => json(`/projetos/${s}/versoes/v${x}/${f}.json`, null)))))
+    const assinatura = (def, prox, [pal, pla, ed]) => {
+      const ws = listaDe(pal, 'palavras').slice().sort((a, b) => a.ini - b.ini)
+      const ini = (ws.find((w) => w.id === def.palavra) || ws.find((w) => w.id > def.palavra))?.ini ?? 0
+      const fim = prox ? (ws.find((w) => w.id === prox.palavra) || ws.find((w) => w.id > prox.palavra))?.ini ?? Infinity : Infinity
+      const dentro = (a, b) => a < fim - 0.05 && b > ini + 0.05
+      const midias = {}
+      for (const q of ed?.inserts?.pedidos || []) midias[q.plano] = [(q.midias || []).map((m) => m.banco || m.id), q.enriquecimento?.preset]
+      for (const [pl, m] of Object.entries(ed?.motions || {})) midias[pl] = [...(midias[pl] || []), m.preset || m.tipo, m.valores]
+      return JSON.stringify([
+        ws.filter((w) => dentro(w.ini, w.fim)).map((w) => w.id),
+        listaDe(pla, 'planos').filter((q) => dentro(q.ini, q.fim)).map((q) => [q.tipo, q.texto, Math.round((q.ini - ini) * 4), Math.round((q.fim - ini) * 4), midias[q.id]]),
+      ])
+    }
+    this.versoesBloco = {}
+    const defs = this.rev.blocos || []
+    defs.forEach((def, k) => {
+      const l = []
+      vs.forEach((x, i) => {
+        if (!dados[i][0]) return
+        const a = assinatura(def, defs[k + 1], dados[i])
+        if (l.at(-1)?.a === a) l.at(-1).vs.push(x)
+        else l.push({ bv: l.length + 1, a, vs: [x] })
+      })
+      this.versoesBloco[def.id] = l
+    })
   }
 
   aprovarBloco(id) {
@@ -542,6 +581,20 @@ class Revisao {
     const s = encodeURIComponent(this.slug)
     const ultima = this.proj.ultima
     const lista = this.menuVersoes
+    const vb = this.blocoSel && this.versoesBloco?.[this.blocoSel]
+    if (vb?.length) {
+      // um bloco escolhido: a versão dele (só sobe quando o bloco mudou); cada uma abre a versão do vídeo onde nasceu
+      const id = this.blocoSel
+      const agora = vb.find((x) => x.vs.includes(this.v))
+      const ultimaB = vb.at(-1)
+      $('#versoes').innerHTML = `<button class="botao botao-versao" data-acao="versoes" aria-haspopup="listbox" aria-expanded="${!!lista}" title="A versão do ${id} (o vídeo está na v${this.v})">
+          <b>${id} · v${agora?.bv ?? '?'}</b>${agora === ultimaB ? '<span class="atual">atual</span>' : ''}${ICONE.seta_baixo}</button>
+        ${lista ? `<div class="menu-versoes" role="listbox">${vb.slice().reverse().map((x) => `<a class="item-versao${x === agora ? ' ativa' : ''}" role="option" aria-selected="${x === agora}" href="#/p/${s}/v${x.vs[0]}" data-versao-bloco="${x.vs[0]}">
+            <b>${id} · v${x.bv}</b>${x === ultimaB ? '<span class="atual">atual</span>' : ''}
+            <span class="versao-dados">${x.vs.length > 1 ? `nos vídeos v${x.vs[0]}–v${x.vs.at(-1)}` : `no vídeo v${x.vs[0]}`}</span></a>`).join('')}</div>` : ''}`
+      $('#aviso-versao').innerHTML = this.v < ultima ? `Você está vendo o vídeo v${this.v} (há uma v${ultima} mais nova) · <a href="#/p/${s}/v${ultima}">abrir a v${ultima}</a>` : ''
+      return this.renderAprovar()
+    }
     $('#versoes').innerHTML = `<button class="botao botao-versao" data-acao="versoes" aria-haspopup="listbox" aria-expanded="${!!lista}" title="Trocar de versão">
         <b>v${this.v}</b>${this.v === ultima ? '<span class="atual">atual</span>' : ''}${ICONE.seta_baixo}</button>
       ${lista ? `<div class="menu-versoes" role="listbox">${lista.map((x) => `<a class="item-versao${x.v === this.v ? ' ativa' : ''}" role="option" aria-selected="${x.v === this.v}" href="#/p/${s}/v${x.v}">
@@ -549,6 +602,10 @@ class Revisao {
           <span class="versao-dados">${x.criado_em ? dataHora(x.criado_em) : '—'}${x.duracao ? ` · ${mmss(x.duracao)}` : ''}</span>
           <span class="versao-estado ve-${x.estado}">${(ESTADO_VERSAO[x.estado] || ESTADO_VERSAO.sem)(x.comentarios)}${x.aplicados ? ` · <b>${x.aplicados} ${x.aplicados === 1 ? 'aplicado' : 'aplicados'}</b>` : ''}</span></a>`).join('')}</div>` : ''}`
     $('#aviso-versao').innerHTML = this.v < ultima ? `Você está vendo a v${this.v} (há uma v${ultima} mais nova) · <a href="#/p/${s}/v${ultima}">abrir a v${ultima}</a>` : ''
+    this.renderAprovar()
+  }
+
+  renderAprovar() {
     const b = $('#b-aprovar')
     b.innerHTML = this.rev.aprovado ? `${ICONE.check} Aprovado` : 'Aprovar'
     b.classList.toggle('botao-menta', !!this.rev.aprovado)
@@ -558,6 +615,11 @@ class Revisao {
   async alternarVersoes(abrir = !this.menuVersoes) {
     if (!abrir) {
       this.menuVersoes = null
+      return this.renderVersoes()
+    }
+    if (this.blocoSel && this.versoesBloco?.[this.blocoSel]?.length) { // as versões do bloco já estão na memória
+      await new Promise((r) => setTimeout(r)) // depois do clique: senão o "clicou fora" vê o botão já trocado e fecha
+      this.menuVersoes = true
       return this.renderVersoes()
     }
     const l = await json(`/api/projetos/${encodeURIComponent(this.slug)}/versoes`, null)
@@ -1394,6 +1456,7 @@ class Revisao {
     const editor = e.target.closest('.editor')
     if (!b || (editor && !editor.contains(b))) return // dentro do campo de comentário, só os botões dele
     if (b.tagName === 'BUTTON') b.blur()
+    if (b.dataset.versaoBloco) preferencia(`painel.${this.slug}.v${b.dataset.versaoBloco}`, null, { bloco: this.blocoSel, irAoBloco: true }) // lá, o bloco segue escolhido, desde o começo
     if (b.classList.contains('item-versao')) return setTimeout(() => this.alternarVersoes(false)) // a versão abre pelo endereço
     const d = b.dataset
     if (d.acao) return this.acao(d.acao)
@@ -1525,7 +1588,12 @@ class Revisao {
     if (!p) return
     this.sel = p.sel ?? null
     if (p.editor && (!p.editor.id || this.rev.comentarios.some((c) => c.id === p.editor.id))) this.editor = p.editor
-    if (this.blocos?.some((b) => b.id === p.bloco)) this.blocoSel = p.bloco
+    const bloco = this.blocos?.find((b) => b.id === p.bloco)
+    if (bloco) {
+      this.blocoSel = bloco.id
+      this.carregarVersoesBlocos().then(() => !this.fechado && this.renderVersoes())
+      if (p.irAoBloco) this.video.addEventListener('loadedmetadata', () => this.buscar(bloco.ini), { once: true })
+    }
     this.renderLista()
     this.renderMarcas()
     requestAnimationFrame(() => $('#lista') && ($('#lista').scrollTop = p.rolagem || 0)) // depois do foco no campo aberto
