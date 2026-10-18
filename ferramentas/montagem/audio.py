@@ -148,14 +148,20 @@ def voltas_do_fundo(laco: tuple[float, float], duracao: float, cruza: float = CR
     return [(0.0, fim)] + [(ini, fim)] * voltas
 
 
+def com_faders(a: dict, eventos_som: list[dict]) -> list[dict]:
+    """Os sons com o fader do grupo de cada um (transições ou presets) no ganho."""
+    return [{**e, 'ganho': float(e.get('ganho', 0.3)) * db(a['niveis']['transicoes' if e.get('grupo') == 'transicoes' else 'presets'])} for e in eventos_som]
+
+
 def filtros(a: dict, clipes: list[dict], eventos_som: list[dict], primeira_entrada: int, saida: str, duracao: float,
-            medida: dict | None = None) -> tuple[list[str], list[str]]:
+            medida: dict | None = None, faixa_sons: Path | None = None) -> tuple[list[str], list[str]]:
     """O áudio inteiro da P3, de entradas próprias (a voz — limpa ou do bruto — e a faixa de fundo; os sons vêm de
     `sons.filtro_mistura`): a voz cortada nos clipes da V1 (como o `_ator`), a cadeia da voz (e a voz em estéreo, ganho 1
     nos dois canais), os sons de cada grupo no seu fader, o fundo nas voltas do laço com crossfade, fade e ducking, e o
     −14 LUFS (`medida`: o ganho medido por `medir`, e um limitador de pico; sem ela, o `loudnorm` dinâmico).
     `a`: `{voz: Path, voz_lufs, timbre, niveis, fundo: Path | None, laco: (ini, fim) | None, fundo_mudo, falas: [(ini, fim)],
-    ducking_db}`. Devolve (entradas, filtros), com a mistura em [`saida`]."""
+    ducking_db}`. `faixa_sons`: os sons já somados numa faixa (`sons.faixa` de `com_faders`), no lugar de um filtro por som.
+    Devolve (entradas, filtros), com a mistura em [`saida`]."""
     from . import sons
     from .exportacao import FADE, acelerar, dur_saida
 
@@ -169,10 +175,13 @@ def filtros(a: dict, clipes: list[dict], eventos_som: list[dict], primeira_entra
     f.append(''.join(f'[pc{k}]' for k in range(n)) + f'concat=n={n}:v=0:a=1,{cadeia_voz(a["timbre"], a["niveis"]["ator"])},'
              f'{VOZ_ESTEREO}[pvoz]')
     # os sons, cada grupo no seu fader
-    ev = [{**e, 'ganho': float(e.get('ganho', 0.3)) * db(a['niveis']['transicoes' if e.get('grupo') == 'transicoes' else 'presets'])} for e in eventos_som]
-    ent_s, f_s = sons.filtro_mistura(ev, primeira_entrada + 1, 'pvoz', 'pmix')
-    entradas += ent_s
-    f += f_s
+    if faixa_sons:
+        entradas += ['-i', str(faixa_sons)]
+        f.append(f'[pvoz][{primeira_entrada + 1}:a]amix=inputs=2:duration=first:normalize=0[pmix]')
+    else:
+        ent_s, f_s = sons.filtro_mistura(com_faders(a, eventos_som), primeira_entrada + 1, 'pvoz', 'pmix')
+        entradas += ent_s
+        f += f_s
     atual = 'pmix'
     if a.get('fundo') and not a.get('fundo_mudo'):
         idx = primeira_entrada + entradas.count('-i')
@@ -192,17 +201,28 @@ def filtros(a: dict, clipes: list[dict], eventos_som: list[dict], primeira_entra
                  f"volume='{expressao_ducking(a.get('falas') or [], a.get('ducking_db', DUCKING_DB))}':eval=frame[pfd]")
         f.append(f'[{atual}][pfd]amix=inputs=2:duration=first:normalize=0[pmixf]')
         atual = 'pmixf'
-    if medida:
-        fim = f"volume={medida['ganho']:.2f}dB,alimiter=limit={db(LIMITE_DB):.4f}:attack=5:release=50:level=0:latency=1"
+    if medida and medida.get('cru'):
+        fim = 'anull'  # a mistura sem o ganho final, para medir e aplicar depois (`medir` com `cru`)
+    elif medida:
+        fim = final(medida['ganho'])
     else:
         fim = f'loudnorm=I={LUFS}:TP={PICO}:LRA=11'
     f.append(f'[{atual}]{fim},aresample=48000,aformat=channel_layouts=stereo[{saida}]')
     return entradas, f
 
 
-def _medir_mistura(a: dict, clipes: list[dict], eventos_som: list[dict], duracao: float, ganho: float) -> dict:
-    """A sonoridade (LUFS) e o pico verdadeiro (dBTP) da mistura com o ganho e o limitador (só o áudio: rápido)."""
-    entradas, f = filtros(a, clipes, eventos_som, 0, 'pfim', duracao, {'ganho': ganho})
+def final(ganho: float) -> str:
+    """O fim da mistura: o ganho do −14 LUFS e o limitador de pico."""
+    return f"volume={ganho:.2f}dB,alimiter=limit={db(LIMITE_DB):.4f}:attack=5:release=50:level=0:latency=1"
+
+
+def _medir_mistura(a: dict, clipes: list[dict], eventos_som: list[dict], duracao: float, ganho: float, cru: Path | None = None) -> dict:
+    """A sonoridade (LUFS) e o pico verdadeiro (dBTP) da mistura com o ganho e o limitador (só o áudio: rápido). `cru`: a
+    mistura já feita sem o ganho final (um WAV): só ela é lida, sem refazer o grafo inteiro."""
+    if cru:
+        entradas, f = ['-i', str(cru)], [f'[0:a]{final(ganho)},aresample=48000,aformat=channel_layouts=stereo[pfim]']
+    else:
+        entradas, f = filtros(a, clipes, eventos_som, 0, 'pfim', duracao, {'ganho': ganho})
     f.append('[pfim]ebur128=peak=true[pmed]')
     r = subprocess.run(['ffmpeg', '-hide_banner', '-nostats', *entradas, '-filter_complex', ';'.join(f), '-map', '[pmed]', '-t', f'{duracao:.4f}',
                         '-f', 'null', '-'], capture_output=True, text=True)
@@ -215,14 +235,14 @@ def _medir_mistura(a: dict, clipes: list[dict], eventos_som: list[dict], duracao
     return {'i': float(i[-1]), 'pico': float(pico[-1]) if pico else None}
 
 
-def medir(a: dict, clipes: list[dict], eventos_som: list[dict], duracao: float) -> dict:
+def medir(a: dict, clipes: list[dict], eventos_som: list[dict], duracao: float, cru: Path | None = None) -> dict:
     """O ganho do −14 LUFS: parte da sonoridade da voz (o grosso da mistura) e corrige pelo medido na mistura inteira,
     já com o limitador (que tira um pouco dos picos), até ficar a 0,3 LU do alvo (em geral, 1 ou 2 passadas do áudio
-    sozinho). Devolve `{ganho, i, pico}`."""
+    sozinho; com `cru`, a mistura sem o ganho já pronta, cada passada só lê o WAV). Devolve `{ganho, i, pico}`."""
     ganho = min(max(LUFS - (a['voz_lufs'] + a['niveis']['ator']), -GANHO_MAX), GANHO_MAX)
     m = {}
     for _ in range(3):
-        m = _medir_mistura(a, clipes, eventos_som, duracao, ganho)
+        m = _medir_mistura(a, clipes, eventos_som, duracao, ganho, cru)
         if m['i'] == float('-inf'):
             break  # silêncio: não há o que normalizar
         erro = LUFS - m['i']

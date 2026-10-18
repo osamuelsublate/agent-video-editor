@@ -12,8 +12,11 @@ Gera `projetos/<slug>/versoes/vN/` (N = a próxima): `proxy.mp4` (720p, 24 fps, 
 `edicao.json`, `palavras.json` e `planos.json` (no tempo do vídeo final, para o app) e `info.json` (tempos e avisos). Leia os avisos impressos (ex.: voz limpa ausente).
 
 Como funciona: a página `render/?projeto=<slug>` desenha a camada dos inserts, motions e elementos; Chromes escondidos a
-fotografam quadro a quadro; uma passada só do ffmpeg junta o ator (cortes, 9:16, look, zoom do Full ator, posição na
-tela dividida), a camada, as transições, a legenda (ASS) e o áudio (voz limpa, sons, trilha com ducking, −14 LUFS).
+fotografam quadro a quadro; o ffmpeg junta o ator (cortes, 9:16, look, zoom do Full ator, posição na tela dividida), a
+camada, as transições e a legenda (ASS). No proxy, a montagem sai em trechos de ~20 s guardados em `.cache/trechos/`
+(nunca no meio de um insert, motion ou transição): numa revisão, só os trechos em que algo mudou são montados de novo, 4
+por vez, e emendados sem recodificar. Um corte que muda a duração refaz os trechos dali para a frente. O final em 4K é
+uma passada só. O áudio (voz limpa, sons, trilha com ducking, −14 LUFS) é misturado uma vez e entra inteiro por cima.
 
 ## Autorrevisão (1 rodada, antes de entregar)
 
@@ -47,4 +50,4 @@ Tempo esperado: com o pré-render feito (`render.py <slug> --camadas`, em segund
 para 80 s de vídeo (medido: a montagem; a camada vem toda do cache, `.cache/camadas/` do projeto, e o áudio também, se
 não mudou). Sem pré-render, a fotografia da camada leva de ~1 min (vídeo com poucos inserts) a ~5 min (80 s quase todo
 em insert e motion, medido no mvi-0718): por isso o pré-render. Numa revisão, só o que mudou é fotografado. O
-render imprime "N trechos do cache, M para fotografar". Autorrevisão: ~30 s (o Gemini responde em ~16 s).
+render imprime "N trechos do cache, M para fotografar" e, na montagem, quantos trechos vieram do cache. Autorrevisão: ~30 s (o Gemini responde em ~16 s).

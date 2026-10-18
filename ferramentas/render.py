@@ -223,13 +223,13 @@ def camada(url: str, trechos: list[dict], w: int, h: int, cache: Path, tmp: Path
     return camadas, chaves if com_cache else None
 
 
-def limpar_camadas(cache: Path, chaves: list[str]) -> None:
+def limpar_camadas(cache: Path, chaves: list[str], extensao: str = '.mov') -> None:
     """Depois de um render: guarda as chaves dele e apaga do cache os clipes que nenhum dos últimos `GUARDA` usou."""
     registro = cache / 'usos.json'
     usos = ([*(ler_json(registro) or []), chaves])[-GUARDA:]
     gravar_json(registro, usos)
     vivos = {k for u in usos for k in u}
-    for clipe in cache.glob('*.mov'):
+    for clipe in cache.glob(f'*{extensao}'):
         if clipe.stem not in vivos:
             clipe.unlink(missing_ok=True)
 
@@ -282,8 +282,8 @@ def sons_das_midias(edicao: dict, planos: list[dict]) -> list[dict]:
 
 
 def mistura(p: Path, a: dict, clipes: list[dict], eventos: list[dict], duracao: float) -> tuple[dict, Path]:
-    """O áudio pronto: o ganho do −14 LUFS (`audio.medir`, algumas passadas do áudio) e a mistura com ele, num WAV em
-    float (as mesmas amostras que a passada final faria: ela só codifica). Guardados em `.cache/audio.json` e
+    """O áudio pronto: a mistura numa passada só, o ganho do −14 LUFS medido sobre ela (`audio.medir`) e aplicado, num WAV
+    em float (as mesmas amostras que a passada final faria: ela só codifica). Guardados em `.cache/audio.json` e
     `.cache/audio.wav` com a chave do que entra no áudio: o próprio grafo dele (a V1, a voz, os sons, o fundo, os níveis e
     o ducking) e o tamanho e a data de cada arquivo de entrada. Sem nada mudado no áudio, nem mede nem mistura de novo."""
     entradas, f = audio.filtros(a, clipes, eventos, 0, 'pfim', duracao, {'ganho': 0})
@@ -293,13 +293,159 @@ def mistura(p: Path, a: dict, clipes: list[dict], eventos: list[dict], duracao: 
     if guardada.get('chave') == chave and wav.exists():
         return guardada['medida'], wav
     (p / '.cache' / 'audio.json').unlink(missing_ok=True)  # a chave velha nunca fica apontando para um WAV novo
-    m = audio.medir(a, clipes, eventos, duracao)
-    entradas, f = audio.filtros(a, clipes, eventos, 0, 'pfim', duracao, m)
-    parte = wav.with_suffix('.parte.wav')
-    ffmpeg(*entradas, '-filter_complex', ';'.join(f), '-map', '[pfim]', '-t', f'{duracao:.4f}', '-c:a', 'pcm_f32le', str(parte))
+    # uma passada do grafo inteiro (sem o ganho final); a medida e o ganho só leem esse WAV (as mesmas amostras em float)
+    # os sons somados numa faixa à parte (`sons.faixa`): um filtro por som no grafo era o grosso do tempo do áudio
+    cru, parte, faixa = wav.with_suffix('.cru.wav'), wav.with_suffix('.parte.wav'), wav.with_suffix('.sons.wav')
+    try:
+        sons.faixa(audio.com_faders(a, eventos), duracao, faixa)
+        entradas, f = audio.filtros(a, clipes, eventos, 0, 'pfim', duracao, {'cru': True}, faixa)
+        ffmpeg(*entradas, '-filter_complex', ';'.join(f), '-map', '[pfim]', '-t', f'{duracao:.4f}', '-c:a', 'pcm_f32le', str(cru))
+        m = audio.medir(a, clipes, eventos, duracao, cru)
+        ffmpeg('-i', str(cru), '-af', f"{audio.final(m['ganho'])},aresample=48000,aformat=channel_layouts=stereo", '-c:a', 'pcm_f32le', str(parte))
+    finally:
+        cru.unlink(missing_ok=True)
+        faixa.unlink(missing_ok=True)
     parte.replace(wav)
     gravar_json(p / '.cache' / 'audio.json', {'chave': chave, 'medida': m})
     return m, wav
+
+
+# ---------------------------------------------------------------- a montagem por trechos (proxy)
+
+TRECHO = 20.0  # s: o tamanho mínimo de cada trecho da montagem do proxy
+JUNTOS = 4  # trechos montados ao mesmo tempo
+
+
+def fronteiras(clipes: list[dict], trechos: list[dict], transicoes: list[dict] | None, legenda: dict | None, n: int) -> list[int]:
+    """Onde a montagem do proxy se divide (quadros do vídeo final, de 0 a `n`): a cada `TRECHO` s, nunca no meio de um
+    insert ou motion nem de uma transição (com 2 quadros de folga); de preferência num corte e fora de um bloco de
+    legenda. Cada fronteira é o 1º quadro do trecho seguinte."""
+    proibido = set()
+    for t in trechos:
+        qs = exportacao.quadros(t, FPS)
+        proibido.update(range(qs.start + 1, qs.stop))
+    for x in transicoes or []:
+        q0 = math.floor((x['t'] - x['antes']) * FPS)
+        proibido.update(range(q0 - 2, math.ceil((x['t'] + x['depois']) * FPS) + 3))
+    na_legenda = set()
+    for b in (legenda or {}).get('blocos') or []:
+        na_legenda.update(range(math.ceil(b['ini'] * FPS) + 1, math.ceil(b['fim'] * FPS)))
+    acc, cortes = 0.0, set()
+    for c in clipes:
+        cortes.add(math.ceil(acc * FPS - 1e-9))
+        acc += dur_saida(c)
+    passo = round(TRECHO * FPS)
+    out, q = [0], 0
+    while n - q > passo * 1.5:
+        janela = range(q + passo, min(q + 2 * passo, n - passo // 2))
+        livres = [x for x in janela if x not in proibido]
+        escolha = (next((x for x in livres if x in cortes and x not in na_legenda), None)
+                   or next((x for x in livres if x not in na_legenda), None) or next(iter(livres), None))
+        if escolha is None:  # nada livre: o trecho cresce até achar
+            escolha = next((x for x in range(q + 2 * passo, n) if x not in proibido), None)
+            if escolha is None:
+                break
+        out.append(escolha)
+        q = escolha
+    return [*out, n]
+
+
+def fatia(clipes: list[dict], a: float, b: float) -> list[dict]:
+    """Os clipes da V1 que tocam em [a, b) do vídeo final, recortados nesse intervalo (os tempos do bruto)."""
+    acc, out = 0.0, []
+    for c in clipes:
+        d, v = dur_saida(c), c.get('vel', 1)
+        x0, x1 = max(acc, a), min(acc + d, b)
+        if x1 - x0 > 1e-6:
+            pedaco = {**c, 'inicio': c['inicio'] + (x0 - acc) * v, 'fim': c['inicio'] + (x1 - acc) * v}
+            if acc < a:  # começa no meio do clipe: o vídeo na grade do clipe inteiro (`desde_v` em `exportacao._ator`)
+                q0 = math.ceil(acc * FPS - 1e-9)
+                pedaco['desde_v'] = (c['inicio'] + (q0 / FPS - acc) * v, round(a * FPS) - q0)
+            out.append(pedaco)
+        acc += d
+    # um último pedaço menor que um quadro (sem quadro nenhum do trecho) não entra: o concat do ator não aceita vazio
+    while out and math.ceil((b - a - dur_saida(out[-1])) * FPS - 1e-9) >= math.ceil((b - a) * FPS - 1e-9):
+        out.pop()
+    return out
+
+
+def _impressao(cmd: list[str], tmp: Path, nomes: dict[str, str]) -> str:
+    """A chave de um trecho montado: o comando do ffmpeg com cada arquivo de entrada trocado pelo que ele é (os do tmp
+    pelo conteúdo; os outros pelo tamanho e a data) e os caminhos de `nomes` (a saída, a legenda, o silêncio: os nomes
+    mudam com o índice do trecho) pelo apelido dado."""
+    partes = []
+    for i, x in enumerate(cmd):
+        if i and cmd[i - 1] == '-i' and x not in nomes:
+            arq = Path(x)
+            x = _hash_arquivo(arq) if arq.is_relative_to(tmp) else f'{x}@{arq.stat().st_size}@{arq.stat().st_mtime_ns}'
+        for de, para in nomes.items():
+            x = x.replace(de, para)
+        partes.append(x)
+    return _hash(*partes)
+
+
+def montar_por_trechos(video: Path, clipes: list[dict], horizontal: bool, enq_x: float, w: int, h: int, codec: str, duracao: float,
+                       trechos: list[dict], camadas: list[tuple[Path, float]], divisoes: list, r: dict, lk: dict, vinheta: Path | None,
+                       mascara: Path | None, a: dict, destino: Path, hwaccel: bool, cache: Path, tmp: Path) -> list[str]:
+    """A montagem do proxy em trechos de ~`TRECHO` s (`fronteiras`), cada um com o mesmo `comando_final` do vídeo
+    inteiro, só com o que cai nele (no tempo dele), guardado em `cache/<chave>.mp4`: numa revisão, só os trechos em que
+    algo mudou são montados de novo (e `JUNTOS` por vez). Depois, emendados sem recodificar, com o áudio pronto por
+    cima. O bruto é lido a partir de pouco antes do 1º clipe do trecho (`-ss`), não do começo. Devolve as chaves."""
+    n = math.ceil(duracao * FPS - 1e-9)
+    com_quadros = [t for t in trechos if exportacao.quadros(t, FPS)]  # na ordem de `camadas`
+    qs = fronteiras(clipes, trechos, r.get('transicoes'), r.get('legenda'), n)
+    mudo = tmp / 'mudo.wav'  # o áudio de cada trecho é descartado (vai o pronto, inteiro): um silêncio curto no lugar
+    ffmpeg('-f', 'lavfi', '-i', 'anullsrc=r=48000:cl=stereo', '-t', '0.1', str(mudo))
+    tarefas = []
+    for i, (qa, qb) in enumerate(zip(qs, qs[1:])):
+        ta, tb = qa / FPS, min(qb / FPS, duracao)
+        seg = fatia(clipes, ta, tb)
+        ss = max(min(min(c['inicio'], (c.get('desde_v') or (c['inicio'],))[0]) for c in seg) - 2, 0.0)
+        seg = [{**c, 'inicio': c['inicio'] - ss, 'fim': c['fim'] - ss,
+                **({'desde_v': (c['desde_v'][0] - ss, c['desde_v'][1])} if c.get('desde_v') else {})} for c in seg]
+        cam = [(clipe, ini - ta) for (clipe, ini), t in zip(camadas, com_quadros)
+               if qa <= exportacao.quadros(t, FPS).start and exportacao.quadros(t, FPS).stop <= qb]
+        div = [(max(x0 - ta, 0.0), min(x1, tb) - ta, d) for x0, x1, d in divisoes if x0 < tb and x1 > ta]
+        trans = [{**x, 't': x['t'] - ta} for x in r.get('transicoes') or [] if x['t'] + x['depois'] > ta and x['t'] - x['antes'] < tb]
+        mov = [{**m, 'ini': m['ini'] - ta, 'fim': m['fim'] - ta} for m in r.get('movimentos') or [] if m['ini'] < tb and m['fim'] > ta]
+        blocos = [{**b, 'ini': max(b['ini'] - ta, 0.0), 'fim': min(b['fim'], tb) - ta}
+                  for b in (r.get('legenda') or {}).get('blocos') or [] if b['ini'] < tb and b['fim'] > ta]
+        arq_leg = legenda.escrever({'blocos': blocos}, w, h, tmp / f'legenda_{i:03d}.ass')
+        saida = tmp / f'trecho_{i:03d}.mp4'
+        cmd = exportacao.comando_final(video, seg, horizontal, enq_x, w, h, FPS, div, cam, codec, tb - ta, saida, mascara, None, trans,
+                                       {'arquivo': arq_leg} if arq_leg else None, lk, vinheta, {'pronta': mudo}, mov, hwaccel=hwaccel)
+        # o trecho sai sem áudio: o AAC abre com 1024 amostras de atraso e o concat empurraria o vídeo junto (21 ms)
+        k = cmd.index('-filter_complex')
+        cmd[k + 1] += ';[am]anullsink'
+        cmd = [x for i, x in enumerate(cmd) if x not in ('-progress', 'pipe:1') and x != '[am]' and not (x == '-map' and cmd[i + 1] == '[am]')]
+        for arq in (video, mascara):  # o bruto e a máscara lidos a partir de `ss`
+            if arq is not None and str(arq) in cmd:
+                k = cmd.index(str(arq))
+                cmd[k - 1:k - 1] = ['-ss', f'{ss:.3f}']
+        nomes = {str(saida): '<saida>', str(mudo): '<mudo>', **({str(arq_leg): '<legenda>'} if arq_leg else {})}
+        chave = _hash(_impressao(cmd, tmp, nomes), _hash_arquivo(arq_leg) if arq_leg else '')
+        tarefas.append((chave, cmd, saida))
+    cache.mkdir(parents=True, exist_ok=True)
+    faltam = [(k, cmd, s) for k, cmd, s in tarefas if not (cache / f'{k}.mp4').exists()]
+    print(f'      {len(tarefas)} trechos: {len(tarefas) - len(faltam)} do cache, {len(faltam)} para montar', flush=True)
+
+    def montar(t: tuple[str, list[str], Path]) -> None:
+        k, cmd, s = t
+        res = subprocess.run(cmd, capture_output=True, text=True)
+        if res.returncode != 0:
+            raise RuntimeError(f'ffmpeg falhou num trecho: {res.stderr[-600:]}')
+        s.replace(cache / f'{k}.mp4')
+
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(JUNTOS) as pool:
+        for j, _ in enumerate(pool.map(montar, faltam), 1):
+            if j == len(faltam) or j % max(1, len(faltam) // 4) == 0:
+                print(f'      {j}/{len(faltam)} montados', flush=True)
+    lista = tmp / 'trechos.txt'
+    lista.write_text(''.join(f"file '{cache / f'{k}.mp4'}'\n" for k, _, _ in tarefas))
+    ffmpeg('-f', 'concat', '-safe', '0', '-i', str(lista), '-i', str(a['pronta']), '-map', '0:v', '-map', '1:a', '-c:v', 'copy',
+           '-c:a', 'aac', '-b:a', '320k', '-ar', '48000', '-t', f'{duracao:.4f}', '-movflags', '+faststart', str(destino))
+    return [k for k, _, _ in tarefas]
 
 
 # ---------------------------------------------------------------- o render
@@ -389,35 +535,45 @@ def render(slug: str, final: bool = False) -> Path:
               f"{a['medida']['i']:.1f} LUFS, pico {a['medida']['pico']} dBFS", flush=True)
         fase('audio')
 
-        print('[5/5] Montagem (ffmpeg, uma passada)', flush=True)
+        print(f"[5/5] Montagem ({'ffmpeg, uma passada' if final else f'ffmpeg, por trechos de ~{TRECHO:.0f} s'})", flush=True)
         divisoes = [(t['ini'], t['fim'], t.get('divisao') or {'modo': 'metade', 'f': 0.5}) for t in trechos if t['dividida']]
         mascara = p / 'midia' / 'recorte' / f"{fonte['id']}_mascara.mp4"
         lk = look.do_projeto(edicao)
-        arq_leg = legenda.escrever(r.get('legenda'), w, h, tmp / 'legenda.ass')
         vinheta = look.mascara_vinheta(w, h, look.VINHETAS[lk['vinheta']], tmp / 'vinheta.png') if look.ativo(lk) else None
         parte = destino.with_name(destino.stem + '.parte.mp4')
         # no proxy, o ator sai do proxy 720p (a mesma linha do tempo do bruto): decodificar e escalar o 4K pesava mais que tudo
         video = p / fonte['arquivo']
         if not final and not horizontal and fonte.get('proxy') and (p / fonte['proxy']).exists():
             video = p / fonte['proxy']  # leve: decodificado no processador (`hwaccel` abaixo)
-        cmd = exportacao.comando_final(video, clipes, horizontal, (edicao.get('enquadramento') or {}).get('x', 0.5), w, h, FPS,
-                                       divisoes, camadas, codec, duracao, parte, mascara if mascara.exists() else None, eventos,
-                                       r.get('transicoes'), {'arquivo': arq_leg} if arq_leg else None, lk, vinheta, a, r.get('movimentos'),
-                                       hwaccel=video == p / fonte['arquivo'])
-        log = tmp / 'ffmpeg.log'
-        with open(log, 'wb') as erros:
-            ff = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=erros, text=True)
-            proximo = 0.25
-            for linha in ff.stdout:
-                if linha.startswith('out_time_us=') and linha.strip()[12:].isdigit():
-                    feito = int(linha.strip()[12:]) / 1e6 / duracao
-                    if feito >= proximo:
-                        print(f'      {min(feito, 1):.0%}', flush=True)
-                        proximo += 0.25
-            if ff.wait() != 0:
-                raise RuntimeError(f'ffmpeg falhou: {log.read_text(errors="replace")[-600:]}')
-        parte.replace(destino)
-        fase('montagem')
+        if final:
+            arq_leg = legenda.escrever(r.get('legenda'), w, h, tmp / 'legenda.ass')
+            cmd = exportacao.comando_final(video, clipes, horizontal, (edicao.get('enquadramento') or {}).get('x', 0.5), w, h, FPS,
+                                           divisoes, camadas, codec, duracao, parte, mascara if mascara.exists() else None, eventos,
+                                           r.get('transicoes'), {'arquivo': arq_leg} if arq_leg else None, lk, vinheta, a, r.get('movimentos'),
+                                           hwaccel=video == p / fonte['arquivo'])
+            log = tmp / 'ffmpeg.log'
+            with open(log, 'wb') as erros:
+                ff = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=erros, text=True)
+                proximo = 0.25
+                for linha in ff.stdout:
+                    if linha.startswith('out_time_us=') and linha.strip()[12:].isdigit():
+                        feito = int(linha.strip()[12:]) / 1e6 / duracao
+                        if feito >= proximo:
+                            print(f'      {min(feito, 1):.0%}', flush=True)
+                            proximo += 0.25
+                if ff.wait() != 0:
+                    raise RuntimeError(f'ffmpeg falhou: {log.read_text(errors="replace")[-600:]}')
+            parte.replace(destino)
+            fase('montagem')
+        else:
+            # o proxy por trechos guardados: numa revisão, só o que mudou é montado de novo
+            montados = p / '.cache' / 'trechos'
+            usados = montar_por_trechos(video, clipes, horizontal, (edicao.get('enquadramento') or {}).get('x', 0.5), w, h, codec, duracao,
+                                        trechos, camadas, divisoes, r, lk, vinheta, mascara if mascara.exists() else None, a, parte,
+                                        video == p / fonte['arquivo'], montados, tmp)
+            parte.replace(destino)
+            fase('montagem')
+            limpar_camadas(montados, usados, '.mp4')
         if chaves is not None:
             limpar_camadas(cache, chaves)
     except BaseException:

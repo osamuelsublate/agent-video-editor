@@ -92,7 +92,11 @@ def _ator(clipes: list[dict], horizontal: bool, enquadramento_x: float, w: int, 
         # quadro "perdido" do ator na pose de antes logo depois de cada corte (mvi-0717 v5 c1–c3)
         q0, q1 = math.ceil(acc * fps - 1e-9), math.ceil((acc + dur) * fps - 1e-9)
         ini_v = ini + (q0 / fps - acc) * vel
-        no_grid = f'{setpts},fps={fps},tpad=stop_mode=clone:stop_duration=0.5,trim=end_frame={q1 - q0},setpts=PTS-STARTPTS'
+        # `desde_v` (o proxy por trechos, num trecho que começa no meio do clipe): o vídeo cortado de onde o clipe inteiro
+        # começa, pulando os quadros de antes do trecho; o `fps` ancora a grade no 1º quadro do bruto depois do corte, e
+        # cortado no começo do trecho ela saía até 1 quadro fora da do vídeo inteiro
+        ini_v, pular = c.get('desde_v') or (ini_v, 0)
+        no_grid = f'{setpts},fps={fps},tpad=stop_mode=clone:stop_duration=0.5,trim=start_frame={pular}:end_frame={pular + q1 - q0},setpts=PTS-STARTPTS'
         # o vídeo vai 1 quadro além do fim: o último quadro do clipe pega o quadro do bruto mais próximo do seu instante,
         # que às vezes cai logo depois do `fim` (bruto a 23,976/s); cortado no `fim`, ele virava uma cópia do anterior
         # (um quadro repetido antes de cada corte, mvi-0719 v1). O quadro a mais é a continuação da mesma tomada
