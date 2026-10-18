@@ -1,6 +1,6 @@
 # 10 · Render e autorrevisão
 
-> **Antes de começar, leia `biblioteca/aprendizados/render.md` e, na autorrevisão, confira o vídeo contra os aprendizados de todas as áreas**: o que o criador já corrigiu em vídeos anteriores. Não repita esses erros.
+> **Antes de começar, leia `biblioteca/aprendizados/render.md` (+ `biblioteca/exemplos/<categoria>/aprendizados/render.md`) e, na autorrevisão, confira o vídeo contra os aprendizados de todas as áreas**: o que o criador já corrigiu em vídeos anteriores. Não repita esses erros.
 
 ## Render do proxy
 
@@ -13,10 +13,9 @@ Gera `projetos/<slug>/versoes/vN/` (N = a próxima): `proxy.mp4` (720p, 24 fps, 
 
 Como funciona: a página `render/?projeto=<slug>` desenha a camada dos inserts, motions e elementos; Chromes escondidos a
 fotografam quadro a quadro; o ffmpeg junta o ator (cortes, 9:16, look, zoom do Full ator, posição na tela dividida), a
-camada, as transições e a legenda (ASS). No proxy, a montagem sai em trechos de ~20 s guardados em `.cache/trechos/`
-(nunca no meio de um insert, motion ou transição): numa revisão, só os trechos em que algo mudou são montados de novo, 4
-por vez, e emendados sem recodificar. Um corte que muda a duração refaz os trechos dali para a frente. O final em 4K é
-uma passada só. O áudio (voz limpa, sons, trilha com ducking, −14 LUFS) é misturado uma vez e entra inteiro por cima.
+camada, as transições e a legenda (ASS). A montagem (proxy e final em 4K) sai em trechos de ~20 s guardados em
+`.cache/trechos/` (nunca no meio de um insert, motion ou transição): numa revisão, só os trechos em que algo mudou são
+montados de novo, 4 por vez, e emendados sem recodificar. Um corte que muda a duração refaz os trechos dali para a frente. O áudio (voz limpa, sons, trilha com ducking, −14 LUFS) é misturado uma vez e entra inteiro por cima.
 
 ## Autorrevisão (1 rodada, antes de entregar)
 

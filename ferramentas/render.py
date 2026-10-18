@@ -14,7 +14,7 @@
 Como a exportação do 18 (SPEC §13; a cola de backend/app/exportacao.py `_gravar`/`_trechos`, reescrita aqui): a página
 de render (`render/`, servida por `servidor.servir`) calcula no navegador o que a prévia calcula (`window.__render`) e é
 fotografada quadro a quadro por navegadores escondidos (`montagem/render_quadros.py`); o ator e o áudio saem do bruto
-pelo ffmpeg, numa passada só (`montagem/exportacao.py`).
+pelo ffmpeg (`montagem/exportacao.py`), em trechos de ~20 s guardados no cache e emendados sem recodificar.
 
 O cache (`projetos/<slug>/.cache/`): a foto de cada trecho da camada (`camadas/<chave>.mov`, pela assinatura que a
 página dá a ele) e o áudio pronto, com o −14 LUFS (`audio.json` + `audio.wav`). Numa revisão, só os trechos que mudaram
@@ -310,9 +310,9 @@ def mistura(p: Path, a: dict, clipes: list[dict], eventos: list[dict], duracao: 
     return m, wav
 
 
-# ---------------------------------------------------------------- a montagem por trechos (proxy)
+# ---------------------------------------------------------------- a montagem por trechos
 
-TRECHO = 20.0  # s: o tamanho mínimo de cada trecho da montagem do proxy
+TRECHO = 20.0  # s: o tamanho mínimo de cada trecho da montagem
 JUNTOS = 4  # trechos montados ao mesmo tempo
 
 
@@ -387,7 +387,7 @@ def _impressao(cmd: list[str], tmp: Path, nomes: dict[str, str]) -> str:
 def montar_por_trechos(video: Path, clipes: list[dict], horizontal: bool, enq_x: float, w: int, h: int, codec: str, duracao: float,
                        trechos: list[dict], camadas: list[tuple[Path, float]], divisoes: list, r: dict, lk: dict, vinheta: Path | None,
                        mascara: Path | None, a: dict, destino: Path, hwaccel: bool, cache: Path, tmp: Path) -> list[str]:
-    """A montagem do proxy em trechos de ~`TRECHO` s (`fronteiras`), cada um com o mesmo `comando_final` do vídeo
+    """A montagem (proxy ou final) em trechos de ~`TRECHO` s (`fronteiras`), cada um com o mesmo `comando_final` do vídeo
     inteiro, só com o que cai nele (no tempo dele), guardado em `cache/<chave>.mp4`: numa revisão, só os trechos em que
     algo mudou são montados de novo (e `JUNTOS` por vez). Depois, emendados sem recodificar, com o áudio pronto por
     cima. O bruto é lido a partir de pouco antes do 1º clipe do trecho (`-ss`), não do começo. Devolve as chaves."""
@@ -444,7 +444,8 @@ def montar_por_trechos(video: Path, clipes: list[dict], horizontal: bool, enq_x:
     lista = tmp / 'trechos.txt'
     lista.write_text(''.join(f"file '{cache / f'{k}.mp4'}'\n" for k, _, _ in tarefas))
     ffmpeg('-f', 'concat', '-safe', '0', '-i', str(lista), '-i', str(a['pronta']), '-map', '0:v', '-map', '1:a', '-c:v', 'copy',
-           '-c:a', 'aac', '-b:a', '320k', '-ar', '48000', '-t', f'{duracao:.4f}', '-movflags', '+faststart', str(destino))
+           *(['-tag:v', 'hvc1'] if codec == 'hevc' else []), '-c:a', 'aac', '-b:a', '320k', '-ar', '48000', '-t', f'{duracao:.4f}',
+           '-movflags', '+faststart', str(destino))
     return [k for k, _, _ in tarefas]
 
 
@@ -535,7 +536,7 @@ def render(slug: str, final: bool = False) -> Path:
               f"{a['medida']['i']:.1f} LUFS, pico {a['medida']['pico']} dBFS", flush=True)
         fase('audio')
 
-        print(f"[5/5] Montagem ({'ffmpeg, uma passada' if final else f'ffmpeg, por trechos de ~{TRECHO:.0f} s'})", flush=True)
+        print(f'[5/5] Montagem (ffmpeg, por trechos de ~{TRECHO:.0f} s)', flush=True)
         divisoes = [(t['ini'], t['fim'], t.get('divisao') or {'modo': 'metade', 'f': 0.5}) for t in trechos if t['dividida']]
         mascara = p / 'midia' / 'recorte' / f"{fonte['id']}_mascara.mp4"
         lk = look.do_projeto(edicao)
@@ -545,35 +546,14 @@ def render(slug: str, final: bool = False) -> Path:
         video = p / fonte['arquivo']
         if not final and not horizontal and fonte.get('proxy') and (p / fonte['proxy']).exists():
             video = p / fonte['proxy']  # leve: decodificado no processador (`hwaccel` abaixo)
-        if final:
-            arq_leg = legenda.escrever(r.get('legenda'), w, h, tmp / 'legenda.ass')
-            cmd = exportacao.comando_final(video, clipes, horizontal, (edicao.get('enquadramento') or {}).get('x', 0.5), w, h, FPS,
-                                           divisoes, camadas, codec, duracao, parte, mascara if mascara.exists() else None, eventos,
-                                           r.get('transicoes'), {'arquivo': arq_leg} if arq_leg else None, lk, vinheta, a, r.get('movimentos'),
-                                           hwaccel=video == p / fonte['arquivo'])
-            log = tmp / 'ffmpeg.log'
-            with open(log, 'wb') as erros:
-                ff = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=erros, text=True)
-                proximo = 0.25
-                for linha in ff.stdout:
-                    if linha.startswith('out_time_us=') and linha.strip()[12:].isdigit():
-                        feito = int(linha.strip()[12:]) / 1e6 / duracao
-                        if feito >= proximo:
-                            print(f'      {min(feito, 1):.0%}', flush=True)
-                            proximo += 0.25
-                if ff.wait() != 0:
-                    raise RuntimeError(f'ffmpeg falhou: {log.read_text(errors="replace")[-600:]}')
-            parte.replace(destino)
-            fase('montagem')
-        else:
-            # o proxy por trechos guardados: numa revisão, só o que mudou é montado de novo
-            montados = p / '.cache' / 'trechos'
-            usados = montar_por_trechos(video, clipes, horizontal, (edicao.get('enquadramento') or {}).get('x', 0.5), w, h, codec, duracao,
-                                        trechos, camadas, divisoes, r, lk, vinheta, mascara if mascara.exists() else None, a, parte,
-                                        video == p / fonte['arquivo'], montados, tmp)
-            parte.replace(destino)
-            fase('montagem')
-            limpar_camadas(montados, usados, '.mp4')
+        # por trechos guardados, no proxy e no final: numa revisão, só o que mudou é montado de novo (e 4 por vez)
+        montados = p / '.cache' / 'trechos'
+        usados = montar_por_trechos(video, clipes, horizontal, (edicao.get('enquadramento') or {}).get('x', 0.5), w, h, codec, duracao,
+                                    trechos, camadas, divisoes, r, lk, vinheta, mascara if mascara.exists() else None, a, parte,
+                                    video == p / fonte['arquivo'], montados, tmp)
+        parte.replace(destino)
+        fase('montagem')
+        limpar_camadas(montados, usados, '.mp4')
         if chaves is not None:
             limpar_camadas(cache, chaves)
     except BaseException:
