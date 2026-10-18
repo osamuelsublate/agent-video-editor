@@ -43,10 +43,11 @@ fotografada em segundo plano (o pré-render) enquanto a edição segue.
 Briefing: se vier, leia antes dos cortes; ele vale para cortes, direção e inserts. Materiais de apoio citados vão para
 `projetos/<slug>/apoio/` e são a primeira fonte dos inserts.
 
-## Fluxo 2 — Revisão colada ("Revisão · <slug> · vN")
+## Fluxo 2 — Revisão colada ("Revisão · <slug> · vN", ou "… · vN · bloco B3")
 
-Leia `etapas/11-revisao.md`. Aplique cada comentário, renderize a v(N+1) e responda cada um no JSON da revisão (a
-resposta diz o que mudou: é o registro de onde saem os aprendizados na conclusão).
+Leia `etapas/11-revisao.md`. Aplique cada comentário do texto colado (com "bloco B3", só os daquele bloco; os
+"Travados" não se mexem), renderize a v(N+1) e responda cada um no JSON da revisão, numa frase curta (a resposta diz
+o que mudou: é o registro de onde saem os aprendizados na conclusão).
 
 ## Fluxo 3 — Aprovado ("Aprovado · <slug> · vN")
 
