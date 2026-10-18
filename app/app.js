@@ -68,7 +68,6 @@ async function inicio(tela, ctas = false) {
   const card = (p) => {
     const [estado, cor] = ESTADOS[p.estado] || ESTADOS.em_revisao
     const proxy = `/projetos/${encodeURIComponent(p.slug)}/versoes/v${p.ultima}/proxy.mp4`
-    const n = p.versoes.length
     return `<div class="caixa-projeto" data-slug="${esc(p.slug)}">
       <button class="apagar-projeto" data-apagar title="Apagar o projeto" aria-label="Apagar ${esc(p.nome)}">${ICONE.lixo}</button>
       ${p.tem_final ? `<button class="abrir-exports" data-abrir-final title="Abrir a pasta dos exports no Finder" aria-label="Abrir os exports de ${esc(p.nome)}">${ICONE.abrir}</button>` : ''}
@@ -76,7 +75,7 @@ async function inicio(tela, ctas = false) {
       <div class="mini mini-916"><video muted playsinline preload="metadata" src="${proxy}#t=1.5"></video>
         <span class="selo ${cor}">${estado}</span>${p.saidas ? `<span class="chip-saidas" title="O corpo encaixado em ${p.saidas} CTAs (final/saidas/)">${p.saidas} ${p.saidas === 1 ? 'saída' : 'saídas'}</span>` : ''}</div>
       <div class="card-titulo"><h3 title="${esc(p.nome)}">${esc(p.nome)}</h3><button class="botao-icone pequeno renomear" data-renomear title="Renomear" aria-label="Renomear ${esc(p.nome)}">${ICONE.lapis}</button></div>
-      <p class="sub" title="${esc(p.slug)}">${p.duracao ? `${mmss(p.duracao)} · ` : ''}${quandoFoi(p.atualizado)} · v${p.ultima}${n > 1 ? ` · ${n} versões` : ''}${p.comentarios ? ` · ${p.comentarios} ${p.comentarios === 1 ? 'comentário' : 'comentários'}` : ''}</p>
+      <p class="sub" title="${esc(p.slug)}">${p.duracao ? `${mmss(p.duracao)} · ` : ''}${quandoFoi(p.atualizado)} · v${p.ultima}${p.comentarios ? ` · ${p.comentarios} ${p.comentarios === 1 ? 'comentário' : 'comentários'}` : ''}</p>
     </a><div class="sobre-mini">${seletorCategoria(cats, p.formato || 'reels')}${chipCodigo(cods.projeto?.[p.slug], p.nome)}</div>
     ${htmlTagsCard(p.tags)}</div>`
   }
