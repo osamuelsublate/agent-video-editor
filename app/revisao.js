@@ -505,7 +505,8 @@ class Revisao {
           <div class="bloco"><span class="eyebrow">Fala</span><p id="fala-atual" class="fala-atual"></p></div>
         </div>
         <div class="video-caixa"><video id="video" src="${this.base}proxy.mp4" preload="auto" playsinline></video>
-          <button class="video-tocar" data-acao="tocar" aria-label="Tocar">${ICONE.tocar}</button></div>
+          <button class="video-tocar" data-acao="tocar" aria-label="Tocar">${ICONE.tocar}</button>
+          <button class="botao-icone video-tela-cheia" data-acao="tela-cheia" title="Tela cheia (F)" aria-label="Tela cheia">${ICONE.expandir}</button></div>
         <div class="lado lado-dir">
           <div class="bloco" id="usado"></div>
         </div>
@@ -1616,6 +1617,7 @@ class Revisao {
       'salvar-editor': () => this.salvarEditor(),
       aprovar: () => this.aprovar(),
       versoes: () => this.alternarVersoes(),
+      'tela-cheia': () => this.telaCheia(),
     }[nome]
     a?.()
   }
@@ -1657,8 +1659,10 @@ class Revisao {
       c: () => this.alternarTempo(true),
       i: () => this.marcarEntrada(),
       o: () => this.marcarSaida(),
+      f: () => this.telaCheia(),
       Escape: () => {
-        if (this.menuVersoes) this.alternarVersoes(false)
+        if ($('.video-caixa.tela-cheia-janela')) this.telaCheia()
+        else if (this.menuVersoes) this.alternarVersoes(false)
         else if (this.editor) this.fecharEditor()
         else if (this.entrada != null || this.nova.preso) this.soltarNova()
         else if (this.sel) this.selecionar(null)
@@ -1668,6 +1672,17 @@ class Revisao {
       e.preventDefault()
       f()
     }
+  }
+
+  /** O vídeo em tela cheia (o botão no canto ou F); de novo, ou Esc, volta. */
+  telaCheia() {
+    const caixa = $('.video-caixa')
+    if (document.fullscreenElement) return document.exitFullscreen()
+    if (caixa.classList.contains('tela-cheia-janela')) return caixa.classList.remove('tela-cheia-janela')
+    // sem a tela cheia do navegador (recusada, ou um navegador embutido que não responde), o vídeo ocupa a janela
+    const janelaInteira = () => !document.fullscreenElement && caixa.classList.add('tela-cheia-janela')
+    caixa.requestFullscreen ? caixa.requestFullscreen().catch(janelaInteira) : janelaInteira()
+    setTimeout(janelaInteira, 800)
   }
 
   /** Ao sair da página: o instante do vídeo, o rascunho da caixa (texto, instante preso, prints) e onde o painel estava
