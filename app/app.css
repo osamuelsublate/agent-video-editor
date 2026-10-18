@@ -121,9 +121,12 @@ kbd {
 .marca-otto i:nth-child(2) { rotate: 90deg; }
 .marca-otto i:nth-child(3) { rotate: -90deg; }
 .marca-otto i:nth-child(4) { rotate: 180deg; }
-/* ao lado da marca: Projetos e CTAs */
-.abas-casa { display: flex; flex: none; gap: 6px; }
-.abas-casa svg { width: 14px; height: 14px; }
+/* ao lado da marca: Projetos e CTAs, um bloco na cor da marca (diferente das pílulas de contorno do resto da barra) */
+.abas-casa { display: flex; flex: none; gap: 2px; padding: 3px; border-radius: var(--radius-full); background: rgba(245, 119, 87, 0.14); }
+.abas-casa .pilula { border-color: transparent; color: #f9a58f; font-weight: 600; }
+.abas-casa .pilula:hover { border-color: transparent; background: rgba(245, 119, 87, 0.18); color: var(--color-cream); }
+.abas-casa .pilula.ativa { background: var(--color-coral); border-color: var(--color-coral); color: var(--color-cream); }
+.abas-casa svg { width: 14px; height: 14px; opacity: 1; }
 .barra-sep { flex: none; width: 1px; height: 20px; background: var(--color-line-dark); }
 /* os links: o dia a dia à esquerda e, à direita, o que treina e regula o app. Sempre com os rótulos, em qualquer tela
    (o criador pediu a barra igual em todas): sem espaço, a faixa rola de lado */
