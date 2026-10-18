@@ -824,6 +824,11 @@ class Revisao {
     if (this.loop && !this.video.paused && (this.video.currentTime >= this.loop.fim - 0.03 || this.video.currentTime < this.loop.ini - 0.1)) this.video.currentTime = this.loop.ini
     const t = this.video.currentTime
     $('#t-atual').textContent = tempo(t)
+    // com um bloco escolhido, o painel acompanha o cursor: passou para outro bloco, troca (menos no loop e editando)
+    if (this.blocoSel && !this.loop && !this.editor) {
+      const b = this.blocoEm(t)
+      if (b && b.id !== this.blocoSel) this.escolherBloco(b.id)
+    }
     this.renderNova()
     const x = t * this.pxs
     $('#cabeca').style.transform = `translateX(${x}px)`
