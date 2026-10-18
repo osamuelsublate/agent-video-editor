@@ -113,7 +113,11 @@ class Revisao {
     this.dur = this.info.duracao || this.palavras.at(-1)?.fim || 60
     this.prepararBlocos()
     this.montar()
-    if (this.blocos) this.carregarVersoesBlocos().then(() => !this.fechado && this.renderBlocos())
+    if (this.blocos) this.carregarVersoesBlocos().then(() => {
+      if (this.fechado) return
+      this.renderBlocos()
+      if (this.blocoSel && !this.editor) this.renderLista()
+    })
     this.verTrabalho()
     if (this.blocosNovos && this.v === this.proj.ultima) this.agendarSalvar() // os blocos nascem (ou vêm da versão anterior) no arquivo desta
     this.ligar()
@@ -264,7 +268,11 @@ class Revisao {
     this.renderMarcas()
     this.renderVersoes()
     $('#lista').scrollTop = 0
-    if (id) this.carregarVersoesBlocos().then(() => !this.fechado && this.blocoSel === id && this.renderVersoes())
+    if (id) this.carregarVersoesBlocos().then(() => {
+      if (this.fechado || this.blocoSel !== id) return
+      this.renderVersoes()
+      if (!this.editor) this.renderLista()
+    })
   }
 
   /** As versões de cada bloco: o bloco só ganha versão nova quando o que há nele mudou de uma versão do vídeo para a
@@ -347,18 +355,44 @@ class Revisao {
   }
 
   /** As versões anteriores de um bloco: em cada uma, os comentários que caíram nele e a resposta do Claude. */
+  /** A versão do bloco num vídeo (a numeração do seletor de cima: só sobe quando o bloco mudou). */
+  versaoDoBloco(id, x) {
+    return this.versoesBloco?.[id]?.find((g) => g.vs.includes(x))?.bv ?? null
+  }
+
+  /** Os comentários das versões anteriores do vídeo que caem no bloco, separados pela versão do bloco: os feitos sobre
+   *  o conteúdo que ele ainda tem (`atuais`: o bloco não mudou desde então) e os de versões anteriores dele (`antigos`,
+   *  {bv: [{x, c}]}). Sem as versões dos blocos carregadas, tudo vai para os antigos, pela versão do vídeo. */
+  comentariosAntigos(b) {
+    const aqui = this.versaoDoBloco(b.id, this.v)
+    const atuais = []
+    const antigos = {}
+    for (const x of Object.keys(this.anteriores).map(Number)) {
+      for (const c of this.anteriores[x].comentarios || []) {
+        if (!temConteudo(c) || c.geral || this.blocoEm(this.ondeAgora(c).t)?.id !== b.id) continue
+        const bv = this.versaoDoBloco(b.id, x)
+        if (aqui != null && bv === aqui) atuais.push({ x, c })
+        else (antigos[bv ?? `vídeo ${x}`] ||= []).push({ x, c })
+      }
+    }
+    return { atuais, antigos }
+  }
+
+  htmlVelho({ x, c }, marca = false) {
+    const o = this.ondeAgora(c) // o tempo de lá levado para esta versão (pela palavra)
+    return `<div class="item-velho"><div class="item-velho-cabeca"><button class="chip-tempo" data-ir-velho="${o.t}" title="No vídeo v${x}: ${quando(c)} · ir a este ponto aqui">${quando(o)}</button>
+        ${marca ? `<span class="no-video" title="Feito quando o vídeo estava na v${x} (o bloco não mudou desde então)">no vídeo v${x}</span>` : ''}</div>
+      <p class="texto">${esc(c.texto || '(só o print)')}</p>${this.htmlResposta(c)}</div>`
+  }
+
+  /** As versões anteriores de um bloco (pela versão do bloco, como no seletor de cima): o que foi pedido e a resposta. */
   htmlHistoricoBloco(b) {
-    const vs = Object.keys(this.anteriores).map(Number).sort((a, b) => b - a)
-    const grupos = vs.map((x) => [x, (this.anteriores[x].comentarios || []).filter((c) => temConteudo(c) && !c.geral && this.blocoEm(this.ondeAgora(c).t)?.id === b.id)])
-      .filter(([, cs]) => cs.length)
+    const { antigos } = this.comentariosAntigos(b)
+    const grupos = Object.entries(antigos).sort(([a], [z]) => (parseInt(z) || 0) - (parseInt(a) || 0))
     if (!grupos.length) return ''
-    return `<div class="historico-bloco"><span class="eyebrow">Versões anteriores deste bloco</span>${grupos.map(([x, cs]) => `<details class="versao-bloco"${x === grupos[0][0] ? ' open' : ''}>
-        <summary><b>v${x}</b> · ${cs.length} ${cs.length === 1 ? 'comentário' : 'comentários'}</summary>
-        ${cs.sort((a, b) => a.t - b.t).map((c) => {
-          const o = this.ondeAgora(c) // o tempo de lá levado para esta versão (pela palavra)
-          return `<div class="item-velho"><button class="chip-tempo" data-ir-velho="${o.t}" title="Na v${x}: ${quando(c)} · ir a este ponto nesta versão">${quando(o)}</button>
-            <p class="texto">${esc(c.texto || '(só o print)')}</p>${this.htmlResposta(c)}</div>`
-        }).join('')}</details>`).join('')}</div>`
+    return `<div class="historico-bloco"><span class="eyebrow">Versões anteriores do ${b.id}</span>${grupos.map(([bv, l], k) => `<details class="versao-bloco"${k === 0 ? ' open' : ''}>
+        <summary><b>${/^\d+$/.test(bv) ? `${b.id} · v${bv}` : bv}</b> · ${l.length} ${l.length === 1 ? 'comentário' : 'comentários'}</summary>
+        ${l.sort((a, z) => a.c.t - z.c.t).map((it) => this.htmlVelho(it)).join('')}</details>`).join('')}</div>`
   }
 
   // ---------- o provador de look (LUT, intensidade e vinheta do ator; servidor.py, render.py amostra-look) ----------
@@ -723,8 +757,11 @@ class Revisao {
     if (foco) {
       // um bloco escolhido: só os comentários dele e, embaixo, o que já foi pedido nele nas versões anteriores
       const cs = comentarios.filter((c) => !c.geral && this.blocoEm(c.t)?.id === foco.id)
+      // os de vídeos anteriores sobre o conteúdo que o bloco ainda tem (ele não mudou desde então) também são desta versão dele
+      const { atuais } = this.comentariosAntigos(foco)
       html = `<section class="bloco-grupo bloco-foco${foco.def.aprovado ? ' bloco-grupo-ok' : ''}">${this.htmlCabecaBloco(foco, cs.length, true)}
-        ${cs.map((c) => this.htmlComentario(c)).join('') || `<p class="vazio-lista">Nenhum comentário no ${foco.id} nesta versão.<br>Comente na caixa abaixo, com o vídeo dentro do bloco.</p>`}
+        ${cs.map((c) => this.htmlComentario(c)).join('')}${atuais.sort((a, z) => a.c.t - z.c.t).map((it) => this.htmlVelho(it, true)).join('')}
+        ${cs.length || atuais.length ? '' : `<p class="vazio-lista">Nenhum comentário nesta versão do ${foco.id}.<br>Comente na caixa abaixo, com o vídeo dentro do bloco.</p>`}
         ${this.htmlHistoricoBloco(foco)}</section>`
     } else if (this.blocos) {
       const gerais = comentarios.filter((c) => c.geral)

@@ -680,6 +680,9 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 .item-velho { padding: 8px 12px; }
 .item-velho + .item-velho { border-top: 1px solid var(--color-line-dark); }
 .item-velho .chip-tempo { margin-bottom: 4px; }
+.item-velho-cabeca { display: flex; align-items: center; gap: 8px; }
+.item-velho-cabeca .no-video { margin-bottom: 4px; font-size: 10.5px; color: var(--color-fog); }
+.bloco-foco > .item-velho { border: 1px solid var(--color-line-dark); border-radius: var(--radius-2xl); background: var(--color-cream-5); }
 .item-velho .texto { font-size: 12.5px; line-height: 1.5; color: var(--color-fog); white-space: pre-wrap; overflow-wrap: anywhere; }
 .item-velho .resposta { margin-top: 6px; }
 .editor { padding: 12px 14px; border: 1px solid var(--color-coral); border-radius: var(--radius-2xl); background: var(--color-deep); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25); }
