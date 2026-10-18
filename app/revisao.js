@@ -335,7 +335,11 @@ class Revisao {
     if (!grupos.length) return ''
     return `<div class="historico-bloco"><span class="eyebrow">Versões anteriores deste bloco</span>${grupos.map(([x, cs]) => `<details class="versao-bloco"${x === grupos[0][0] ? ' open' : ''}>
         <summary><b>v${x}</b> · ${cs.length} ${cs.length === 1 ? 'comentário' : 'comentários'}</summary>
-        ${cs.sort((a, b) => a.t - b.t).map((c) => `<div class="item-velho"><p class="texto">${esc(c.texto || '(só o print)')}</p>${this.htmlResposta(c)}</div>`).join('')}</details>`).join('')}</div>`
+        ${cs.sort((a, b) => a.t - b.t).map((c) => {
+          const o = this.ondeAgora(c) // o tempo de lá levado para esta versão (pela palavra)
+          return `<div class="item-velho"><button class="chip-tempo" data-ir-velho="${o.t}" title="Na v${x}: ${quando(c)} · ir a este ponto nesta versão">${quando(o)}</button>
+            <p class="texto">${esc(c.texto || '(só o print)')}</p>${this.htmlResposta(c)}</div>`
+        }).join('')}</details>`).join('')}</div>`
   }
 
   // ---------- o provador de look (LUT, intensidade e vinheta do ator; servidor.py, render.py amostra-look) ----------
@@ -1505,6 +1509,7 @@ class Revisao {
     if (d.aprovarBloco) return this.aprovarBloco(d.aprovarBloco)
     if (d.loopBloco) return this.alternarLoop(d.loopBloco)
     if (d.sairBloco != null) return this.escolherBloco(null)
+    if (d.irVelho != null) return this.buscar(+d.irVelho) // um comentário de uma versão anterior: só vai ao ponto
     if (d.novidade) {
       const b = this.blocos.find((x) => x.id === d.novidade)
       if (!d.v) {
