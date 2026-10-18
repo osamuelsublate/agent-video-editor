@@ -51,13 +51,22 @@ function grupo(ts) {
   return n <= 0 ? 'Hoje' : n === 1 ? 'Ontem' : n < 7 ? 'Esta semana' : n < 30 ? 'Este mês' : 'Antes'
 }
 
-async function inicio(tela) {
+/** Uma categoria de CTA: "CTA" no nome (CTA, CTA LP, CTA VSL…). Os projetos dela moram na página CTAs, à parte. */
+const categoriaCta = (cats, id) => /\bcta\b/i.test(cats.find((c) => c.id === id)?.nome || id)
+
+/** Os projetos (#/) ou, com `ctas`, os CTAs (#/ctas): a mesma página, cada uma com as suas categorias, filtros e tags. */
+async function inicio(tela, ctas = false) {
   tela.className = 'pagina pagina-inicio'
-  const [projetos, cods] = await Promise.all([json('/api/projetos', []), codigos()])
+  const pref = ctas ? 'ctas' : 'projetos'
+  const titulo = ctas ? 'CTAs' : 'Projetos'
+  const [todos, cods] = await Promise.all([json('/api/projetos', []), codigos()])
   // a categoria do projeto (edicao.formato: Reels, Ad…): filtra a lista e troca no card
   let cats = await carregarCategorias()
-  let filtro = preferencia('projetos.categoria', '')
-  if (filtro && !cats.some((c) => c.id === filtro)) filtro = ''
+  const daPagina = (p) => categoriaCta(cats, p.formato || 'reels') === ctas
+  let projetos = todos.filter(daPagina)
+  const catsDaPagina = () => cats.filter((c) => categoriaCta(cats, c.id) === ctas)
+  let filtro = preferencia(`${pref}.categoria`, '')
+  if (filtro && !catsDaPagina().some((c) => c.id === filtro)) filtro = ''
   let ordem = ORDENS[lembrar('projetos.ordem')] ? lembrar('projetos.ordem') : 'recentes'
   const card = (p) => {
     const [estado, cor] = ESTADOS[p.estado] || ESTADOS.em_revisao
@@ -90,18 +99,21 @@ async function inicio(tela) {
     return grupos
   }
   const desenhar = () => {
-    $('.filtro-categorias', tela).innerHTML = pilulasCategoria(cats, filtro, { contar: (id) => projetos.filter((p) => !id || (p.formato || 'reels') === id).length }) + botaoCategorias()
+    projetos = todos.filter(daPagina) // trocar a categoria no card leva o projeto para a outra página
+    $('.cabeca-secao .eyebrow', tela).textContent = `${titulo} · ${String(projetos.length).padStart(2, '0')}`
+    $('.filtro-categorias', tela).innerHTML = pilulasCategoria(catsDaPagina(), filtro, { contar: (id) => projetos.filter((p) => !id || (p.formato || 'reels') === id).length }) + botaoCategorias()
     const itens = daCategoria().map((p) => ({ chave: p.slug, tags: p.tags }))
-    tagAtiva = tagEscolhida('projetos', itens)
-    const conhecidas = [...new Set(projetos.flatMap((p) => p.tags || []))].sort()
+    tagAtiva = tagEscolhida(pref, itens)
+    const conhecidas = [...new Set(todos.flatMap((p) => p.tags || []))].sort() // as tags valem para as duas páginas
     const corpo = $('.corpo-projetos', tela)
     corpo.innerHTML = projetos.length
-      ? `${datalistTags('tags-conhecidas-projeto', conhecidas)}<div class="banco-com-tags">${barraDeTags(itens, tagAtiva, 'projetos')}<div class="lista-projetos">${
+      ? `${datalistTags('tags-conhecidas-projeto', conhecidas)}<div class="banco-com-tags">${barraDeTags(itens, tagAtiva, pref)}<div class="lista-projetos">${
         lista().map(([g, ps]) => `${g ? `<h4 class="grupo-data">${g}</h4>` : ''}<div class="grade grade-projetos">${ps.map(card).join('')}</div>`).join('') || '<p class="vazio">Nenhum projeto com esses filtros.</p>'}</div></div>`
+      : ctas ? '<p class="vazio">Nenhum CTA ainda. Um projeto entra aqui quando a categoria dele tem “CTA” no nome.</p>'
       : '<p class="vazio">Nenhum projeto com versão ainda. Mande um vídeo bruto ao Claude Code: quando ele entregar a v1, ela aparece aqui.</p>'
     ligarTags(corpo, {
       onde: 'projetos',
-      pref: 'projetos',
+      pref,
       lista: 'tags-conhecidas-projeto',
       conhecidas,
       itemDo: (b) => projetos.find((p) => p.slug === b.closest('.caixa-projeto').dataset.slug),
@@ -110,7 +122,7 @@ async function inicio(tela) {
       },
       recarregar: desenhar,
       aposRenomear: async () => {
-        projetos.splice(0, projetos.length, ...(await json('/api/projetos', [])))
+        todos.splice(0, todos.length, ...(await json('/api/projetos', [])))
         desenhar()
       },
     })
@@ -125,7 +137,7 @@ async function inicio(tela) {
       })
     }
   }
-  tela.innerHTML = `<div class="cabeca-secao"><span class="eyebrow">Projetos · ${String(projetos.length).padStart(2, '0')}</span>
+  tela.innerHTML = `<div class="cabeca-secao"><span class="eyebrow">${titulo}</span>
       <div class="filtro-categorias"></div>
       <div class="ordens">${Object.entries(ORDENS).map(([k, nome]) => `<button class="pilula pequena" data-ordem="${k}">${nome}</button>`).join('')}</div></div>
     <div class="corpo-projetos"></div>`
@@ -191,7 +203,7 @@ async function inicio(tela) {
     }
     const f = e.target.closest('[data-categoria]')
     if (f) {
-      filtro = preferencia('projetos.categoria', '', f.dataset.categoria)
+      filtro = preferencia(`${pref}.categoria`, '', f.dataset.categoria)
       return desenhar()
     }
     if (e.target.closest('[data-editar-categorias]'))
@@ -218,9 +230,8 @@ async function inicio(tela) {
     try {
       await enviar('DELETE', `/api/projetos/${encodeURIComponent(p.slug)}`)
       fecharAba(p.slug)
-      projetos.splice(projetos.indexOf(p), 1)
+      todos.splice(todos.indexOf(p), 1)
       desenhar()
-      $('.cabeca-secao .eyebrow', tela).textContent = `Projetos · ${String(projetos.length).padStart(2, '0')}`
       aviso(`“${p.nome}” foi para a lixeira`)
     } catch (err) {
       aviso(err.message, 'erro')
@@ -270,8 +281,8 @@ async function rotear() {
   $('#barra-versao').innerHTML = ''
   desenharAbas()
   // os projetos abrem pela marca; num projeto, acende a aba dele; o endereço antigo dos motions (#/banco/motions) acende Motions
-  const aba = partes[0] === 'banco' && partes[1] === 'motions' ? 'motions' : partes[0] === 'transicoes' ? 'presets' : partes[0] // as transições moram na aba Presets
-  for (const a of $$('.abas a')) a.classList.toggle('ativa', a.dataset.aba === aba)
+  const aba = !partes[0] ? 'projetos' : partes[0] === 'banco' && partes[1] === 'motions' ? 'motions' : partes[0] === 'transicoes' ? 'presets' : partes[0] // as transições moram na aba Presets
+  for (const a of $$('.abas a, .abas-casa a')) a.classList.toggle('ativa', a.dataset.aba === aba)
   document.body.classList.toggle('em-revisao', (partes[0] === 'p' || partes[0] === 'calibragem') && !!partes[1])
   let s
   // #/p/<slug>/vN/t12.3 (o chip "usado em" do Banco e dos Motions): a revisão abre naquele instante
@@ -285,7 +296,7 @@ async function rotear() {
   else if (partes[0] === 'heuristica') s = await abrirHeuristica(tela)
   else if (partes[0] === 'aprendizados') s = await abrirAprendizados(tela, partes[1])
   else if (PAGINAS_BIBLIOTECA.includes(partes[0])) s = await abrirBiblioteca(tela, partes[0], partes.slice(1))
-  else s = await inicio(tela)
+  else s = await inicio(tela, partes[0] === 'ctas')
   if (minha !== vez) s?.() // já mudou de tela enquanto carregava
   else {
     sair = s
