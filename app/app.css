@@ -546,7 +546,8 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 .bloco-faixa svg { width: 11px; height: 11px; }
 .bloco-faixa i { font-style: normal; display: inline-grid; place-items: center; min-width: 15px; height: 15px; border-radius: var(--radius-full); background: var(--color-coral); color: var(--color-cream); font-size: 9.5px; }
 .bloco-com { background: rgba(245, 119, 87, 0.12); color: var(--color-cream); }
-.bloco-aprovado { background: rgba(186, 205, 171, 0.22); color: var(--color-sage); }
+.bloco-aprovado { background: var(--color-green); color: var(--color-ink); } /* finalizado: o verde do selo Aprovado */
+.bloco-aprovado:hover { background: #8fdc98; color: var(--color-ink); }
 .bloco-loop { box-shadow: inset 0 0 0 2px var(--color-yellow); }
 /* o check de finalizar: aparece no canto do bloco com o mouse em cima */
 .bloco-check { position: absolute; top: 50%; right: 3px; display: grid; place-items: center; width: 18px; height: 18px; margin-top: -9px; border-radius: 50%;
@@ -554,7 +555,7 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 .bloco-check svg { width: 11px !important; height: 11px !important; }
 .bloco-faixa:hover .bloco-check { opacity: 1; }
 .bloco-check:hover { transform: scale(1.15); }
-.bloco-aprovado .bloco-check { background: var(--color-cream-10); color: var(--color-cream); }
+.bloco-aprovado .bloco-check { background: var(--color-ink); color: var(--color-cream); }
 .bloco-escolhido { background: var(--color-yellow) !important; color: var(--color-ink) !important; }
 .bloco-escolhido i { background: var(--color-ink); color: var(--color-yellow); }
 #divisas { position: absolute; inset: 0; pointer-events: none; }
@@ -569,9 +570,9 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 .bloco-acoes { display: flex; align-items: center; gap: 4px; margin-left: auto; }
 .bloco-acoes .botao { height: 26px; padding: 0 10px; font-size: 11.5px; }
 .bloco-acoes .botao svg { width: 12px; height: 12px; }
-.bloco-acoes .botao.feito { background: var(--color-sage); border-color: var(--color-sage); color: var(--color-ink); }
+.bloco-acoes .botao.feito { background: var(--color-green); border-color: var(--color-green); color: var(--color-ink); }
 .bloco-acoes .botao-icone.ativo { color: var(--color-yellow); }
-.bloco-ok .bloco-nome { color: var(--color-sage); }
+.bloco-ok .bloco-nome { color: var(--color-green); }
 .bloco-sel .bloco-nome { color: var(--color-yellow); }
 .bloco-grupo-ok > .item { opacity: 0.6; }
 /* em cima, o quanto do vídeo está concluído (os blocos finalizados) */
@@ -579,7 +580,7 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 .conclusao b { font-weight: 600; white-space: nowrap; }
 .conclusao span { font-size: 11px; color: var(--color-fog); white-space: nowrap; }
 .barra-conclusao { position: relative; flex: 1; min-width: 40px; max-width: 120px; height: 5px; border-radius: 3px; background: var(--color-cream-10); overflow: hidden; }
-.barra-conclusao i { position: absolute; inset: 0 auto 0 0; border-radius: 3px; background: var(--color-sage); }
+.barra-conclusao i { position: absolute; inset: 0 auto 0 0; border-radius: 3px; background: var(--color-green); }
 .bloco-cabeca .conta { display: inline-flex; align-items: center; gap: 4px; }
 .bloco-cabeca .conta svg { width: 12px; height: 12px; }
 .marca {
