@@ -2,7 +2,9 @@
 
 O criador comenta a versão no app (os comentários se gravam sozinhos em `projetos/<slug>/revisoes/vN.json`) e avisa
 no chat: "comentei no VSL Isca", "marquei umas coisas no B3". Não há texto colado: o que é para fazer são os
-comentários **pendentes** (ainda sem a sua resposta) da última versão.
+comentários **pendentes** (ainda sem a sua resposta) de qualquer versão: ele comenta a versão que está vendo, que nem
+sempre é a última (revisa um bloco na v7 enquanto outro já foi refeito na v8). O `ler` sem a versão mostra todos, e
+todos entram na versão nova (os comentários estão presos às palavras, que valem em qualquer versão).
 
 ## Rodar
 

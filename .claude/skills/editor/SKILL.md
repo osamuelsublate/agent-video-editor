@@ -45,8 +45,8 @@ Briefing: se vier, leia antes dos cortes; ele vale para cortes, direção e inse
 
 ## Fluxo 2 — Revisão ("comentei no app", "marquei umas coisas no <vídeo>")
 
-Leia `etapas/11-revisao.md`. Os comentários estão no app (`revisao.py pendentes` / `ler`): aplique os pendentes da
-última versão (os blocos finalizados não se mexem), renderize a v(N+1) e responda cada um no JSON da revisão, numa
+Leia `etapas/11-revisao.md`. Os comentários estão no app (`revisao.py pendentes` / `ler`): aplique os pendentes
+de todas as versões (ele comenta a versão que está vendo; os blocos finalizados não se mexem), renderize a v(N+1) e responda cada um no JSON da revisão, numa
 frase curta (a resposta diz o que mudou: é o registro de onde saem os aprendizados na conclusão).
 
 ## Fluxo 3 — Aprovado ("Aprovado · <slug> · vN")

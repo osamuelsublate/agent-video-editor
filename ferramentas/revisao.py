@@ -4,11 +4,11 @@
 """A revisão do criador do lado do Claude (o app grava projetos/<slug>/revisoes/vN.json).
 
     uv run ferramentas/revisao.py pendentes
-        os projetos com comentários ainda sem resposta na última versão (o criador avisa no chat que comentou no app).
+        os projetos com comentários ainda sem resposta, em qualquer versão (o criador avisa no chat que comentou no app).
     uv run ferramentas/revisao.py ler <slug> [vN] [--bloco B3]
         a revisão (a da última versão, se não disser) no mesmo texto do "Copiar revisão" do app e, para cada
         comentário, o id, a âncora (palavras), o bloco, o plano sob ele e os prints anexados (abra com o Read antes de
-        aplicar). Com --bloco, só os daquele bloco (o "Copiar" de um bloco no app).
+        aplicar). Com --bloco, só os daquele bloco. Sem a versão: as versões que têm pendentes (todas, se mais de uma).
     uv run ferramentas/revisao.py responder <slug> <vN> <id|geral> --status aplicado|respondido|nao_aplicado --resposta "…"
         grava a resposta no comentário (o app mostra embaixo dele); "geral" responde o geral de revisões antigas.
     uv run ferramentas/revisao.py pronto <slug>
@@ -164,8 +164,8 @@ def ler(slug: str, v: str | None, bloco: str | None = None) -> None:
     estado = 'APROVADA' if rev.get('aprovado') else f'enviada em {rev["enviado_em"]}' if rev.get('enviado_em') else 'ainda não enviada'
     pend = [c for c in rev.get('comentarios', []) if tem_conteudo(c) and c.get('status', 'pendente') == 'pendente']
     n_pend = len(pend)
-    # a revisão mais nova com comentários (o criador pode comentar a vN enquanto a vN+1 já existe sem ter sido aberta)
-    if pend and not rev.get('aprovado') and n == max(versoes_com_revisao(slug), default=n):
+    # qualquer versão com pendentes (o criador comenta a que está vendo, que nem sempre é a última): os blocos se somam
+    if pend and not rev.get('aprovado'):
         trabalhando(slug, n, bs, pend)  # o app mostra o loader sobre esses blocos até a versão nova
     print(f'\nEstado: {estado} · {n_pend} pendente(s), os que você ainda não respondeu: aplique só esses. '
           f'Para cada um: revisao.py responder {slug} v{n} <id> --status … --resposta "…"')
@@ -199,22 +199,31 @@ def ler(slug: str, v: str | None, bloco: str | None = None) -> None:
             print(f'\n- geral · {g.get("status")} ↳ {g.get("resposta") or ""}')
 
 
+def versoes_pendentes(slug: str) -> list[tuple[int, int]]:
+    """As versões com comentários sem resposta e quantos: o criador comenta na versão que está vendo, que nem sempre é a
+    última (com os blocos, ele revisa um bloco numa versão enquanto outro já foi refeito)."""
+    out = []
+    for n in versoes_com_revisao(slug):
+        rev = ler_json(pasta(slug) / 'revisoes' / f'v{n}.json', {}) or {}
+        k = sum(1 for c in rev.get('comentarios', []) if tem_conteudo(c) and c.get('status', 'pendente') == 'pendente')
+        if k:
+            out.append((n, k))
+    return out
+
+
 def pendentes() -> None:
-    """Os projetos cuja última versão tem comentários sem resposta: é por onde começar quando o criador avisa no chat
-    que comentou no app."""
+    """Os projetos com comentários sem resposta (em qualquer versão): é por onde começar quando o criador avisa no chat
+    que comentou no app. Projetos aprovados ficam de fora."""
     achou = False
     for proj in sorted((x for x in PROJETOS.iterdir() if x.is_dir() and not x.name.startswith(('_', '.'))), key=lambda x: x.name):
         vs = versoes_com_revisao(proj.name)
-        if not vs:
+        if not vs or (ler_json(proj / 'revisoes' / f'v{vs[-1]}.json', {}) or {}).get('aprovado'):
             continue
-        rev = ler_json(proj / 'revisoes' / f'v{vs[-1]}.json', {}) or {}
-        if rev.get('aprovado'):
-            continue
-        cs = [c for c in rev.get('comentarios', []) if tem_conteudo(c) and c.get('status', 'pendente') == 'pendente']
-        if cs:
+        pend = versoes_pendentes(proj.name)
+        if pend:
             achou = True
             nome = (ler_json(proj / 'edicao.json', {}) or {}).get('nome') or proj.name
-            print(f'{proj.name} · v{vs[-1]} · {len(cs)} pendente(s) · {nome}')
+            print(f'{proj.name} · {", ".join(f"v{n}: {k}" for n, k in pend)} pendente(s) · {nome}')
     if not achou:
         print('Nenhum comentário pendente.')
 
@@ -222,10 +231,13 @@ def pendentes() -> None:
 def trabalhando(slug: str, n: int, bs: list[dict], pend: list[dict]) -> None:
     """O aviso para o app: o Claude está aplicando os pendentes destes blocos (`revisoes/trabalhando.json`, lido a cada
     4 s; o render da versão nova o apaga)."""
-    blocos_pend = sorted({b['id'] for c in pend if (b := bloco_em(bs, None if c.get('geral') else c['t']))}, key=lambda x: int(x[1:]))
-    gravar_json(pasta(slug) / 'revisoes' / 'trabalhando.json', {
-        'versao': n, 'blocos': blocos_pend, 'geral': not bs or any(c.get('geral') for c in pend),
-        'fase': 'aplicando', 'desde': datetime.now().isoformat(timespec='seconds')})
+    arq = pasta(slug) / 'revisoes' / 'trabalhando.json'
+    antes = ler_json(arq, {}) or {}
+    blocos_pend = {b['id'] for c in pend if (b := bloco_em(bs, None if c.get('geral') else c['t']))} | set(antes.get('blocos') or [])
+    gravar_json(arq, {
+        'versoes': sorted(set(antes.get('versoes') or []) | {n}), 'blocos': sorted(blocos_pend, key=lambda x: int(x[1:])),
+        'geral': bool(antes.get('geral')) or not bs or any(c.get('geral') for c in pend),
+        'fase': 'aplicando', 'desde': antes.get('desde') or datetime.now().isoformat(timespec='seconds')})
 
 
 def pronto(slug: str) -> None:
@@ -364,7 +376,14 @@ if __name__ == '__main__':
     a.add_argument('--refazer', action='store_true')
     x = ap.parse_args()
     if x.cmd == 'ler':
-        ler(x.slug, x.versao, x.bloco)
+        pend = [] if x.versao else versoes_pendentes(x.slug)
+        if len(pend) > 1:  # sem dizer a versão: os pendentes de todas (ele comentou em mais de uma)
+            print(f'Pendentes em {len(pend)} versões: {", ".join(f"v{n}" for n, _ in pend)}. Todos vão para a versão nova.')
+            for n, _ in pend:
+                print(f'\n{"=" * 30} v{n} {"=" * 30}')
+                ler(x.slug, f'v{n}', x.bloco)
+        else:
+            ler(x.slug, x.versao or (f'v{pend[0][0]}' if pend else None), x.bloco)
     elif x.cmd == 'responder':
         responder(x.slug, x.versao, x.id, x.status, x.resposta)
     elif x.cmd == 'pendentes':
