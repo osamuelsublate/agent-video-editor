@@ -153,8 +153,17 @@ def montar_clipes(palavras: list[dict], fica: list[bool], silencios: list[dict],
         j = i
         while j + 1 < len(palavras) and fica[j + 1] and not pausa_longa(j):
             j += 1
-        a = inicio(palavras[i]['inicio'], palavras[i - 1]['fim'] if i > 0 else 0.0)
-        b = fim(palavras[j]['fim'], palavras[j + 1]['inicio'] if j + 1 < len(palavras) else duracao)
+        lim_a = palavras[i - 1]['fim'] if i > 0 else 0.0
+        lim_b = palavras[j + 1]['inicio'] if j + 1 < len(palavras) else duracao
+        a = inicio(palavras[i]['inicio'], lim_a)
+        b = fim(palavras[j]['fim'], lim_b)
+        # uma palavra fraca na borda (o "e" quase sem voz) cai dentro de um silêncio detectado e a borda no silêncio a
+        # deixava de fora, sem aviso (vsl-isca-fid v15 c4): a borda recua até incluí-la
+        pi, pj = palavras[i], palavras[j]
+        if (pi['inicio'] + pi['fim']) / 2 < a:
+            a = max(pi['inicio'] - 0.04, min(lim_a, pi['inicio']))
+        if (pj['inicio'] + pj['fim']) / 2 > b:
+            b = min(pj['fim'] + 0.04, max(lim_b, pj['fim']))
         if intervalos and a <= intervalos[-1][1] + 0.02:  # nada relevante entre os dois: junta
             intervalos[-1][1] = b
         else:
