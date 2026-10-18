@@ -311,6 +311,8 @@ kbd {
 .ajuda:hover { border-color: var(--color-cream-50); color: var(--color-cream); }
 .grade { display: grid; gap: 32px 20px; }
 .grade-projetos { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+.pagina-inicio .grade-projetos { grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 20px 16px; } /* Projetos e CTAs: 8 por linha */
+@media (max-width: 1500px) { .pagina-inicio .grade-projetos { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); } }
 .grade-banco { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 32px 24px; }
 .grade-transicoes { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); }
 .grade-presets { grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 32px 24px; }
