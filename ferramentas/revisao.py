@@ -164,7 +164,8 @@ def ler(slug: str, v: str | None, bloco: str | None = None) -> None:
     estado = 'APROVADA' if rev.get('aprovado') else f'enviada em {rev["enviado_em"]}' if rev.get('enviado_em') else 'ainda não enviada'
     pend = [c for c in rev.get('comentarios', []) if tem_conteudo(c) and c.get('status', 'pendente') == 'pendente']
     n_pend = len(pend)
-    if pend and not rev.get('aprovado') and n == max((int(x.name[1:]) for x in (p / 'versoes').glob('v*') if x.name[1:].isdigit()), default=n):
+    # a revisão mais nova com comentários (o criador pode comentar a vN enquanto a vN+1 já existe sem ter sido aberta)
+    if pend and not rev.get('aprovado') and n == max(versoes_com_revisao(slug), default=n):
         trabalhando(slug, n, bs, pend)  # o app mostra o loader sobre esses blocos até a versão nova
     print(f'\nEstado: {estado} · {n_pend} pendente(s), os que você ainda não respondeu: aplique só esses. '
           f'Para cada um: revisao.py responder {slug} v{n} <id> --status … --resposta "…"')
