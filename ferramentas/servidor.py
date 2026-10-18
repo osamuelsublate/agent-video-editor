@@ -93,11 +93,15 @@ def projetos() -> list[dict]:
         ultima = vs[-1]
         rev = ler_json(p / 'revisoes' / f'v{ultima}.json', {}) or {}
         info = ler_json(p / 'versoes' / f'v{ultima}' / 'info.json', {}) or {}
-        estado = 'aprovado' if rev.get('aprovado') else 'enviada' if rev.get('enviado_em') else 'em_revisao'
+        estado = 'aprovado' if rev.get('aprovado') else 'em_revisao'
+        # nos vídeos com blocos, o quanto está concluído (os blocos finalizados, da revisão mais nova que os tem)
+        blocos = next(((ler_json(p / 'revisoes' / f'v{x}.json', {}) or {}).get('blocos') for x in reversed(vs)
+                       if (ler_json(p / 'revisoes' / f'v{x}.json', {}) or {}).get('blocos')), None)
         ed = ler_json(p / 'edicao.json', {}) or {}
         lista.append({'slug': p.name, 'nome': ed.get('nome') or p.name, 'formato': ed.get('formato') or 'reels',
                       'tags': ed.get('tags') or [], 'oculto': bool(ed.get('oculto')), 'versoes': vs, 'ultima': ultima, 'duracao': info.get('duracao'), 'estado': estado,
                       'comentarios': len(rev.get('comentarios', [])),
+                      'conclusao': round(100 * sum(1 for b in blocos if b.get('aprovado')) / len(blocos)) if blocos else None,
                       'saidas': len(ed.get('saidas') or []), 'tem_final': any((p / 'final').rglob('*.mp4')) if (p / 'final').is_dir() else False,
                       'atualizado': (p / 'versoes' / f'v{ultima}' / 'proxy.mp4').stat().st_mtime})
     return sorted(lista, key=lambda x: -x['atualizado'])
@@ -174,7 +178,7 @@ def versoes_detalhe(slug: str) -> list[dict]:
         rev = ler_json(p / 'revisoes' / f'v{v}.json', None)
         cs = [c for c in (rev or {}).get('comentarios', []) if (c.get('texto') or '').strip() or c.get('anexos')]
         tem = bool(cs or ((rev or {}).get('geral') or '').strip())
-        estado = 'aprovada' if (rev or {}).get('aprovado') else 'enviada' if (rev or {}).get('enviado_em') else 'em_revisao' if tem else 'sem'
+        estado = 'aprovada' if (rev or {}).get('aprovado') else 'em_revisao' if tem else 'sem'
         out.append({'v': v, 'criado_em': info.get('criado_em'), 'duracao': info.get('duracao'), 'estado': estado,
                     'comentarios': len(cs), 'aplicados': sum(1 for c in cs if c.get('status') == 'aplicado')})
     return out

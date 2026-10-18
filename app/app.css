@@ -641,7 +641,6 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 .t-nao-aplicado { color: var(--color-coral); }
 .faixa-estado { display: flex; align-items: center; gap: 8px; margin: 12px 16px 0; padding: 10px 12px; border-radius: var(--radius-2xl); font-size: 12px; font-weight: 600; }
 .faixa-estado a { color: inherit; }
-.estado-enviada { background: rgba(249, 219, 109, 0.12); color: var(--color-yellow); }
 .estado-aprovado { background: rgba(220, 231, 202, 0.15); color: var(--color-mint); }
 .estado-antiga { background: var(--color-cream-5); color: var(--color-cream); font-weight: 500; }
 .lista { flex: 1; overflow-y: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
@@ -681,7 +680,6 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 .item-velho + .item-velho { border-top: 1px solid var(--color-line-dark); }
 .item-velho .chip-tempo { margin-bottom: 4px; }
 .item-velho-cabeca { display: flex; align-items: center; gap: 8px; }
-.item-velho-cabeca .no-video { margin-bottom: 4px; font-size: 10.5px; color: var(--color-fog); }
 .bloco-foco > .item-velho { border: 1px solid var(--color-line-dark); border-radius: var(--radius-2xl); background: var(--color-cream-5); }
 .item-velho .texto { font-size: 12.5px; line-height: 1.5; color: var(--color-fog); white-space: pre-wrap; overflow-wrap: anywhere; }
 .item-velho .resposta { margin-top: 6px; }
@@ -1106,7 +1104,6 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 .versao-estado { grid-column: 1 / -1; font-size: 11px; color: var(--color-fog); }
 .versao-estado b { color: var(--color-sage); font-weight: 600; }
 .ve-em_revisao { color: var(--color-coral); }
-.ve-enviada { color: var(--color-yellow); }
 .ve-aprovada { color: var(--color-mint); }
 .aviso-versao { flex: none; font-size: 11px; color: var(--color-yellow); white-space: nowrap; }
 .aviso-versao:empty { display: none; }

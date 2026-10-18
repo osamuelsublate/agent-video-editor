@@ -42,7 +42,6 @@ const clipe = (alvo) =>
 const ESTADO_VERSAO = {
   sem: () => 'sem revisão',
   em_revisao: (n) => `em revisão (${n} ${n === 1 ? 'comentário' : 'comentários'})`,
-  enviada: () => 'revisão enviada',
   aprovada: () => 'aprovada',
 }
 
@@ -214,7 +213,7 @@ class Revisao {
     $('#novidades').innerHTML = this.blocos.map((b) => {
       const n = this.novidade(b)
       if (!n) return ''
-      const dica = n.tipo === 'nova' ? `O ${b.id} mudou na v${n.v}: abrir lá` : `O ${b.id} mudou nesta versão: ainda não foi visto`
+      const dica = n.tipo === 'nova' ? `O ${b.id} tem uma versão mais nova: abrir` : `O ${b.id} mudou: ainda não foi visto`
       return `<button class="bloco-novidade${n.tipo === 'nova' ? ' novidade-nova' : ''}" data-novidade="${b.id}" ${n.v ? `data-v="${n.v}"` : ''} title="${dica}" aria-label="${dica}"
         style="left:${(b.fim * px - 14).toFixed(1)}px">${ESTRELA_CHEIA}</button>`
     }).join('')
@@ -378,10 +377,9 @@ class Revisao {
     return { atuais, antigos }
   }
 
-  htmlVelho({ x, c }, marca = false) {
+  htmlVelho({ c }) {
     const o = this.ondeAgora(c) // o tempo de lá levado para esta versão (pela palavra)
-    return `<div class="item-velho"><div class="item-velho-cabeca"><button class="chip-tempo" data-ir-velho="${o.t}" title="No vídeo v${x}: ${quando(c)} · ir a este ponto aqui">${quando(o)}</button>
-        ${marca ? `<span class="no-video" title="Feito quando o vídeo estava na v${x} (o bloco não mudou desde então)">no vídeo v${x}</span>` : ''}</div>
+    return `<div class="item-velho"><div class="item-velho-cabeca"><button class="chip-tempo" data-ir-velho="${o.t}" title="Ir a este ponto">${quando(o)}</button></div>
       <p class="texto">${esc(c.texto || '(só o print)')}</p>${this.htmlResposta(c)}</div>`
   }
 
@@ -472,7 +470,7 @@ class Revisao {
       lk.atual = { ...lk.teste }
       lk.renderizando = true
       this.renderLook()
-      aviso(`Renderizando a v${r.proxima} com o look novo: ela aparece aqui quando ficar pronta`)
+      aviso('Renderizando com o look novo: aparece aqui quando ficar pronto')
       this.esperarRender()
     } catch (e) {
       aviso(e.message, 'erro')
@@ -669,12 +667,17 @@ class Revisao {
       const id = this.blocoSel
       const agora = vb.find((x) => x.vs.includes(this.v))
       const ultimaB = vb.at(-1)
-      $('#versoes').innerHTML = `<button class="botao botao-versao" data-acao="versoes" aria-haspopup="listbox" aria-expanded="${!!lista}" title="A versão do ${id} (o vídeo está na v${this.v})">
+      $('#versoes').innerHTML = `<button class="botao botao-versao" data-acao="versoes" aria-haspopup="listbox" aria-expanded="${!!lista}" title="As versões do ${id}">
           <b>${id} · v${agora?.bv ?? '?'}</b>${agora === ultimaB ? '<span class="atual">atual</span>' : ''}${ICONE.seta_baixo}</button>
         ${lista ? `<div class="menu-versoes" role="listbox">${vb.slice().reverse().map((x) => `<a class="item-versao${x === agora ? ' ativa' : ''}" role="option" aria-selected="${x === agora}" href="#/p/${s}/v${x.vs[0]}" data-versao-bloco="${x.vs[0]}">
-            <b>${id} · v${x.bv}</b>${x === ultimaB ? '<span class="atual">atual</span>' : ''}
-            <span class="versao-dados">${x.vs.length > 1 ? `nos vídeos v${x.vs[0]}–v${x.vs.at(-1)}` : `no vídeo v${x.vs[0]}`}</span></a>`).join('')}</div>` : ''}`
-      $('#aviso-versao').innerHTML = this.v < ultima ? `Você está vendo o vídeo v${this.v} (há uma v${ultima} mais nova) · <a href="#/p/${s}/v${ultima}">abrir a v${ultima}</a>` : ''
+            <b>${id} · v${x.bv}</b>${x === ultimaB ? '<span class="atual">atual</span>' : ''}</a>`).join('')}</div>` : ''}`
+      $('#aviso-versao').innerHTML = agora !== ultimaB ? `Você está vendo uma versão antiga do ${id} · <a href="#/p/${s}/v${ultima}" data-versao-bloco="${ultima}">ver a atual</a>` : ''
+      return this.renderAprovar()
+    }
+    if (this.blocos) {
+      // vídeo com blocos e nenhum escolhido: não há versão do vídeo para mostrar (as versões são de cada bloco)
+      $('#versoes').innerHTML = ''
+      $('#aviso-versao').innerHTML = this.v < ultima ? `Você está vendo uma versão antiga · <a href="#/p/${s}/v${ultima}">ver a atual</a>` : ''
       return this.renderAprovar()
     }
     $('#versoes').innerHTML = `<button class="botao botao-versao" data-acao="versoes" aria-haspopup="listbox" aria-expanded="${!!lista}" title="Trocar de versão">
@@ -713,15 +716,13 @@ class Revisao {
 
   renderEstado() {
     const r = this.rev
-    const ultima = this.proj.ultima
     let html = ''
     if (r.aprovado) html += `<div class="faixa-estado estado-aprovado">${ICONE.check} Aprovada. O Claude exporta o final em 4K.</div>`
-    else if (r.enviado_em) html += `<div class="faixa-estado estado-enviada">Revisão enviada em ${dataHora(r.enviado_em)}.${this.v < ultima ? '' : ` Esperando a v${this.v + 1}.`}</div>`
     const tr = this.trabalho
     if (tr) {
       const onde = tr.blocos?.length ? ` ${tr.blocos.join(', ')}` : ''
       html = `<div class="faixa-estado estado-trabalhando"><span class="girando" aria-hidden="true"></span>${tr.fase === 'renderizando'
-        ? `Claude renderizando a v${tr.para || this.proj.ultima + 1}${onde ? ` (${onde.trim()})` : ''}…` : `Claude aplicando a revisão${onde}…`}</div>` + html
+        ? `Claude renderizando${onde ? ` ${onde.trim()}` : ' a versão nova'}…` : `Claude aplicando a revisão${onde}…`}</div>` + html
     }
     $('#estado').innerHTML = html
   }
@@ -760,7 +761,7 @@ class Revisao {
       // os de vídeos anteriores sobre o conteúdo que o bloco ainda tem (ele não mudou desde então) também são desta versão dele
       const { atuais } = this.comentariosAntigos(foco)
       html = `<section class="bloco-grupo bloco-foco${foco.def.aprovado ? ' bloco-grupo-ok' : ''}">${this.htmlCabecaBloco(foco, cs.length, true)}
-        ${cs.map((c) => this.htmlComentario(c)).join('')}${atuais.sort((a, z) => a.c.t - z.c.t).map((it) => this.htmlVelho(it, true)).join('')}
+        ${cs.map((c) => this.htmlComentario(c)).join('')}${atuais.sort((a, z) => a.c.t - z.c.t).map((it) => this.htmlVelho(it)).join('')}
         ${cs.length || atuais.length ? '' : `<p class="vazio-lista">Nenhum comentário nesta versão do ${foco.id}.<br>Comente na caixa abaixo, com o vídeo dentro do bloco.</p>`}
         ${this.htmlHistoricoBloco(foco)}</section>`
     } else if (this.blocos) {
@@ -1281,7 +1282,7 @@ class Revisao {
     if (this.editor) this.salvarEditor()
     const texto = `Aprovado · ${this.slug} · v${this.v}`
     if (!this.rev.aprovado) {
-      const ok = await confirmar({ titulo: `Aprovar a v${this.v}?`, texto: 'O Claude exporta o vídeo final em 4K a partir desta versão.', ok: 'Aprovar e copiar' })
+      const ok = await confirmar({ titulo: 'Aprovar o vídeo?', texto: 'O Claude exporta o vídeo final em 4K.', ok: 'Aprovar e copiar' })
       if (!ok) return
       this.rev.aprovado = true
       await this.salvar()
@@ -1340,7 +1341,7 @@ class Revisao {
         this.renderBlocos()
         this.renderVersoes()
         const k = this.blocos.filter((b) => this.novidade(b)?.tipo === 'nova').length
-        aviso(`A v${nova} chegou${k ? ` · ${k} ${k === 1 ? 'bloco mudou' : 'blocos mudaram'}: veja o ✦ na linha do tempo` : ''}`)
+        aviso(k ? `${k} ${k === 1 ? 'bloco ganhou versão nova' : 'blocos ganharam versão nova'}: veja o ✦ na linha do tempo` : 'Versão nova pronta')
       } else if (nova) aviso(`A v${nova} chegou`)
     }
   }
