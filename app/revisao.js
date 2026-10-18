@@ -114,6 +114,7 @@ class Revisao {
     this.prepararBlocos()
     this.montar()
     if (this.blocos) this.carregarVersoesBlocos().then(() => !this.fechado && this.renderBlocos())
+    this.verTrabalho()
     if (this.blocosNovos && this.v === this.proj.ultima) this.agendarSalvar() // os blocos nascem (ou vêm da versão anterior) no arquivo desta
     this.ligar()
     this.mostrarSalvo(rev ? 'salvo' : '')
@@ -188,6 +189,10 @@ class Revisao {
     const foco = this.blocos.find((b) => b.id === this.blocoSel)
     $('#divisas').innerHTML = this.blocos.slice(1).map((b) => `<i class="divisa" style="left:${(b.ini * px).toFixed(1)}px"></i>`).join('')
       + (foco ? `<i class="bloco-faixa-sel" style="left:${(foco.ini * px).toFixed(1)}px;width:${((foco.fim - foco.ini) * px).toFixed(1)}px"></i>` : '')
+    // o Claude trabalhando: um loader sobre os trechos dos blocos que ele está aplicando
+    const emTrabalho = new Set(this.trabalho?.blocos || [])
+    $('#divisas').innerHTML += this.blocos.filter((b) => emTrabalho.has(b.id))
+      .map((b) => `<i class="bloco-trabalhando" style="left:${(b.ini * px).toFixed(1)}px;width:${((b.fim - b.ini) * px).toFixed(1)}px"></i>`).join('')
     // o que há de novo em cada bloco: um ícone pulsando sobre ele
     $('#novidades').innerHTML = this.blocos.map((b) => {
       const n = this.novidade(b)
@@ -199,8 +204,9 @@ class Revisao {
     el.innerHTML = this.blocos.map((b) => {
       const n = this.doBloco(b).length
       const cls = b.def.aprovado ? 'bloco-aprovado' : n ? 'bloco-com' : ''
-      return `<button class="bloco-faixa ${cls}${this.loop?.id === b.id ? ' bloco-loop' : ''}${this.blocoSel === b.id ? ' bloco-escolhido' : ''}" data-bloco="${b.id}" data-ir="${b.ini}" style="left:${(b.ini * px).toFixed(1)}px;width:${((b.fim - b.ini) * px).toFixed(1)}px"
-        title="${b.id} · ${tempo(b.ini)}–${tempo(b.fim)}${b.def.aprovado ? ' · finalizado (travado)' : n ? ` · ${n} comentário(s)` : ''}">${b.id}${b.def.aprovado ? ` ${ICONE.check}` : n ? ` <i>${n}</i>` : ''}
+      const trab = this.trabalho?.blocos?.includes(b.id)
+      return `<button class="bloco-faixa ${cls}${trab ? ' bloco-em-trabalho' : ''}${this.loop?.id === b.id ? ' bloco-loop' : ''}${this.blocoSel === b.id ? ' bloco-escolhido' : ''}" data-bloco="${b.id}" data-ir="${b.ini}" style="left:${(b.ini * px).toFixed(1)}px;width:${((b.fim - b.ini) * px).toFixed(1)}px"
+        title="${b.id} · ${tempo(b.ini)}–${tempo(b.fim)}${b.def.aprovado ? ' · finalizado (travado)' : n ? ` · ${n} comentário(s)` : ''}">${trab ? '<span class="girando" aria-hidden="true"></span>' : ''}${b.id}${b.def.aprovado ? ` ${ICONE.check}` : n ? ` <i>${n}</i>` : ''}
         <span class="bloco-check" data-check="${b.id}" title="${b.def.aprovado ? `Reabrir o ${b.id}` : `Finalizar o ${b.id}`}">${b.def.aprovado ? ICONE.fechar : ICONE.check}</span></button>`
     }).join('')
   }
@@ -664,6 +670,12 @@ class Revisao {
     let html = ''
     if (r.aprovado) html += `<div class="faixa-estado estado-aprovado">${ICONE.check} Aprovada. O Claude exporta o final em 4K.</div>`
     else if (r.enviado_em) html += `<div class="faixa-estado estado-enviada">Revisão enviada em ${dataHora(r.enviado_em)}.${this.v < ultima ? '' : ` Esperando a v${this.v + 1}.`}</div>`
+    const tr = this.trabalho
+    if (tr) {
+      const onde = tr.blocos?.length ? ` ${tr.blocos.join(', ')}` : ''
+      html = `<div class="faixa-estado estado-trabalhando"><span class="girando" aria-hidden="true"></span>${tr.fase === 'renderizando'
+        ? `Claude renderizando a v${tr.para || this.proj.ultima + 1}${onde ? ` (${onde.trim()})` : ''}…` : `Claude aplicando a revisão${onde}…`}</div>` + html
+    }
     $('#estado').innerHTML = html
   }
 
@@ -1230,9 +1242,22 @@ class Revisao {
     aviso('Copiado — cole no chat do Claude Code')
   }
 
+  /** O aviso de que o Claude está aplicando a revisão (`revisoes/trabalhando.json`, que o `revisao.py ler` põe e a
+   *  versão nova tira): os blocos dele ganham o loader. Um aviso de mais de 3 h é esquecido (o Claude parou no meio). */
+  async verTrabalho() {
+    const d = await json(`/projetos/${encodeURIComponent(this.slug)}/revisoes/trabalhando.json`, null)
+    const vivo = d && Date.now() - new Date(d.desde).getTime() < 3 * 3600e3 ? d : null
+    if (JSON.stringify(vivo) === JSON.stringify(this.trabalho ?? null) || this.fechado) return
+    this.trabalho = vivo
+    this.renderBlocos()
+    this.renderEstado()
+  }
+
   /** O Claude responde no arquivo e entrega versões novas: a cada 4 s, traz as respostas e as versões. */
   async verDisco() {
-    if (this.fechado || this.sujo || document.hidden) return
+    if (this.fechado || document.hidden) return
+    this.verTrabalho()
+    if (this.sujo) return
     const disco = await json(this.urlRevisao, null)
     if (this.fechado || this.sujo) return
     let mudou = false

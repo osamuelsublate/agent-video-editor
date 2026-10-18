@@ -345,6 +345,10 @@ def render(slug: str, final: bool = False) -> Path:
         shutil.rmtree(pasta_versao, ignore_errors=True)
         pasta_versao.mkdir(parents=True)
         destino = pasta_versao / 'proxy.mp4'
+        # o aviso do app ("Claude trabalhando" sobre os blocos): agora é o render da versão nova
+        aviso_app = p / 'revisoes' / 'trabalhando.json'
+        if aviso_app.is_file():
+            gravar_json(aviso_app, {**(ler_json(aviso_app, {}) or {}), 'fase': 'renderizando', 'para': versao})
     destino.parent.mkdir(parents=True, exist_ok=True)
     tmp = Path(tempfile.mkdtemp(prefix='.render-', dir=p))
     srv = servidor.servir(0)
@@ -438,6 +442,7 @@ def render(slug: str, final: bool = False) -> Path:
                                                  'fases': fases, 'avisos': avisos})
         final_dir = p / 'versoes' / f'v{versao}'
         pasta_versao.replace(final_dir)
+        (p / 'revisoes' / 'trabalhando.json').unlink(missing_ok=True)  # a versão chegou: o app tira o aviso
         destino = final_dir / 'proxy.mp4'
     for x in avisos:
         print(f'Aviso: {x}')

@@ -11,6 +11,9 @@
         aplicar). Com --bloco, só os daquele bloco (o "Copiar" de um bloco no app).
     uv run ferramentas/revisao.py responder <slug> <vN> <id|geral> --status aplicado|respondido|nao_aplicado --resposta "…"
         grava a resposta no comentário (o app mostra embaixo dele); "geral" responde o geral de revisões antigas.
+    uv run ferramentas/revisao.py pronto <slug>
+        tira o aviso de "Claude trabalhando" do app (o `ler` o põe nos blocos dos pendentes; a versão nova o tira
+        sozinha). Use quando terminar uma revisão sem render novo (só respostas).
     uv run ferramentas/revisao.py historico <slug>
         todas as revisões do projeto, versão a versão (cada comentário com o bloco e a sua resposta) e os blocos que
         voltaram a ser comentados. É o que a conclusão (14-concluir.md) lê.
@@ -21,6 +24,7 @@
 """
 import argparse
 import sys
+from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
@@ -158,7 +162,10 @@ def ler(slug: str, v: str | None, bloco: str | None = None) -> None:
 
     print(texto(slug, n, rev, bloco))
     estado = 'APROVADA' if rev.get('aprovado') else f'enviada em {rev["enviado_em"]}' if rev.get('enviado_em') else 'ainda não enviada'
-    n_pend = sum(1 for c in rev.get('comentarios', []) if tem_conteudo(c) and c.get('status', 'pendente') == 'pendente')
+    pend = [c for c in rev.get('comentarios', []) if tem_conteudo(c) and c.get('status', 'pendente') == 'pendente']
+    n_pend = len(pend)
+    if pend and not rev.get('aprovado') and n == max((int(x.name[1:]) for x in (p / 'versoes').glob('v*') if x.name[1:].isdigit()), default=n):
+        trabalhando(slug, n, bs, pend)  # o app mostra o loader sobre esses blocos até a versão nova
     print(f'\nEstado: {estado} · {n_pend} pendente(s), os que você ainda não respondeu: aplique só esses. '
           f'Para cada um: revisao.py responder {slug} v{n} <id> --status … --resposta "…"')
     if bs:
@@ -209,6 +216,20 @@ def pendentes() -> None:
             print(f'{proj.name} · v{vs[-1]} · {len(cs)} pendente(s) · {nome}')
     if not achou:
         print('Nenhum comentário pendente.')
+
+
+def trabalhando(slug: str, n: int, bs: list[dict], pend: list[dict]) -> None:
+    """O aviso para o app: o Claude está aplicando os pendentes destes blocos (`revisoes/trabalhando.json`, lido a cada
+    4 s; o render da versão nova o apaga)."""
+    blocos_pend = sorted({b['id'] for c in pend if (b := bloco_em(bs, None if c.get('geral') else c['t']))}, key=lambda x: int(x[1:]))
+    gravar_json(pasta(slug) / 'revisoes' / 'trabalhando.json', {
+        'versao': n, 'blocos': blocos_pend, 'geral': not bs or any(c.get('geral') for c in pend),
+        'fase': 'aplicando', 'desde': datetime.now().isoformat(timespec='seconds')})
+
+
+def pronto(slug: str) -> None:
+    (pasta(slug) / 'revisoes' / 'trabalhando.json').unlink(missing_ok=True)
+    print('O aviso de "Claude trabalhando" saiu do app.')
 
 
 def historico(slug: str) -> None:
@@ -334,6 +355,8 @@ if __name__ == '__main__':
     a.add_argument('--status', required=True)
     a.add_argument('--resposta', default='')
     sub.add_parser('pendentes')
+    a = sub.add_parser('pronto')
+    a.add_argument('slug')
     a = sub.add_parser('historico')
     a.add_argument('slug')
     a = sub.add_parser('clipes')
@@ -345,6 +368,8 @@ if __name__ == '__main__':
         responder(x.slug, x.versao, x.id, x.status, x.resposta)
     elif x.cmd == 'pendentes':
         pendentes()
+    elif x.cmd == 'pronto':
+        pronto(x.slug)
     elif x.cmd == 'historico':
         historico(x.slug)
     else:

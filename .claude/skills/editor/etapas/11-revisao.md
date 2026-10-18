@@ -11,6 +11,9 @@ uv run ferramentas/revisao.py pendentes                      # os projetos com c
 uv run ferramentas/revisao.py ler <slug> [vN] [--bloco B3]   # cada comentário com id, âncora (palavra), bloco, plano e estado
 ```
 
+O `ler` acende no app o aviso "Claude aplicando…" com um loader sobre os blocos dos pendentes; o render da versão nova
+o apaga sozinho. Se terminar sem render novo (só respostas), rode `revisao.py pronto <slug>`.
+
 Aplique só os `pendente`: os já respondidos são de rodadas anteriores. Se ele citou um bloco ("no B3"), leia com
 `--bloco B3`, mas os pendentes de outros blocos também valem (ele comentou e avisou); na dúvida, pergunte.
 
