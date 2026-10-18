@@ -12,11 +12,16 @@ from pathlib import Path
 
 from base import BIBLIOTECA
 
-# os filtros de timbre: (frequência Hz, ganho dB, Q) em picos (peaking), depois de um passa-altas de 80 Hz
-TIMBRES: dict[str, list[tuple[float, float, float]]] = {
+# os filtros de timbre, depois de um passa-altas de 80 Hz: (frequência Hz, ganho dB, Q) em picos (peaking), ou
+# ('lowshelf' | 'highshelf', frequência, ganho, Q) nas prateleiras
+TIMBRES: dict[str, list[tuple]] = {
     'natural': [],
     'quente': [(180, 2.5, 0.9), (3500, -1.5, 1.0)],
     'clara': [(250, -2.0, 1.0), (4500, 3.0, 1.0)],
+    # a voz do criador com o equilíbrio das VSLs de referência (FID 8.1, CLA 1.1, medido por faixa de frequência): mais
+    # corpo nos graves, menos "caixa" nos médios e menos estridência em 2 kHz, e o ar acima de 8 kHz que o microfone
+    # não pega (vsl-isca-fid, 2026-10-18)
+    'encorpada': [('lowshelf', 130, 6.5, 0.7), (750, -2.5, 0.9), (2000, -3.5, 0.8), (3500, -2.0, 1.2), ('highshelf', 8000, 6.5, 0.7)],
 }
 PASSA_ALTAS = 80
 COMPRESSOR = {'limiar': -20, 'razao': 2.5, 'ataque': 0.01, 'soltura': 0.15, 'joelho': 6}
@@ -34,7 +39,7 @@ SUBIDA, DESCIDA = 0.15, 0.35  # s: a música abaixa antes da fala começar e vol
 JUNTA = 0.6  # s: pausas menores que isto não devolvem a música
 FADE_FUNDO = 1.5
 CRUZA_FUNDO = 2.0  # s: o crossfade de uma volta do fundo para a próxima
-PADRAO = {'voz': {'limpeza': 'leve', 'timbre': 'natural'}, 'fundo': None, 'fundo_mudo': False,
+PADRAO = {'voz': {'limpeza': 'leve', 'timbre': 'encorpada'}, 'fundo': None, 'fundo_mudo': False,
           'niveis': {t: 0.0 for t in TRILHAS}}
 # a voz entra na mistura como o navegador toca: o mono vai igual aos dois canais (ganho 1; o `aformat` daria −3 dB)
 VOZ_ESTEREO = 'pan=stereo|c0=c0|c1=c0'
@@ -130,7 +135,7 @@ def expressao_ducking(trechos: list[tuple[float, float]], ducking_db: float = DU
 def cadeia_voz(timbre: str, ganho_db: float) -> str:
     """Os filtros da voz depois da limpeza: passa-altas, timbre, compressor e o fader do ator."""
     f = [f'highpass=f={PASSA_ALTAS}']
-    f += [f'equalizer=f={fr}:t=q:w={q}:g={g}' for fr, g, q in TIMBRES[timbre]]
+    f += [f'{x[0]}=f={x[1]}:g={x[2]}:t=q:w={x[3]}' if len(x) == 4 else f'equalizer=f={x[0]}:t=q:w={x[2]}:g={x[1]}' for x in TIMBRES[timbre]]
     c = COMPRESSOR
     f.append(f"acompressor=threshold={db(c['limiar']):.5f}:ratio={c['razao']}:attack={c['ataque'] * 1000:.0f}:release={c['soltura'] * 1000:.0f}:knee={db(c['joelho']):.3f}")
     f.append(f'volume={ganho_db:.1f}dB')
