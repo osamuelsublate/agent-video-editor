@@ -1174,6 +1174,12 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 .janela-produtos { width: min(460px, calc(100vw - 32px)); }
 .produtos-lista { display: flex; flex-direction: column; gap: 8px; padding: 12px 20px; }
 .produto-linha { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; align-items: center; gap: 8px; }
+.produto-linha:has(.pegador) { grid-template-columns: 20px 52px minmax(0, 1fr) auto; }
+.pegador { display: grid; place-items: center; width: 20px; height: 32px; padding: 0; border: 0; background: none; color: var(--color-fog-60); cursor: grab; touch-action: none; }
+.pegador:hover { color: var(--color-cream); }
+.pegador svg { width: 14px; height: 14px; }
+.produto-linha.arrastando { opacity: 0.6; }
+.produto-linha.arrastando .pegador { cursor: grabbing; color: var(--color-coral); }
 .produto-linha input { padding: 8px 10px; border: 1px solid var(--color-line-dark); border-radius: var(--radius-lg); background: var(--color-deeper);
   color: var(--color-cream); font: inherit; font-size: 13px; }
 .produto-linha input:focus { outline: none; border-color: var(--color-cream-50); }

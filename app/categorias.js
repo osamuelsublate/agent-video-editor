@@ -4,6 +4,7 @@
 import { $, $$, ICONE, aviso, enviar, esc, janela, json } from './comum.js'
 
 let cache = null
+const PEGADOR = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>'
 /** As categorias cadastradas (lidas uma vez; `esquecerCategorias` depois de gravar). */
 export const carregarCategorias = () => (cache ??= json('/api/categorias', { categorias: [] }).then((d) => d.categorias))
 export const esquecerCategorias = () => (cache = null)
@@ -43,11 +44,38 @@ export function editarCategorias(lista, depois) {
     <div class="produtos-acoes"><button class="botao pequeno" data-novo>${ICONE.mais} Nova categoria</button>
       <button class="botao botao-coral" data-gravar>Salvar</button></div>`, { classe: 'janela-produtos' })
   const desenhar = () => {
-    $('.produtos-lista', el).innerHTML = l.map((c, k) => `<div class="produto-linha" data-k="${k}">
+    $('.produtos-lista', el).innerHTML = l.map((c, k) => `<div class="produto-linha${k === arrastando ? ' arrastando' : ''}" data-k="${k}">
+        <button class="pegador" data-pegar title="Arraste para mudar a ordem (a das pílulas de filtro)" aria-label="Mudar a ordem">${PEGADOR}</button>
         <input class="produto-emoji" value="${esc(c.emoji || '')}" maxlength="8" data-campo="emoji" aria-label="Emoji" placeholder="🎬">
         <input class="produto-nome" value="${esc(c.nome)}" maxlength="40" data-campo="nome" aria-label="Nome" placeholder="Nome da categoria">
         <button class="botao-icone pequeno" data-tirar ${c.id === 'reels' ? 'disabled title="O Reels é a categoria padrão"' : 'title="Tirar (só sem referências e projetos dela)"'}>${ICONE.lixo}</button></div>`).join('')
   }
+  // a ordem: arrastar pelo pegador (a lista se reordena enquanto arrasta; Salvar grava)
+  let arrastando = null
+  el.addEventListener('pointerdown', (e) => {
+    const p = e.target.closest('[data-pegar]')
+    if (!p || e.button !== 0) return
+    e.preventDefault()
+    arrastando = +p.closest('.produto-linha').dataset.k
+    desenhar()
+    const mover = (ev) => {
+      const linhas = $$('.produto-linha', el)
+      const alvo = linhas.findIndex((x) => { const r = x.getBoundingClientRect(); return ev.clientY < r.top + r.height / 2 })
+      const para = alvo < 0 ? linhas.length - 1 : alvo > arrastando ? alvo - 1 : alvo
+      if (para === arrastando) return
+      l.splice(para, 0, ...l.splice(arrastando, 1))
+      arrastando = para
+      desenhar()
+    }
+    const soltar = () => {
+      removeEventListener('pointermove', mover)
+      removeEventListener('pointerup', soltar)
+      arrastando = null
+      desenhar()
+    }
+    addEventListener('pointermove', mover)
+    addEventListener('pointerup', soltar)
+  })
   desenhar()
   el.addEventListener('input', (e) => {
     const linha = e.target.closest('.produto-linha')
