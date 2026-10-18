@@ -166,6 +166,19 @@ class Revisao {
     this.blocos = l.filter((b) => b.fim - b.ini > 0.05)
   }
 
+  /** Escolher um bloco pela mão (faixa, cabeçalho, estrela): sempre na versão mais recente do vídeo; numa antiga, abre
+   *  a última já com ele escolhido, no começo dele. (O painel que acompanha o cursor não troca de versão.) */
+  abrirBloco(id) {
+    const b = this.blocos.find((x) => x.id === id)
+    if (this.v < this.proj.ultima) {
+      preferencia(`painel.${this.slug}.v${this.proj.ultima}`, null, { bloco: id, irAoBloco: true })
+      location.hash = `#/p/${encodeURIComponent(this.slug)}/v${this.proj.ultima}`
+      return
+    }
+    this.irAoBloco(b)
+    this.escolherBloco(id)
+  }
+
   /** O começo de um bloco, um quadro para dentro: o vídeo para alguns ms antes do pedido, e o painel (que acompanha o
    *  cursor) trocaria para o bloco de trás. */
   irAoBloco(b) {
@@ -1535,20 +1548,8 @@ class Revisao {
     if (d.loopBloco) return this.alternarLoop(d.loopBloco)
     if (d.sairBloco != null) return this.escolherBloco(null)
     if (d.irVelho != null) return this.buscar(+d.irVelho) // um comentário de uma versão anterior: só vai ao ponto
-    if (d.novidade) {
-      const b = this.blocos.find((x) => x.id === d.novidade)
-      if (!d.v) {
-        this.irAoBloco(b)
-        return this.escolherBloco(b.id)
-      }
-      preferencia(`painel.${this.slug}.v${d.v}`, null, { bloco: b.id, irAoBloco: true }) // lá, o bloco escolhido, desde o começo
-      location.hash = `#/p/${encodeURIComponent(this.slug)}/v${d.v}`
-      return
-    }
-    if (d.bloco) {
-      this.irAoBloco(this.blocos.find((x) => x.id === d.bloco))
-      return this.escolherBloco(d.bloco)
-    }
+    if (d.novidade) return this.abrirBloco(d.novidade)
+    if (d.bloco) return this.abrirBloco(d.bloco)
     if (d.marca) return this.selecionar(d.marca, +d.ir)
     if (d.ir != null) {
       const item = b.closest('.item')
