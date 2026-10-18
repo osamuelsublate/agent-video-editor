@@ -189,11 +189,10 @@ class Revisao {
     }).join('')
   }
 
-  htmlCabecaBloco(b, n, foco = false) {
+  htmlCabecaBloco(b, n) {
     const ok = b.def.aprovado
-    return `<div class="bloco-cabeca${ok ? ' bloco-ok' : ''}${foco ? ' bloco-sel' : ''}" data-cab-bloco="${b.id}">
-      ${foco ? `<button class="botao-icone pequeno" data-sair-bloco title="Voltar a todos os blocos">${ICONE.voltar || '‹'}</button>` : ''}
-      <button class="bloco-nome" data-bloco="${b.id}" data-ir="${b.ini}" title="${b.id} · ${tempo(b.ini)}–${tempo(b.fim)} · ir ao começo">${b.id}</button>${n && !foco ? `<span class="conta">${n}</span>` : ''}
+    return `<div class="bloco-cabeca${ok ? ' bloco-ok' : ''}" data-cab-bloco="${b.id}">
+      <button class="bloco-nome" data-bloco="${b.id}" data-ir="${b.ini}" title="${b.id} · ${tempo(b.ini)}–${tempo(b.fim)} · ir ao começo">${b.id}</button>${n ? `<span class="conta">${n}</span>` : ''}
       <span class="bloco-acoes">
         <button class="botao-icone pequeno${this.loop?.id === b.id ? ' ativo' : ''}" data-loop-bloco="${b.id}" title="${this.loop?.id === b.id ? 'Parar o loop' : 'Tocar só este bloco, em loop'}">${ICONE_ATALHO.plano}</button>
         <button class="botao pequeno${ok ? ' feito' : ''}" data-aprovar-bloco="${b.id}" title="${ok ? 'Reabrir o bloco' : 'Marcar o bloco como finalizado: ele fica travado para o Claude'}">${ICONE.check} ${ok ? 'Finalizado' : 'Finalizar'}</button></span></div>`
@@ -447,6 +446,7 @@ class Revisao {
       </section>
       <aside class="painel">
         <div class="painel-cabeca"><div class="painel-titulo"><span class="resumo" id="resumo"></span><span class="salvo" id="salvo"></span></div>
+          <span class="bloco-acoes" id="acoes-bloco"></span>
           <button class="botao botao-coral" data-acao="aprovar" id="b-aprovar" title="Aprovar o vídeo todo: o Claude exporta o final em 4K">Aprovar</button></div>
         <div id="estado"></div>
         <div class="lista" id="lista"></div>
@@ -623,6 +623,16 @@ class Revisao {
   }
 
   renderResumo() {
+    // um bloco escolhido: a linha de cima é a dele (voltar, o nome e a contagem; à direita, o loop e o Finalizar)
+    const foco = this.blocos?.find((b) => b.id === this.blocoSel)
+    $('#acoes-bloco').innerHTML = foco ? `<button class="botao-icone pequeno${this.loop?.id === foco.id ? ' ativo' : ''}" data-loop-bloco="${foco.id}" title="${this.loop?.id === foco.id ? 'Parar o loop' : 'Tocar só este bloco, em loop'}">${ICONE_ATALHO.plano}</button>
+      <button class="botao pequeno${foco.def.aprovado ? ' feito' : ''}" data-aprovar-bloco="${foco.id}" title="${foco.def.aprovado ? 'Reabrir o bloco' : 'Finalizar o bloco: ele está pronto e o Claude não mexe mais nele'}">${ICONE.check} ${foco.def.aprovado ? 'Finalizado' : 'Finalizar'}</button>` : ''
+    if (foco) {
+      const n = this.doBloco(foco).length
+      $('#resumo').innerHTML = `<span class="titulo-bloco${foco.def.aprovado ? ' bloco-ok' : ''}"><button class="botao-icone pequeno" data-sair-bloco title="Voltar a todos os blocos">${ICONE.voltar}</button>
+        <button class="bloco-nome" data-bloco="${foco.id}" data-ir="${foco.ini}" title="${foco.id} · ${tempo(foco.ini)}–${tempo(foco.fim)} · ir ao começo">${foco.id}</button>${n ? `<span class="conta">${n} ${n === 1 ? 'comentário' : 'comentários'}</span>` : ''}</span>`
+      return
+    }
     const cs = this.rev.comentarios.filter(temConteudo)
     const n = (k) => cs.filter((c) => chaveStatus(c.status) === k).length
     const partes = [`${cs.length} ${cs.length === 1 ? 'comentário' : 'comentários'}`]
@@ -645,7 +655,7 @@ class Revisao {
     if (foco) {
       // um bloco escolhido: só os comentários dele e, embaixo, o que já foi pedido nele nas versões anteriores
       const cs = comentarios.filter((c) => !c.geral && this.blocoEm(c.t)?.id === foco.id)
-      html = `<section class="bloco-grupo bloco-foco${foco.def.aprovado ? ' bloco-grupo-ok' : ''}">${this.htmlCabecaBloco(foco, cs.length, true)}
+      html = `<section class="bloco-grupo bloco-foco${foco.def.aprovado ? ' bloco-grupo-ok' : ''}">
         ${cs.map((c) => this.htmlComentario(c)).join('') || `<p class="vazio-lista">Nenhum comentário no ${foco.id} nesta versão.<br>Comente na caixa abaixo, com o vídeo dentro do bloco.</p>`}
         ${this.htmlHistoricoBloco(foco)}</section>`
     } else if (this.blocos) {

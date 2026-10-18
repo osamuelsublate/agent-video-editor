@@ -556,6 +556,11 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 .bloco-ok .bloco-nome { color: var(--color-sage); }
 .bloco-sel .bloco-nome { color: var(--color-yellow); }
 .bloco-grupo-ok > .item { opacity: 0.6; }
+.painel-cabeca > .bloco-acoes:empty { display: none; }
+.titulo-bloco { display: flex; align-items: center; gap: 8px; margin-left: -6px; }
+.titulo-bloco .bloco-nome { color: var(--color-yellow); }
+.titulo-bloco.bloco-ok .bloco-nome { color: var(--color-sage); }
+.titulo-bloco .conta { font-size: 12px; color: var(--color-fog); }
 .marca {
   position: absolute; top: 2px; height: 20px; border: 0; padding: 0; border-radius: var(--radius-full); background: var(--color-coral); color: var(--color-cream);
   font-size: 10.5px; font-weight: 700; line-height: 20px; cursor: pointer; box-shadow: 0 0 0 1px var(--color-deep);
