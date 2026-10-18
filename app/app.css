@@ -481,13 +481,19 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 .tempo b { color: var(--color-cream); font-size: 14px; font-weight: 600; }
 
 /* linha do tempo (a LinhaBase do 18: a coluna dos rótulos com um fio, a régua com os tiques de fio inteiro, o cursor coral) */
-/* a linha do tempo da revisão, mais alta (as faixas de 30 px, os planos de 40 px) */
+/* a linha do tempo da revisão (as faixas de 30 px, os planos de 28 px) */
 .revisao .linha-rotulos span { height: 30px; }
 .revisao .linha-rotulos .r-regua { height: 21px; }
-.revisao .linha-rotulos .r-planos { height: 40px; }
+.revisao .linha-rotulos .r-planos { height: 28px; }
 .revisao .faixa { height: 30px; }
-.revisao .faixa-planos { height: 40px; }
-.revisao .plano { line-height: 40px; font-size: 11px; }
+.revisao .faixa-planos { height: 28px; }
+.revisao .plano { line-height: 28px; font-size: 10.5px; }
+/* a barra do play, mais baixa: o play, os botões e as velocidades menores */
+.revisao .controles { padding: 5px 20px; }
+.revisao .botao-tocar { width: 34px; height: 34px; }
+.revisao .controles .botao-icone { width: 28px; height: 28px; }
+.revisao .controles .botao { height: 30px; padding: 0 12px; font-size: 12px; }
+.revisao .controles .pilula.pequena { height: 26px; }
 .revisao .palavra { top: 3px; height: 24px; line-height: 24px; }
 .revisao .bloco-faixa { top: 3px; height: 24px; font-size: 11px; }
 .revisao .marca { top: 3px; height: 24px; line-height: 24px; }
