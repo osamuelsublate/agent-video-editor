@@ -4,7 +4,7 @@ Como as mídias de cada insert aparecem (onde fica cada card, como entra, se mex
 movimento de câmera nos planos de Full ator. Tudo vem de **presets aprovados** pelo criador (`biblioteca/presets/`):
 receitas genéricas que se adaptam ao nº de mídias, à proporção delas e à divisão da tela.
 
-> **Antes de começar, leia `biblioteca/aprendizados/enriquecimento.md`**: o que o criador já corrigiu em vídeos anteriores. Não repita esses erros.
+> **Antes de começar, leia `biblioteca/aprendizados/enriquecimento.md` (+ `biblioteca/exemplos/<categoria>/aprendizados/enriquecimento.md`)**: o que o criador já corrigiu em vídeos anteriores. Não repita esses erros.
 
 ## Rodar
 

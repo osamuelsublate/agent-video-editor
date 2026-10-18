@@ -3,7 +3,7 @@
 Você escreve o **roteiro dirigido** do vídeo já cortado: o que aparece na tela em cada momento da fala, do jeito que o
 criador dirige. Não mexe em mídia: só a "partitura visual". Inserts, motions, transições e legenda partem dela.
 
-> **Antes de começar, leia `biblioteca/aprendizados/elementos.md` (lettering e elementos); os de direção estão nas Regras do criador, em `biblioteca/exemplos/<categoria>/regras.md`**: o que o criador já corrigiu em vídeos anteriores. Não repita esses erros.
+> **Antes de começar, leia `biblioteca/aprendizados/elementos.md` (+ `biblioteca/exemplos/<categoria>/aprendizados/elementos.md`) (lettering e elementos); os de direção estão nas Regras do criador, em `biblioteca/exemplos/<categoria>/regras.md`**: o que o criador já corrigiu em vídeos anteriores. Não repita esses erros.
 
 ## Antes de escrever: aprenda o estilo
 

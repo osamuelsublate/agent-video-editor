@@ -1,7 +1,7 @@
 Você busca a mídia de {n} inserts de um Reels, um de cada vez, na ordem. Repositório: {raiz}. Rode os scripts com
 `cd "{raiz}" && uv run ferramentas/<x>.py`. Projeto: {slug}. Contexto do vídeo: {contexto}
-Antes: leia {raiz}/biblioteca/aprendizados/inserts.md (o que o criador já corrigiu) e siga. Este vídeo é da categoria
-{categoria}: pule os itens marcados [só …] de outra categoria.
+Antes: leia {raiz}/biblioteca/aprendizados/inserts.md (o que o criador já corrigiu, em qualquer vídeo) e
+{exemplos}/aprendizados/inserts.md (os gostos dele nos vídeos de {categoria}, a categoria deste; pode não existir) e siga.
 LIMITE: 3 minutos por insert. Estourou, deixe o melhor que tiver (ou nada) e passe ao próximo.
 
 Os inserts:

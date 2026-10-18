@@ -35,15 +35,25 @@ criador corrigiu num vídeo não pode se repetir no próximo.
    Confirma? Pode cortar, mudar o texto ou acrescentar.
    ```
    Grave só o que ele confirmar, com o texto que ele aprovar.
-5. **Grave** cada aprendizado no arquivo da área (abaixo), no formato:
-   ```markdown
-   - **[gosto]** Prefira gravação de tela rolando a print parado quando a fala cita um site.
-     _PRJ-03·v2 c2, PRJ-05·v1 c1 · 2026-10-14_ · ![exemplo](imagens/prj03-c2.png)
-   ```
-   - **Só para uma categoria de vídeo?** Se a correção só vale para a categoria deste vídeo (ex.: um VSL pede um ritmo
-     que o Reels não pede), marque o item com `[só <Categoria>]`, pelo nome dela (`calibragem.py categorias`):
-     `- **[gosto]** [só VSL] Deixe o preço na tela até o fim do plano.` Sem a marca, vale para todas. Na dúvida,
-     pergunte ao criador ao mostrar a lista.
+5. **Grave** cada aprendizado no arquivo certo (a tabela abaixo):
+   - **Geral ou da categoria?** Técnicas e defeitos de ferramenta (fps, captura, corte, render) e os gostos de
+     identidade e qualidade (fundo da marca, fontes, legibilidade) valem para qualquer vídeo: vão para o geral,
+     `biblioteca/aprendizados/<área>.md`. Os gostos que mudam com o formato (ritmo, pausas, zoom, quantos sites, como
+     emendar) vão para a categoria do vídeo, `biblioteca/exemplos/<categoria>/aprendizados/<área>.md` (a categoria:
+     `calibragem.py exemplos <slug>`; crie o arquivo copiando o cabeçalho de um que já existe). Na dúvida, pergunte ao
+     criador ao mostrar a lista. Se um gosto da categoria aparecer igual em outra, suba-o para o geral.
+   - **Escreva para um agente que não viu este vídeo.** Cada aprendizado diz: *Quando* vale (em que momento da edição),
+     a *Regra* (o que fazer, com os nomes reais: preset, campo, comando), *O que aconteceu* (o erro e as palavras do
+     criador: é o porquê, que deixa o agente julgar casos parecidos), *Como* fazer ou medir (os comandos, quando houver)
+     e a origem. Um gosto simples cabe em 2–3 linhas; um técnico pede os comandos. Exemplo:
+     ```markdown
+     - **[gosto] Tudo entra na palavra falada.**
+       - *Quando:* ao pôr qualquer card, lettering, preço ou nome de ferramenta na tela.
+       - *Regra:* o elemento é preso à palavra (o ID da transcrição) e aparece no instante em que ela é dita, não no
+         começo do plano.
+       - *O que aconteceu:* em 11 comentários o criador apontou elementos fora da fala ("parece 1 s desencaixado").
+       - _vsl-isca-fid · v2 c5, v4 c31 · 2026-10-18_ · ![exemplo](imagens/vsl-isca-fid-v2c5.png)
+     ```
    - Um print ajuda quando o texto sozinho é ambíguo ("poluído", "card grande demais"): copie o anexo do comentário
      (`projetos/<slug>/revisoes/anexos/…`) ou um quadro do vídeo (ffmpeg) para `biblioteca/aprendizados/imagens/<prj>-<cN>.png`
      e mostre-o no bullet (um "certo" e um "errado" lado a lado é o melhor exemplo).
@@ -53,7 +63,10 @@ criador corrigiu num vídeo não pode se repetir no próximo.
    - Preset, transição, motion ou trilha que o criador não quer mais: tire das favoritas/recomendados (`ordem.json`) ou
      recuse (página Presets/Motions do app) — e anote o porquê no arquivo da área.
 
-| Área | Arquivo | Lido em |
+Cada área tem o arquivo geral (abaixo) e, por categoria, `biblioteca/exemplos/<categoria>/aprendizados/<área>.md` (os
+gostos daquele formato). As etapas leem os dois.
+
+| Área | Arquivo geral | Lido em |
 |---|---|---|
 | Cortes | `biblioteca/aprendizados/cortes.md` | `02-cortes.md` |
 | Direção | `biblioteca/exemplos/<categoria>/regras.md` (Regras do criador) | `03-direcao.md` |

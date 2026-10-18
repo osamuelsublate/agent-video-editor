@@ -18,8 +18,9 @@ Rotas (JSON; um erro volta como {"erro": "…"}, com 422 numa validação):
   Reels, Ad…; uma em uso não sai) · PUT /api/referencias/<id>/categoria {categoria} · PUT /api/projetos/<slug>/categoria
   {categoria} · o POST /api/referencias aceita a categoria no cabeçalho X-Categoria.
 - POST /api/projetos/<slug>/abrir-final: abre no Finder a pasta dos exports (final/, com as saídas em final/saidas/).
-- GET /api/aprendizados (as áreas, com os bullets "Do criador") · GET|PUT /api/aprendizados/<área> {texto} (o
-  aprendizados/<área>.md) · GET /api/aprendizados/imagens/<nome> (as imagens que os .md mostram).
+- GET /api/aprendizados (as áreas, com os bullets "Do criador", do geral e das categorias) · GET|PUT
+  /api/aprendizados/<área>[?categoria=…] {texto} (o aprendizados/<área>.md, ou o exemplos/<categoria>/aprendizados/<área>.md)
+  · GET /api/aprendizados/imagens/<nome> (as imagens que os .md mostram).
 - GET /api/presets/amostras (o ator e as mídias do banco da simulação dos presets, render/preset.html)
   · PUT /api/presets/<id> {aprovado} · PUT /api/presets/ordem {chave, ids, favoritos} · PUT /api/transicoes/<id> {aprovado}
   · PUT /api/transicoes/ordem {chave, ids, favoritas} · GET|PUT|DELETE /api/banco/<id> ({estado} marca o selo à mão; {tags} as tags, aninhadas com /) · PUT /api/motions/<id>/tags {tags} · PUT /api/referencias/<id>/tags {inicio, fim, tags} · POST /api/tags/<banco|motions|referencias> {de, para} (renomeia ou tira em todos) · GET /api/estados (selos do banco e usos dos motions nos
@@ -569,18 +570,29 @@ def _salvar_heuristica(h, q):
     return {'ok': True}
 
 
-# ---- aprendizados: um .md por área (etapas/14-concluir.md)
+# ---- aprendizados: um .md por área (etapas/14-concluir.md), o geral e o de cada categoria
 
 def do_criador(texto: str) -> int:
-    """Os bullets da seção "## Do criador" de um arquivo de aprendizados."""
+    """Os bullets da seção "## Do criador" de um arquivo de aprendizados geral."""
     secao = re.search(r'^## Do criador\s*$(.*?)(?=^## |\Z)', texto, re.M | re.S)
     return len(re.findall(r'^[-*]\s', secao.group(1), re.M)) if secao else 0
 
 
-def arquivo_aprendizado(area: str) -> Path:
+def arquivo_aprendizado(area: str, cat: str | None = None) -> Path:
+    """O arquivo geral da área (`aprendizados/<área>.md`) ou o da categoria (`exemplos/<cat>/aprendizados/<área>.md`)."""
     if area not in AREAS:
         raise Erro(f'Área desconhecida: {area}', 404)
-    return APRENDIZADOS / f'{area}.md'
+    return (EXEMPLOS / cat / 'aprendizados' if cat else APRENDIZADOS) / f'{area}.md'
+
+
+def aprendizados_das_categorias(area: str) -> dict[str, str]:
+    """Os gostos da área em cada categoria que tem o arquivo: {categoria: texto}."""
+    out = {}
+    for c in calibragem().categorias():
+        arq = arquivo_aprendizado(area, c['id'])
+        if arq.is_file():
+            out[c['id']] = arq.read_text(encoding='utf-8')
+    return out
 
 
 def imagem_aprendizado(nome: str) -> Path | None:
@@ -589,31 +601,36 @@ def imagem_aprendizado(nome: str) -> Path | None:
     return arq if IMAGEM.match(nome) and arq.is_file() else None
 
 
+def _conta_criador(area: str) -> int:
+    arq = arquivo_aprendizado(area)
+    geral = do_criador(arq.read_text(encoding='utf-8')) if arq.is_file() else 0
+    return geral + sum(len(re.findall(r'^[-*]\s', t, re.M)) for t in aprendizados_das_categorias(area).values())
+
+
 @rota('GET', '/api/aprendizados')
 def _aprendizados(h, q):
-    out = []
-    for area, nome in AREAS.items():
-        arq = APRENDIZADOS / f'{area}.md'
-        out.append({'area': area, 'nome': nome, 'criador': do_criador(arq.read_text(encoding='utf-8')) if arq.is_file() else 0})
-    return out
+    return [{'area': area, 'nome': nome, 'criador': _conta_criador(area)} for area, nome in AREAS.items()]
 
 
 @rota('GET', r'/api/aprendizados/([a-z]+)')
 def _aprendizado(h, q, area):
     arq = arquivo_aprendizado(area)
-    return {'area': area, 'nome': AREAS[area], 'texto': arq.read_text(encoding='utf-8') if arq.is_file() else ''}
+    return {'area': area, 'nome': AREAS[area], 'texto': arq.read_text(encoding='utf-8') if arq.is_file() else '',
+            'categorias': aprendizados_das_categorias(area)}
 
 
 @rota('PUT', r'/api/aprendizados/([a-z]+)')
 def _salvar_aprendizado(h, q, area):
-    arq = arquivo_aprendizado(area)
+    """Grava o arquivo geral da área ou, com ?categoria=…, o daquela categoria."""
+    arq = arquivo_aprendizado(area, _categoria(q) if q.get('categoria', [''])[0] else None)
     texto = h.corpo().get('texto')
     if not isinstance(texto, str) or not texto.strip():
         raise Erro('O arquivo não pode ficar vazio.', 422)
     if len(texto) > 20000:
         raise Erro('O arquivo passou de 20.000 caracteres.', 422)
+    arq.parent.mkdir(parents=True, exist_ok=True)
     arq.write_text(texto.rstrip() + '\n', encoding='utf-8')
-    return {'ok': True, 'criador': do_criador(texto)}
+    return {'ok': True, 'criador': _conta_criador(area)}
 
 
 # ---- presets, transições, banco e motions

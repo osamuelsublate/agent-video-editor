@@ -1336,9 +1336,8 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 .card-ref { container-type: inline-size; }
 @container (max-width: 212px) { .interruptor span { display: none; } }
 
-/* a marca "[só VSL]" de um aprendizado, desenhada como o selo da categoria (app/referencias.js) */
-.selo-categoria { display: inline-block; margin: 0 6px; padding: 0 8px; border: 1px solid var(--color-line-dark); border-radius: var(--radius-full);
-  font-size: 11px; font-weight: 600; color: var(--color-cream); vertical-align: 1px; white-space: nowrap; }
+/* os gostos de uma categoria, depois do arquivo geral da área (app/referencias.js) */
+.aprendizados-categoria { margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--color-line-dark); }
 .pagina-aprendizados .filtro-produtos { margin: 0 0 12px; }
 [data-ver-ocultos] svg { width: 12px; height: 12px; vertical-align: -1px; margin-right: 2px; }
 .acoes-card [data-ocultar] svg { width: 14px; height: 14px; }

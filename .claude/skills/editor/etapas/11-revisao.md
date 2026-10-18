@@ -63,7 +63,12 @@ Blocos: B1 0:00,0–0:31,3 ✓ finalizado, B2 0:31,3–1:00,4, B3 1:00,4–1:30,
    comentários desta revisão (as versões anteriores não pedem resposta nova).
 5. Entregue como no `10-render.md`: o link, o que mudou em 3–5 linhas.
 
-## Aprendizados: só na conclusão
+## Aprendizados: ler sempre, gravar só na conclusão
+
+**Antes de aplicar cada comentário, leia os aprendizados da área dele** (um comentário de insert: `inserts.md`; de
+zoom ou preset: `enriquecimento.md`; de motion: `motions.md`; de corte: `cortes.md`…), o geral
+(`biblioteca/aprendizados/<área>.md`) e o da categoria (`biblioteca/exemplos/<categoria>/aprendizados/<área>.md`): a
+correção que o criador pede costuma já estar escrita ali, e a sua solução não pode criar outro erro que já está.
 
 Não grave aprendizados no meio das revisões: eles saem todos juntos quando o vídeo é aprovado (`14-concluir.md`), lendo
 as revisões de todas as versões. Aqui, só cuide de responder bem cada comentário (a resposta diz o que mudou: é o

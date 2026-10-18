@@ -476,32 +476,14 @@ const imagemAprendizado = (src) => {
   return m ? `/api/aprendizados/imagens/${encodeURIComponent(m[1])}` : null
 }
 
-// a marca de categoria num aprendizado ("[só VSL]"): o item vale só para os vídeos daquela categoria; sem marca, para todos
-const MARCA_CATEGORIA = /\[só ([^\]]+)\]/i
-const daCategoria = (cats, rotulo) => cats.find((c) => [c.id, c.nome].some((x) => x.toLowerCase() === rotulo.trim().toLowerCase()))
+/** O começo de um arquivo de gostos de uma categoria que ainda não existe (o mesmo das que já existem). */
+const cabecalhoCategoria = (a, nomeCat) => `# Aprendizados · ${a.nome} · ${nomeCat}
 
-/** Depois do markdown: a marca vira o selo da categoria, e o filtro esconde os itens de outra categoria. */
-function marcarCategorias(raiz, cats, filtro) {
-  for (const li of $$('li', raiz)) {
-    const m = li.textContent.match(MARCA_CATEGORIA)
-    if (!m) continue
-    const c = daCategoria(cats, m[1])
-    li.dataset.categoria = c?.id || m[1]
-    li.hidden = !!filtro && li.dataset.categoria !== filtro
-    const caminho = document.createTreeWalker(li, NodeFilter.SHOW_TEXT)
-    for (let n = caminho.nextNode(); n; n = caminho.nextNode()) {
-      const k = n.textContent.search(MARCA_CATEGORIA)
-      if (k < 0) continue
-      const resto = n.splitText(k)
-      resto.textContent = resto.textContent.replace(MARCA_CATEGORIA, '')
-      const selo = document.createElement('span')
-      selo.className = 'selo-categoria'
-      selo.textContent = c ? `só ${c.emoji ? `${c.emoji} ` : ''}${c.nome}` : `só ${m[1]}`
-      n.after(selo)
-      break
-    }
-  }
-}
+Gostos do criador que valem **só para os vídeos desta categoria** (ritmo, zoom, emendas: o que muda com o
+formato). Os que valem para qualquer vídeo, e os técnicos, estão em \`biblioteca/aprendizados/${a.area}.md\`: leia os dois.
+Como gravar um aprendizado novo: \`etapas/14-concluir.md\`.
+
+`
 
 export async function abrirAprendizados(tela, area) {
   tela.className = 'pagina pagina-aprendizados'
@@ -518,18 +500,22 @@ export async function abrirAprendizados(tela, area) {
   const desenhar = () => {
     const lado = `<aside class="lado-pares"><span class="eyebrow" title="Quantos aprendizados vieram das suas correções">Áreas · do criador</span>
       ${areas.map((x) => `<a class="par-link${x.area === a.area ? ' ativo' : ''}" href="#/aprendizados/${x.area}"><span>${esc(x.nome)}</span><span class="conta">${x.criador}</span></a>`).join('')}</aside>`
+    // Ler: o geral e os gostos de cada categoria (só da escolhida, com o filtro); Editar: o arquivo da categoria
+    // escolhida, ou o geral com "Todas"
+    const nomeCat = (id) => rotuloCategoria(cats, id)
+    const dasCategorias = Object.entries(a.categorias || {}).filter(([id]) => !filtro || id === filtro)
     const corpo = modoAprendizado === 'ler'
-      ? `<div class="markdown">${markdown(a.texto, { imagem: imagemAprendizado })}</div>`
-      : `<textarea class="editor-regras" spellcheck="false">${esc(a.texto)}</textarea>`
+      ? `<div class="markdown">${markdown(a.texto, { imagem: imagemAprendizado })}</div>${dasCategorias.map(([id, texto]) =>
+        `<div class="markdown aprendizados-categoria">${markdown(texto, { imagem: imagemAprendizado })}</div>`).join('')}`
+      : `<p class="dica">Editando ${filtro ? `os gostos de ${esc(nomeCat(filtro))}` : 'o arquivo geral (vale para qualquer vídeo)'}: escolha a categoria acima para editar os dela.</p>
+        <textarea class="editor-regras" spellcheck="false">${esc(filtro ? a.categorias?.[filtro] || cabecalhoCategoria(a, nomeCat(filtro)) : a.texto)}</textarea>`
     tela.innerHTML = `<div class="com-lado">${lado}<div class="lado-conteudo bloco-heuristica">
-      <div class="cabeca-secao"><span class="eyebrow">Aprendizados · ${esc(a.nome)}</span>${ajuda('O que o Claude aprendeu nesta área, vídeo a vídeo: o que você corrigiu (Do criador) e os erros técnicos dele (Técnicos). Ele lê o arquivo antes de trabalhar na área. Os aprendizados entram quando um vídeo é aprovado; você também pode editá-los aqui.')}
+      <div class="cabeca-secao"><span class="eyebrow">Aprendizados · ${esc(a.nome)}</span>${ajuda('O que o Claude aprendeu nesta área, vídeo a vídeo: o que você corrigiu (Do criador) e os erros técnicos dele (Técnicos), que valem para qualquer vídeo, e embaixo os seus gostos que valem só para uma categoria (Reels, VSL…). Ele lê o geral e o da categoria do vídeo antes de trabalhar na área. Os aprendizados entram quando um vídeo é aprovado; você também pode editá-los aqui.')}
         <div class="alternar">${['ler', 'editar'].map((m) => `<button class="pilula pequena${modoAprendizado === m ? ' ativa' : ''}" data-modo="${m}">${m === 'ler' ? 'Ler' : 'Editar'}</button>`).join('')}</div>
         ${modoAprendizado === 'editar' ? '<span class="dica">Grava ao sair da caixa.</span>' : ''}<span class="salvo" id="salvo-a"></span>
         <a class="link link-regras" href="#/heuristica" title="Os aprendizados de direção (que plano, quando, abertura, ritmo) ficam nas Regras do criador, na Heurística">Direção → Regras do criador</a></div>
-      ${modoAprendizado === 'ler' ? pilulasCategoria(cats, filtro) : ''}
+      ${pilulasCategoria(cats, filtro)}
       ${corpo}</div></div>`
-    const md = $('.markdown', tela)
-    if (md) marcarCategorias(md, cats, filtro)
   }
   const salvo = (texto, erro = false) => {
     const el = $('#salvo-a', tela)
@@ -557,17 +543,21 @@ export async function abrirAprendizados(tela, area) {
   tela.addEventListener('focusout', async (e) => {
     if (!e.target.matches('.editor-regras')) return
     const texto = e.target.value
-    const antes = a.texto
+    const cat = filtro
+    const antes = cat ? a.categorias?.[cat] || '' : a.texto
     if (texto.trim() === antes.trim()) return
-    a.texto = texto.trimEnd() + '\n' // já vale para o Ler, se o clique que tirou o foco foi nele
+    // já vale para o Ler, se o clique que tirou o foco foi nele
+    if (cat) a.categorias = { ...(a.categorias || {}), [cat]: texto.trimEnd() + '\n' }
+    else a.texto = texto.trimEnd() + '\n'
     salvo('Salvando…')
     try {
-      const r = await enviar('PUT', `/api/aprendizados/${a.area}`, { texto })
+      const r = await enviar('PUT', `/api/aprendizados/${a.area}${cat ? `?categoria=${encodeURIComponent(cat)}` : ''}`, { texto })
       areas.find((x) => x.area === a.area).criador = r.criador
       for (const c of $$('.par-link.ativo .conta', tela)) c.textContent = r.criador
       salvo('Salvo')
     } catch (x) {
-      a.texto = antes
+      if (cat) a.categorias = { ...a.categorias, [cat]: antes }
+      else a.texto = antes
       if (modoAprendizado === 'ler') desenhar()
       salvo(esc(x.message), true)
     }
