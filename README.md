@@ -2,8 +2,8 @@
 
 Um editor de Reels por linguagem natural: o **Claude Code é o editor**. Você manda o vídeo bruto (e, se quiser, um
 briefing) e ele entrega a edição completa — cortes, 9:16, look, direção visual, inserts reais, motions, transições,
-áudio e legenda. Você revisa num app local estilo frame.io, comenta no ponto exato do vídeo e cola a revisão de volta
-no chat: ele aplica e renderiza a próxima versão.
+áudio e legenda. Você revisa num app local estilo frame.io, comenta no ponto exato do vídeo e avisa no
+chat: ele aplica e renderiza a próxima versão.
 
 ![O app de revisão](docs/revisao.jpg)
 
@@ -14,8 +14,8 @@ Tudo mora numa skill do Claude Code, em [`.claude/skills/editor/`](.claude/skill
 1. **Vídeo novo → v1, sem parar:** preparar (transcrição palavra a palavra, proxy, rosto, voz limpa) → cortes →
    direção (o roteiro dirigido, plano a plano) → inserts, motions, áudio, legenda e transições em paralelo →
    enriquecimento → render e autorrevisão.
-2. **Revisão:** você comenta no app e clica em *Copiar revisão*; colada no chat, ela vira a v(N+1), com uma resposta
-   para cada comentário.
+2. **Revisão:** você comenta no app (nos vídeos longos, por blocos de ~30 s, que se finalizam um a um) e avisa no
+   chat; os comentários pendentes viram a v(N+1), com uma resposta curta em cada um.
 3. **Aprovado:** exporta o final e conclui o vídeo — as correções viram aprendizados (só os que você confirmar), lidos
    antes de cada etapa nos próximos vídeos.
 

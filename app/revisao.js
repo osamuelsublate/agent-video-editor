@@ -8,7 +8,6 @@ const VELOCIDADES = [0.5, 1, 1.5, 2]
 const r3 = (t) => Math.round(t * 1000) / 1000
 const listaDe = (x, chave) => (Array.isArray(x) ? x : x?.[chave] || [])
 const limpar = (s) => s.replace(/^[\s,.;:!?…]+|[\s,.;:!?]+$/g, '')
-const umaLinha = (s) => s.trim().replace(/\s*\n\s*/g, ' / ')
 /** O status que o Claude escreve (revisao.py responder): rótulo e classe. */
 const STATUS = {
   aplicado: ['Aplicado', 'aplicado'],
@@ -194,12 +193,10 @@ class Revisao {
     const ok = b.def.aprovado
     return `<div class="bloco-cabeca${ok ? ' bloco-ok' : ''}${foco ? ' bloco-sel' : ''}" data-cab-bloco="${b.id}">
       ${foco ? `<button class="botao-icone pequeno" data-sair-bloco title="Voltar a todos os blocos">${ICONE.voltar || '‹'}</button>` : ''}
-      <button class="bloco-nome" data-bloco="${b.id}" data-ir="${b.ini}" title="Ir ao começo do bloco">${b.id} <span>${tempo(b.ini)}–${tempo(b.fim)}</span></button>
-      <span class="conta">${n ? `${n} ${n === 1 ? 'comentário' : 'comentários'}` : ok ? 'finalizado' : 'sem comentários'}</span>
+      <button class="bloco-nome" data-bloco="${b.id}" data-ir="${b.ini}" title="${b.id} · ${tempo(b.ini)}–${tempo(b.fim)} · ir ao começo">${b.id}</button>${n && !foco ? `<span class="conta">${n}</span>` : ''}
       <span class="bloco-acoes">
         <button class="botao-icone pequeno${this.loop?.id === b.id ? ' ativo' : ''}" data-loop-bloco="${b.id}" title="${this.loop?.id === b.id ? 'Parar o loop' : 'Tocar só este bloco, em loop'}">${ICONE_ATALHO.plano}</button>
-        <button class="botao pequeno${ok ? ' feito' : ''}" data-aprovar-bloco="${b.id}" title="${ok ? 'Reabrir o bloco' : 'Marcar o bloco como finalizado: ele fica travado para o Claude'}">${ICONE.check} ${ok ? 'Finalizado' : 'Finalizar'}</button>
-        <button class="botao pequeno botao-coral" data-copiar-bloco="${b.id}" ${n ? '' : 'disabled'} title="Copiar a revisão só deste bloco">Copiar</button></span></div>`
+        <button class="botao pequeno${ok ? ' feito' : ''}" data-aprovar-bloco="${b.id}" title="${ok ? 'Reabrir o bloco' : 'Marcar o bloco como finalizado: ele fica travado para o Claude'}">${ICONE.check} ${ok ? 'Finalizado' : 'Finalizar'}</button></span></div>`
   }
 
   /** Escolher um bloco (na faixa ou no cabeçalho): o painel mostra só ele e o seletor de cima, a versão dele; `null`
@@ -267,18 +264,6 @@ class Revisao {
     }
     this.renderLista()
     this.renderMarcas()
-  }
-
-  async copiarBloco(id) {
-    if (this.editor) this.salvarEditor()
-    if ($('#nova-texto').value.trim() || this.nova.anexos.length) this.salvarNova()
-    const b = this.blocos.find((x) => x.id === id)
-    if (!this.doBloco(b).length) return aviso(`Nada para enviar no ${id} ainda.`, 'erro')
-    this.rev.enviado_em = agora()
-    await this.salvar()
-    await copiar(this.texto(b))
-    this.renderEstado()
-    aviso(`${id} copiado — cole no chat do Claude Code`)
   }
 
   // ---------- as versões anteriores: o que já foi pedido e respondido em cada bloco (só para ler) ----------
@@ -461,9 +446,8 @@ class Revisao {
         </div></div>
       </section>
       <aside class="painel">
-        <div class="painel-cabeca"><div class="painel-titulo"><span class="eyebrow">Comentários · v${this.v}</span><span class="resumo" id="resumo"></span><span class="salvo" id="salvo"></span></div>
-          <button class="botao" data-acao="aprovar" id="b-aprovar">Aprovar</button>
-          <button class="botao botao-coral" data-acao="copiar">Copiar revisão <span class="seta">${ICONE.seta}</span></button></div>
+        <div class="painel-cabeca"><div class="painel-titulo"><span class="resumo" id="resumo"></span><span class="salvo" id="salvo"></span></div>
+          <button class="botao botao-coral" data-acao="aprovar" id="b-aprovar" title="Aprovar o vídeo todo: o Claude exporta o final em 4K">Aprovar</button></div>
         <div id="estado"></div>
         <div class="lista" id="lista"></div>
 
@@ -609,6 +593,7 @@ class Revisao {
     const b = $('#b-aprovar')
     b.innerHTML = this.rev.aprovado ? `${ICONE.check} Aprovado` : 'Aprovar'
     b.classList.toggle('botao-menta', !!this.rev.aprovado)
+    b.classList.toggle('botao-coral', !this.rev.aprovado)
   }
 
   /** O seletor de versões: abre com a lista fresca (data do render, duração e o estado da revisão de cada uma). */
@@ -1147,7 +1132,7 @@ class Revisao {
     const el = $('#salvo')
     if (!el) return
     el.className = `salvo salvo-${estado}`
-    el.innerHTML = { salvando: 'Salvando…', salvo: `${ICONE.check} Salvo`, erro: 'Erro ao salvar', '': '' }[estado]
+    el.innerHTML = estado === 'erro' ? 'Erro ao salvar' : '' // grava sozinho: só o erro aparece
   }
 
   agendarSalvar() {
@@ -1170,33 +1155,6 @@ class Revisao {
       })
       .catch(() => this.mostrarSalvo('erro'))
     return this.fila
-  }
-
-  /** O texto que o criador cola no chat do Claude Code (o mesmo do `revisao.py ler`); com `bloco`, só os dele. */
-  texto(bloco = null) {
-    const linhas = [`Revisão · ${this.slug} · v${this.v}${bloco ? ` · bloco ${bloco.id} (${tempo(bloco.ini)}–${tempo(bloco.fim)})` : ''}`]
-    // como o `linha_anexos` do revisao.py: "print" quando são só imagens, "anexo" quando há vídeo
-    const prints = (l) => `  ↳ ${l.some((a) => VIDEO.test(a)) ? 'anexo' : 'print'}: ${l.map((a) => `projetos/${this.slug}/${a}`).join(', ')}`
-    const lista = bloco ? this.doBloco(bloco) : this.rev.comentarios.filter(temConteudo)
-    for (const c of lista.sort((a, b) => ordem(a) - ordem(b))) {
-      linhas.push(`[${quando(c)}] ${c.fala ? `"${c.fala}" — ` : ''}${umaLinha(c.texto || '') || '(ver o print)'}`)
-      if (c.anexos?.length) linhas.push(prints(c.anexos))
-    }
-    const travados = (this.blocos || []).filter((b) => b.def.aprovado)
-    if (travados.length) linhas.push(`Travados (finalizados, não mexa): ${travados.map((b) => `${b.id} ${tempo(b.ini)}–${tempo(b.fim)}`).join(', ')}`)
-    linhas.push(`(projetos/${this.slug}/revisoes/v${this.v}.json)`)
-    return linhas.join('\n')
-  }
-
-  async copiarRevisao() {
-    if (this.editor) this.salvarEditor()
-    if ($('#nova-texto').value.trim() || this.nova.anexos.length) this.salvarNova()
-    if (!this.rev.comentarios.some(temConteudo)) return aviso('Nada para enviar ainda: comente um instante ou, com o tempo desligado (C), o vídeo todo.', 'erro')
-    this.rev.enviado_em = agora()
-    await this.salvar()
-    await copiar(this.texto())
-    this.renderEstado()
-    aviso('Copiado — cole no chat do Claude Code')
   }
 
   async aprovar() {
@@ -1482,7 +1440,6 @@ class Revisao {
     if (d.apagar) return this.apagar(d.apagar)
     if (d.aprovarBloco) return this.aprovarBloco(d.aprovarBloco)
     if (d.loopBloco) return this.alternarLoop(d.loopBloco)
-    if (d.copiarBloco) return this.copiarBloco(d.copiarBloco)
     if (d.sairBloco != null) return this.escolherBloco(null)
     if (d.bloco) {
       this.buscar(+d.ir)
@@ -1515,7 +1472,6 @@ class Revisao {
       cancelar: () => this.fecharEditor(),
       'salvar-editor': () => this.salvarEditor(),
       aprovar: () => this.aprovar(),
-      copiar: () => this.copiarRevisao(),
       versoes: () => this.alternarVersoes(),
     }[nome]
     a?.()

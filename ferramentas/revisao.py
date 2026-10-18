@@ -3,6 +3,8 @@
 # ///
 """A revisão do criador do lado do Claude (o app grava projetos/<slug>/revisoes/vN.json).
 
+    uv run ferramentas/revisao.py pendentes
+        os projetos com comentários ainda sem resposta na última versão (o criador avisa no chat que comentou no app).
     uv run ferramentas/revisao.py ler <slug> [vN] [--bloco B3]
         a revisão (a da última versão, se não disser) no mesmo texto do "Copiar revisão" do app e, para cada
         comentário, o id, a âncora (palavras), o bloco, o plano sob ele e os prints anexados (abra com o Read antes de
@@ -22,7 +24,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from base import BIBLIOTECA, RAIZ, ffmpeg, gravar_json, ler_json, pasta  # noqa: E402
+from base import BIBLIOTECA, PROJETOS, RAIZ, ffmpeg, gravar_json, ler_json, pasta  # noqa: E402
 
 DEZOITO = RAIZ.parent / '18-harness-video-editor' / 'dados'
 STATUS = ('aplicado', 'respondido', 'nao_aplicado')
@@ -104,8 +106,8 @@ def bloco_em(bs: list[dict], t: float | None) -> dict | None:
 
 
 def texto(slug: str, v: int, rev: dict, bloco: str | None = None) -> str:
-    """O texto do botão "Copiar revisão" (app/revisao.js, `texto()`): mude os dois juntos. Com `bloco`, o do botão
-    Copiar daquele bloco (só os comentários que caem nele)."""
+    """A revisão em texto (o cabeçalho do `ler`): os comentários com o tempo, a fala e os prints; com `bloco`, só os
+    que caem nele; no fim, os blocos travados."""
     bs = blocos(slug, v, rev)
     b = next((x for x in bs if x['id'] == bloco), None) if bloco else None
     if bloco and not b:
@@ -156,7 +158,9 @@ def ler(slug: str, v: str | None, bloco: str | None = None) -> None:
 
     print(texto(slug, n, rev, bloco))
     estado = 'APROVADA' if rev.get('aprovado') else f'enviada em {rev["enviado_em"]}' if rev.get('enviado_em') else 'ainda não enviada'
-    print(f'\nEstado: {estado}. Para cada um: revisao.py responder {slug} v{n} <id> --status … --resposta "…"')
+    n_pend = sum(1 for c in rev.get('comentarios', []) if tem_conteudo(c) and c.get('status', 'pendente') == 'pendente')
+    print(f'\nEstado: {estado} · {n_pend} pendente(s), os que você ainda não respondeu: aplique só esses. '
+          f'Para cada um: revisao.py responder {slug} v{n} <id> --status … --resposta "…"')
     if bs:
         print('Blocos: ' + ', '.join(f'{b["id"]} {tempo(b["ini"])}–{tempo(b["fim"])}{" ✓ finalizado" if b.get("aprovado") else ""}' for b in bs))
     for c in sorted(rev.get('comentarios', []), key=ordem):
@@ -185,6 +189,26 @@ def ler(slug: str, v: str | None, bloco: str | None = None) -> None:
         g = rev.get('resposta_geral')
         if g:
             print(f'\n- geral · {g.get("status")} ↳ {g.get("resposta") or ""}')
+
+
+def pendentes() -> None:
+    """Os projetos cuja última versão tem comentários sem resposta: é por onde começar quando o criador avisa no chat
+    que comentou no app."""
+    achou = False
+    for proj in sorted((x for x in PROJETOS.iterdir() if x.is_dir() and not x.name.startswith(('_', '.'))), key=lambda x: x.name):
+        vs = versoes_com_revisao(proj.name)
+        if not vs:
+            continue
+        rev = ler_json(proj / 'revisoes' / f'v{vs[-1]}.json', {}) or {}
+        if rev.get('aprovado'):
+            continue
+        cs = [c for c in rev.get('comentarios', []) if tem_conteudo(c) and c.get('status', 'pendente') == 'pendente']
+        if cs:
+            achou = True
+            nome = (ler_json(proj / 'edicao.json', {}) or {}).get('nome') or proj.name
+            print(f'{proj.name} · v{vs[-1]} · {len(cs)} pendente(s) · {nome}')
+    if not achou:
+        print('Nenhum comentário pendente.')
 
 
 def historico(slug: str) -> None:
@@ -309,6 +333,7 @@ if __name__ == '__main__':
     a.add_argument('id')
     a.add_argument('--status', required=True)
     a.add_argument('--resposta', default='')
+    sub.add_parser('pendentes')
     a = sub.add_parser('historico')
     a.add_argument('slug')
     a = sub.add_parser('clipes')
@@ -318,6 +343,8 @@ if __name__ == '__main__':
         ler(x.slug, x.versao, x.bloco)
     elif x.cmd == 'responder':
         responder(x.slug, x.versao, x.id, x.status, x.resposta)
+    elif x.cmd == 'pendentes':
+        pendentes()
     elif x.cmd == 'historico':
         historico(x.slug)
     else:

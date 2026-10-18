@@ -1,6 +1,6 @@
 ---
 name: editor
-description: Edita Reels (9:16) de ponta a ponta a partir de um vídeo bruto — transcrição, cortes, enquadramento, look, direção visual, inserts (banco, captura de site, web), presets, motions, elementos, transições, áudio e legenda — e entrega um proxy para revisão no app local; depois aplica as revisões coladas pelo criador e exporta o final. Use quando o usuário mandar um vídeo para editar ("edita esse vídeo", "/editor <caminho>"), colar uma revisão ("Revisão · <slug> · vN"), aprovar ("Aprovado · <slug> · vN") ou pedir para ver/organizar a biblioteca (banco de inserts, presets, transições, motions, trilhas).
+description: Edita Reels (9:16) de ponta a ponta a partir de um vídeo bruto — transcrição, cortes, enquadramento, look, direção visual, inserts (banco, captura de site, web), presets, motions, elementos, transições, áudio e legenda — e entrega um proxy para revisão no app local; depois aplica as revisões coladas pelo criador e exporta o final. Use quando o usuário mandar um vídeo para editar ("edita esse vídeo", "/editor <caminho>"), avisar que comentou no app ("comentei no <vídeo>", ou uma revisão colada "Revisão · <slug> · vN"), aprovar ("Aprovado · <slug> · vN") ou pedir para ver/organizar a biblioteca (banco de inserts, presets, transições, motions, trilhas).
 ---
 
 # Editor de Reels
@@ -43,11 +43,11 @@ fotografada em segundo plano (o pré-render) enquanto a edição segue.
 Briefing: se vier, leia antes dos cortes; ele vale para cortes, direção e inserts. Materiais de apoio citados vão para
 `projetos/<slug>/apoio/` e são a primeira fonte dos inserts.
 
-## Fluxo 2 — Revisão colada ("Revisão · <slug> · vN", ou "… · vN · bloco B3")
+## Fluxo 2 — Revisão ("comentei no app", "marquei umas coisas no <vídeo>")
 
-Leia `etapas/11-revisao.md`. Aplique cada comentário do texto colado (com "bloco B3", só os daquele bloco; os
-"Travados" não se mexem), renderize a v(N+1) e responda cada um no JSON da revisão, numa frase curta (a resposta diz
-o que mudou: é o registro de onde saem os aprendizados na conclusão).
+Leia `etapas/11-revisao.md`. Os comentários estão no app (`revisao.py pendentes` / `ler`): aplique os pendentes da
+última versão (os blocos finalizados não se mexem), renderize a v(N+1) e responda cada um no JSON da revisão, numa
+frase curta (a resposta diz o que mudou: é o registro de onde saem os aprendizados na conclusão).
 
 ## Fluxo 3 — Aprovado ("Aprovado · <slug> · vN")
 

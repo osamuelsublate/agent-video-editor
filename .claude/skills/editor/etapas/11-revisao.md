@@ -1,40 +1,33 @@
 # 11 · Aplicar uma revisão
 
-O criador comenta a versão no app e cola aqui o texto do botão "Copiar revisão":
-
-```text
-Revisão · <slug> · v2
-[0:03,2] "a galera considera" — tira esse motion, prefiro tela dividida com o site
-[0:12,0–0:15,4] "esses dois sites" — mostra os dois, um de cada vez
-  ↳ print: projetos/<slug>/revisoes/anexos/c2-1.png
-Geral: legenda um pouco mais baixa
-(projetos/<slug>/revisoes/v2.json)
-```
+O criador comenta a versão no app (os comentários se gravam sozinhos em `projetos/<slug>/revisoes/vN.json`) e avisa
+no chat: "comentei no VSL Isca", "marquei umas coisas no B3". Não há texto colado: o que é para fazer são os
+comentários **pendentes** (ainda sem a sua resposta) da última versão.
 
 ## Rodar
 
 ```bash
-uv run ferramentas/revisao.py ler <slug> [vN] [--bloco B3]   # cada comentário com id, âncora (palavra), bloco e plano
+uv run ferramentas/revisao.py pendentes                      # os projetos com comentários sem resposta (se ele não disse qual)
+uv run ferramentas/revisao.py ler <slug> [vN] [--bloco B3]   # cada comentário com id, âncora (palavra), bloco, plano e estado
 ```
+
+Aplique só os `pendente`: os já respondidos são de rodadas anteriores. Se ele citou um bloco ("no B3"), leia com
+`--bloco B3`, mas os pendentes de outros blocos também valem (ele comentou e avisou); na dúvida, pergunte.
 
 ## Blocos (vídeos de mais de 2 min)
 
 O app divide o vídeo em blocos de ~30 s (B1, B2…), cada um começando numa palavra: o mesmo bloco continua o mesmo
-trecho nas versões seguintes. O criador revisa e manda **um bloco de cada vez** (o "Copiar" do bloco):
+trecho nas versões seguintes. O `ler` mostra a lista e quais estão finalizados:
 
 ```text
-Revisão · <slug> · v4 · bloco B3 (1:00,4–1:30,6)
-[1:02,0] "esses dois sites" — mostra os dois, um de cada vez
-Travados (finalizados, não mexa): B1 0:00,0–0:31,3, B2 0:31,3–1:00,4
-(projetos/<slug>/revisoes/v4.json)
+Blocos: B1 0:00,0–0:31,3 ✓ finalizado, B2 0:31,3–1:00,4, B3 1:00,4–1:30,6, …
 ```
 
-- Leia com `revisao.py ler <slug> vN --bloco B3` e aplique **só o que cai nesse bloco**. Comentários de outros blocos
-  que estejam no arquivo e não vieram no texto colado não foram mandados ainda: não aplique nem responda.
-- **Travados** são os blocos que o criador marcou como finalizados: não mude nada que apareça neles (plano, insert,
-  motion, legenda, áudio). Se uma correção precisar atravessar a fronteira (um corte que puxa a fala do bloco vizinho),
+- **Finalizados (travados)**: o criador deu o bloco por pronto. Não mude nada que apareça neles (plano, insert, motion,
+  legenda, áudio). Se uma correção precisar atravessar a fronteira (um corte que puxa a fala do bloco vizinho),
   pergunte antes.
-- A versão nova sai inteira (o render é do vídeo todo), mas só o bloco mexido muda; os outros ficam como estavam.
+- A versão nova sai inteira (o render é do vídeo todo), mas só os blocos com comentários mudam; os outros ficam como
+  estavam (o app conta a versão de cada bloco pelo que mudou nele).
 
 ## Aplicar
 

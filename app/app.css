@@ -587,7 +587,7 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 .barra-versao { display: flex; flex: none; align-items: center; gap: 8px; }
 .barra-versao:empty { display: none; }
 .barra-versao .menu-versoes { right: auto; left: 0; }
-.resumo { font-size: 12px; color: var(--color-fog); }
+.resumo { font-size: 13px; color: var(--color-cream); }
 .resumo b { font-weight: 600; }
 .t-aplicado { color: var(--color-sage); }
 .t-respondido { color: var(--color-blue-light); }
