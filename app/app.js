@@ -45,12 +45,6 @@ function quandoFoi(ts) {
   return n < 730 ? 'há 1 ano' : `há ${Math.floor(n / 365)} anos`
 }
 
-/** O grupo de um projeto na lista por data. */
-function grupo(ts) {
-  const n = diasAtras(ts)
-  return n <= 0 ? 'Hoje' : n === 1 ? 'Ontem' : n < 7 ? 'Esta semana' : n < 30 ? 'Este mês' : 'Antes'
-}
-
 /** Os projetos (#/) ou, com `ctas`, os CTAs (#/ctas): a mesma página, cada uma com as suas categorias, filtros e tags. */
 async function inicio(tela, ctas = false) {
   tela.className = 'pagina pagina-inicio'
@@ -84,15 +78,11 @@ async function inicio(tela, ctas = false) {
   let tagAtiva = ''
   const lista = () => {
     const l = daCategoria().filter((p) => !tagAtiva || temTag(p.tags, tagAtiva))
-    if (ordem === 'nome') return [['', l.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))]]
-    l.sort((a, b) => (ordem === 'antigos' ? a.atualizado - b.atualizado : b.atualizado - a.atualizado))
-    const grupos = []
-    for (const p of l) {
-      const g = grupo(p.atualizado)
-      if (grupos.at(-1)?.[0] !== g) grupos.push([g, []])
-      grupos.at(-1)[1].push(p)
-    }
-    return grupos
+    // dentro de cada grupo, pela entrega da última versão (ou pelo nome)
+    l.sort((a, b) => (ordem === 'nome' ? a.nome.localeCompare(b.nome, 'pt-BR') : ordem === 'antigos' ? a.atualizado - b.atualizado : b.atualizado - a.atualizado))
+    // os em edição em cima, os aprovados embaixo
+    return [['Em edição', l.filter((p) => p.estado !== 'aprovado')], ['Aprovados', l.filter((p) => p.estado === 'aprovado')]]
+      .filter(([, ps]) => ps.length).map(([g, ps]) => [`${g} · ${ps.length}`, ps])
   }
   const desenhar = () => {
     projetos = todos.filter(daPagina) // trocar a categoria no card leva o projeto para a outra página
