@@ -96,7 +96,7 @@ def projetos() -> list[dict]:
         estado = 'aprovado' if rev.get('aprovado') else 'enviada' if rev.get('enviado_em') else 'em_revisao'
         ed = ler_json(p / 'edicao.json', {}) or {}
         lista.append({'slug': p.name, 'nome': ed.get('nome') or p.name, 'formato': ed.get('formato') or 'reels',
-                      'tags': ed.get('tags') or [], 'versoes': vs, 'ultima': ultima, 'duracao': info.get('duracao'), 'estado': estado,
+                      'tags': ed.get('tags') or [], 'oculto': bool(ed.get('oculto')), 'versoes': vs, 'ultima': ultima, 'duracao': info.get('duracao'), 'estado': estado,
                       'comentarios': len(rev.get('comentarios', [])),
                       'saidas': len(ed.get('saidas') or []), 'tem_final': any((p / 'final').rglob('*.mp4')) if (p / 'final').is_dir() else False,
                       'atualizado': (p / 'versoes' / f'v{ultima}' / 'proxy.mp4').stat().st_mtime})
@@ -442,6 +442,20 @@ def _nome_projeto(h, q, slug):
     edicao['nome'] = nome
     gravar_json(arq, edicao)
     return {'nome': nome}
+
+
+@rota('PUT', r'/api/projetos/([\w-]+)/oculto')
+def _ocultar_projeto(h, q, slug):
+    """Ocultar: o projeto sai da lista de Projetos (ou de CTAs) e vai para a vista Ocultos; nada mais muda."""
+    oculto = bool(h.corpo().get('oculto'))
+    arq = _edicao(slug)
+    edicao = ler_json(arq, {})
+    if oculto:
+        edicao['oculto'] = True
+    else:
+        edicao.pop('oculto', None)
+    gravar_json(arq, edicao)
+    return {'oculto': oculto}
 
 
 @rota('PUT', r'/api/projetos/([\w-]+)/tags')

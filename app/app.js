@@ -54,7 +54,9 @@ async function inicio(tela, ctas = false) {
   // a categoria do projeto (edicao.formato: Reels, Ad…): filtra a lista e troca no card
   let cats = await carregarCategorias()
   const daPagina = (p) => categoriaCta(cats, p.formato || 'reels') === ctas
-  let projetos = todos.filter(daPagina)
+  let verOcultos = false // a vista dos ocultos: os projetos que saíram da lista
+  const naVista = () => todos.filter((p) => daPagina(p) && !!p.oculto === verOcultos)
+  let projetos = naVista()
   const catsDaPagina = () => cats.filter((c) => categoriaCta(cats, c.id) === ctas)
   let filtro = preferencia(`${pref}.categoria`, '')
   if (filtro && !catsDaPagina().some((c) => c.id === filtro)) filtro = ''
@@ -64,6 +66,7 @@ async function inicio(tela, ctas = false) {
     const proxy = `/projetos/${encodeURIComponent(p.slug)}/versoes/v${p.ultima}/proxy.mp4`
     return `<div class="caixa-projeto" data-slug="${esc(p.slug)}">
       <button class="apagar-projeto" data-apagar title="Apagar o projeto" aria-label="Apagar ${esc(p.nome)}">${ICONE.lixo}</button>
+      <button class="apagar-projeto ocultar-projeto" data-ocultar title="${p.oculto ? 'Mostrar de novo na lista' : 'Ocultar (sai da lista e vai para Ocultos)'}" aria-label="${p.oculto ? 'Mostrar' : 'Ocultar'} ${esc(p.nome)}">${p.oculto ? ICONE.olho : ICONE.olhoFechado}</button>
       ${p.tem_final ? `<button class="abrir-exports" data-abrir-final title="Abrir a pasta dos exports no Finder" aria-label="Abrir os exports de ${esc(p.nome)}">${ICONE.abrir}</button>` : ''}
       <a class="card-projeto" href="#/p/${encodeURIComponent(p.slug)}">
       <div class="mini mini-916"><video muted playsinline preload="metadata" src="${proxy}#t=1.5"></video>
@@ -85,9 +88,11 @@ async function inicio(tela, ctas = false) {
       .filter(([, ps]) => ps.length).map(([g, ps]) => [`${g} · ${ps.length}`, ps])
   }
   const desenhar = () => {
-    projetos = todos.filter(daPagina) // trocar a categoria no card leva o projeto para a outra página
+    projetos = naVista() // trocar a categoria no card leva o projeto para a outra página; ocultar, para os Ocultos
     $('.cabeca-secao .eyebrow', tela).textContent = `${titulo} · ${String(projetos.length).padStart(2, '0')}`
-    $('.filtro-categorias', tela).innerHTML = pilulasCategoria(catsDaPagina(), filtro, { contar: (id) => projetos.filter((p) => !id || (p.formato || 'reels') === id).length }) + botaoCategorias()
+    $('.filtro-categorias', tela).innerHTML = pilulasCategoria(catsDaPagina(), filtro, { contar: (id) => projetos.filter((p) => !id || (p.formato || 'reels') === id).length })
+      + `<button class="pilula pequena${verOcultos ? ' ativa' : ''}" data-ver-ocultos title="${verOcultos ? 'Voltar à lista' : 'Os projetos que você ocultou'}">${ICONE.olhoFechado} Ocultos <span class="conta">${todos.filter((p) => daPagina(p) && p.oculto).length}</span></button>`
+      + botaoCategorias()
     const itens = daCategoria().map((p) => ({ chave: p.slug, tags: p.tags }))
     tagAtiva = tagEscolhida(pref, itens)
     const conhecidas = [...new Set(todos.flatMap((p) => p.tags || []))].sort() // as tags valem para as duas páginas
@@ -95,6 +100,7 @@ async function inicio(tela, ctas = false) {
     corpo.innerHTML = projetos.length
       ? `${datalistTags('tags-conhecidas-projeto', conhecidas)}<div class="banco-com-tags">${barraDeTags(itens, tagAtiva, pref)}<div class="lista-projetos">${
         lista().map(([g, ps]) => `${g ? `<h4 class="grupo-data">${g}</h4>` : ''}<div class="grade grade-projetos">${ps.map(card).join('')}</div>`).join('') || '<p class="vazio">Nenhum projeto com esses filtros.</p>'}</div></div>`
+      : verOcultos ? '<p class="vazio">Nada oculto aqui. No card, o olho (com o mouse em cima) oculta um projeto.</p>'
       : ctas ? '<p class="vazio">Nenhum CTA ainda. Um projeto entra aqui quando a categoria dele tem “CTA” no nome.</p>'
       : '<p class="vazio">Nenhum projeto com versão ainda. Mande um vídeo bruto ao Claude Code: quando ele entregar a v1, ela aparece aqui.</p>'
     ligarTags(corpo, {
@@ -198,6 +204,21 @@ async function inicio(tela, ctas = false) {
         cats = await carregarCategorias()
         desenhar()
       })
+    if (e.target.closest('[data-ver-ocultos]')) {
+      verOcultos = !verOcultos
+      return desenhar()
+    }
+    const oc = e.target.closest('[data-ocultar]')
+    if (oc) {
+      const p = todos.find((x) => x.slug === oc.closest('.caixa-projeto').dataset.slug)
+      try {
+        p.oculto = (await enviar('PUT', `/api/projetos/${encodeURIComponent(p.slug)}/oculto`, { oculto: !p.oculto })).oculto
+        aviso(p.oculto ? `“${p.nome}” foi para Ocultos` : `“${p.nome}” voltou para a lista`)
+      } catch (err) {
+        aviso(err.message, 'erro')
+      }
+      return desenhar()
+    }
     const r = e.target.closest('[data-renomear]')
     if (r) {
       e.preventDefault() // o lápis fica dentro do link do card
