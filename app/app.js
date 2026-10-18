@@ -7,7 +7,7 @@ import { abrirBiblioteca, PAGINAS_BIBLIOTECA } from './biblioteca.js'
 import { abrirCalibragem, abrirRevisaoReferencia } from './calibragem.js'
 import { abrirAprendizados, abrirHeuristica, abrirReferencias } from './referencias.js'
 import { barraDeTags, datalistTags, htmlTagsCard, ligarTags, tagEscolhida, temTag } from './tags.js'
-import { botaoCategorias, carregarCategorias, editarCategorias, pilulasCategoria, rotuloCategoria, seletorCategoria } from './categorias.js'
+import { botaoCategorias, carregarCategorias, categoriaCta, editarCategorias, pilulasCategoria, rotuloCategoria, seletorCategoria } from './categorias.js'
 
 const ESTADOS = {
   em_revisao: ['Em revisão', 'selo-coral'],
@@ -50,9 +50,6 @@ function grupo(ts) {
   const n = diasAtras(ts)
   return n <= 0 ? 'Hoje' : n === 1 ? 'Ontem' : n < 7 ? 'Esta semana' : n < 30 ? 'Este mês' : 'Antes'
 }
-
-/** Uma categoria de CTA: "CTA" no nome (CTA, CTA LP, CTA VSL…). Os projetos dela moram na página CTAs, à parte. */
-const categoriaCta = (cats, id) => /\bcta\b/i.test(cats.find((c) => c.id === id)?.nome || id)
 
 /** Os projetos (#/) ou, com `ctas`, os CTAs (#/ctas): a mesma página, cada uma com as suas categorias, filtros e tags. */
 async function inicio(tela, ctas = false) {
@@ -154,6 +151,7 @@ async function inicio(tela, ctas = false) {
     try {
       await enviar('PUT', `/api/projetos/${encodeURIComponent(p.slug)}/categoria`, { categoria: e.target.value })
       p.formato = e.target.value
+      if (abasAbertas().some((a) => a.slug === p.slug)) abrirAba(p.slug, p.nome, categoriaCta(cats, p.formato)) // o ícone da aba de cima
       desenhar()
     } catch (err) {
       aviso(err.message, 'erro')
@@ -246,12 +244,19 @@ function desenharAbas() {
   el.innerHTML = abasAbertas().map((a) => {
     const ativa = aberto && decodeURIComponent(aberto) === a.slug
     return `<div class="aba-projeto${ativa ? ' ativa' : ''}" data-slug="${esc(a.slug)}" title="${esc(a.nome)}">
-      <a href="#/p/${encodeURIComponent(a.slug)}"><i></i><span>${esc(a.nome)}</span></a>
+      <a href="#/p/${encodeURIComponent(a.slug)}" title="${a.cta ? 'CTA' : 'Projeto'} · ${esc(a.nome)}">${a.cta ? ICONE.cta : ICONE.projeto}<span>${esc(a.nome)}</span></a>
       <button type="button" data-fechar-aba title="Fechar a aba" aria-label="Fechar ${esc(a.nome)}">${ICONE.fechar}</button></div>`
   }).join('')
   $('.aba-projeto.ativa', el)?.scrollIntoView({ inline: 'nearest', block: 'nearest' })
 }
 window.addEventListener('abas-projetos', desenharAbas)
+// as abas abertas antes (ou de um projeto que trocou de categoria): o ícone de projeto ou CTA pela categoria de agora
+Promise.all([json('/api/projetos', []), carregarCategorias()]).then(([ps, cats]) => {
+  for (const a of abasAbertas()) {
+    const p = ps.find((x) => x.slug === a.slug)
+    if (p) abrirAba(a.slug, a.nome, categoriaCta(cats, p.formato || 'reels'))
+  }
+})
 window.addEventListener('storage', desenharAbas)
 document.addEventListener('click', (e) => {
   const b = e.target.closest?.('[data-fechar-aba]')

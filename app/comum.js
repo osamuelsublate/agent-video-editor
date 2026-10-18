@@ -229,11 +229,13 @@ const gravarAbas = (l) => {
   preferencia('abas', [], l)
   window.dispatchEvent(new Event('abas-projetos'))
 }
-export function abrirAba(slug, nome) {
+/** Abre (ou atualiza) a aba de um projeto; `cta`: se ele é um CTA (o ícone da aba). Sem `cta`, fica o que a aba já tinha. */
+export function abrirAba(slug, nome, cta) {
   const l = abasAbertas()
   const a = l.find((x) => x.slug === slug)
-  if (a?.nome === nome) return window.dispatchEvent(new Event('abas-projetos'))
-  gravarAbas(a ? l.map((x) => (x.slug === slug ? { slug, nome } : x)) : [...l, { slug, nome }])
+  const nova = { slug, nome, cta: cta ?? a?.cta ?? false }
+  if (a?.nome === nova.nome && a?.cta === nova.cta) return window.dispatchEvent(new Event('abas-projetos'))
+  gravarAbas(a ? l.map((x) => (x.slug === slug ? nova : x)) : [...l, nova])
 }
 export const fecharAba = (slug) => gravarAbas(abasAbertas().filter((x) => x.slug !== slug))
 
@@ -328,6 +330,8 @@ export const ICONE = {
   tesoura: svg('<circle cx="6" cy="7" r="2.5"/><circle cx="6" cy="17" r="2.5"/><path d="M8 8.5L20 18M8 15.5L20 6"/>'),
   subir: svg('<path d="M12 16V4M7 9l5-5 5 5M5 20h14"/>'),
   abrir: svg('<path d="M14 5h5v5M19 5l-8 8M18 14v5H5V6h5"/>'),
+  projeto: svg('<rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/>'),
+  cta: svg('<path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>'),
   seta_baixo: svg('<path d="M6 9l6 6 6-6"/>'),
   ajustes: svg('<path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/>'),
   mudo: svg('<path d="M4 9v6h4l5 4V5L8 9zM17 9l4 6M21 9l-4 6"/>'),

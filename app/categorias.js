@@ -8,6 +8,9 @@ let cache = null
 export const carregarCategorias = () => (cache ??= json('/api/categorias', { categorias: [] }).then((d) => d.categorias))
 export const esquecerCategorias = () => (cache = null)
 
+/** Uma categoria de CTA: "CTA" no nome (CTA, CTA LP, CTA VSL…). Os projetos dela moram na página CTAs, à parte. */
+export const categoriaCta = (lista, id) => /\bcta\b/i.test(lista.find((c) => c.id === id)?.nome || id)
+
 export const rotuloCategoria = (lista, id) => {
   const c = lista.find((x) => x.id === id)
   return c ? `${c.emoji ? `${c.emoji} ` : ''}${c.nome}` : id

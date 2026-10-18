@@ -1,6 +1,7 @@
 // A revisão de uma versão: o player do proxy, a linha do tempo (planos, fala e comentários) e os
 // comentários do criador, gravados sozinhos em projetos/<slug>/revisoes/vN.json (o Claude responde no mesmo arquivo).
 import { $, $$, ICONE, ICONE_ATALHO, abrirAba, barraDaLinha, agora, aviso, chipCodigo, codigos, confirmar, copiar, dataHora, enviar, esc, fecharAba, janela, json, mmss, modalAberto, nomePlano, num, PLANOS, preferencia, tempo } from './comum.js'
+import { carregarCategorias, categoriaCta } from './categorias.js'
 
 const QUADRO = 1 / 24
 const VELOCIDADES = [0.5, 1, 1.5, 2]
@@ -218,6 +219,7 @@ class Revisao {
 
   montar() {
     abrirAba(this.slug, this.proj.nome) // o nome do projeto fica na aba; a versão, logo ao lado dela na barra
+    carregarCategorias().then((cats) => abrirAba(this.slug, this.proj.nome, categoriaCta(cats, this.proj.formato || 'reels'))) // o ícone: projeto ou CTA
     $('#barra-versao').innerHTML = '<div class="seletor-versao" id="versoes"></div><span class="aviso-versao" id="aviso-versao"></span>'
     this.tela.className = 'pagina-revisao'
     this.tela.innerHTML = `<div class="revisao">
