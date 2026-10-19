@@ -41,7 +41,8 @@ avise o criador antes de exportar.
 
 ## 3. Drive
 
-Antes de numerar, **liste a pasta raiz** e ache o maior número (filtre por `createdTime` recente; a de Ads tem 1000+ pastas
+Antes de numerar, **liste a pasta raiz** e ache o maior número (e liste de novo **logo antes de criar**: o time cria
+pastas ao mesmo tempo; se o número do plano foi tomado, use o seguinte e avise) (filtre por `createdTime` recente; a de Ads tem 1000+ pastas
 e a primeira página não basta). Crie a pasta pelo MCP do Drive (`create_file` com mimeType de pasta) e **suba os vídeos
 pelo rclone** (o remote `asimov:`, autorizado pelo criador na conta com acesso às pastas; o token fica em
 `~/.config/rclone/rclone.conf`, nunca mostre):
