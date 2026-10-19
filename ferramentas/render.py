@@ -12,7 +12,7 @@
     uv run ferramentas/render.py amostra-look <slug> <t> <lut|-> <intensidade> <vinheta> [nitidez]
         → um trecho de 3 s do ator (do bruto, no instante t do vídeo final) com aquele look: o provador da revisão
     uv run ferramentas/render.py previas-motions [--refazer] [<id> …]
-        → biblioteca/motions/previas/<id>.mp4: a prévia de cada motion (360×640, mudo, a duração dele), o que a aba
+        → biblioteca/motions/previas/<id>.mp4: a prévia de cada motion (720×1280, 30 fps quadro a quadro, mudo), o que a aba
         Motions do app toca na grade (a animação ao vivo fica só no modal). Só refaz o que mudou desde a última prévia.
 
 Como a exportação do 18 (SPEC §13; a cola de backend/app/exportacao.py `_gravar`/`_trechos`, reescrita aqui): a página
@@ -697,9 +697,52 @@ def amostra_look(slug: str, t: float, lk: dict) -> Path:
     return destino
 
 
+def _previa_motion(args: tuple[str, float, str, int]) -> str:
+    """Uma prévia (num processo à parte): a página do motion com o tempo nas mãos daqui, fotografada quadro a quadro."""
+    from playwright.sync_api import sync_playwright
+    mid, dur, destino, porta = args
+    mp4 = Path(destino)
+    FPS = 30
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch(channel='chromium')
+        try:
+            pg = browser.new_page(viewport={'width': 360, 'height': 640}, device_scale_factor=2)
+            pg.goto(f'http://127.0.0.1:{porta}/render/motion.html?preset={mid}&formato=vertical&tocar=1', wait_until='load', timeout=60_000)
+            pg.wait_for_function('() => !!window.__ir', timeout=30_000)
+            # o tempo passa a ser daqui: o loop da galeria fica sem efeito e o vídeo do fundo para
+            pg.evaluate("""() => { window.__irDeVerdade = window.__ir; window.__ir = () => Promise.resolve()
+                                   for (const v of document.querySelectorAll('#fundo video')) v.pause() }""")
+            pg.wait_for_timeout(300)  # as fontes
+            tmp = mp4.with_suffix('.parte.mp4')
+            proc = subprocess.Popen(['ffmpeg', '-v', 'error', '-y', '-f', 'image2pipe', '-framerate', str(FPS), '-c:v', 'mjpeg', '-i', '-',
+                                     '-an', '-c:v', 'libx264', '-crf', '24', '-preset', 'veryfast', '-pix_fmt', 'yuv420p',
+                                     '-movflags', '+faststart', str(tmp)], stdin=subprocess.PIPE)
+            try:
+                for k in range(int(round((dur + 0.6) * FPS))):
+                    pg.evaluate("""async (t) => {
+                        await window.__irDeVerdade(t)
+                        for (const v of document.querySelectorAll('#fundo video'))
+                            if (v.duration) { v.currentTime = t % v.duration; await new Promise((r) => v.addEventListener('seeked', r, { once: true })) }
+                        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
+                    }""", min(k / FPS, dur))
+                    proc.stdin.write(pg.screenshot(type='jpeg', quality=90))
+            finally:
+                proc.stdin.close()
+                proc.wait()
+            if proc.returncode:
+                tmp.unlink(missing_ok=True)
+                return f'{mid}: o ffmpeg falhou'
+            tmp.replace(mp4)
+            return f'{mid}: {dur:.1f} s'
+        finally:
+            browser.close()
+
+
 def previas_motions(refazer: bool = False, ids: list[str] | None = None) -> None:
-    """Grava a prévia de cada motion: a página dele tocando (render/motion.html?tocar=1, com o fundo), filmada pelo
-    navegador em 360×640 e recortada na duração do motion. Um motion só é refeito se o .html dele é mais novo que a prévia."""
+    """Grava a prévia de cada motion, quadro a quadro (30 fps, liso por mais pesado que o motion seja): a página dele com
+    o fundo (render/motion.html?tocar=1), com o tempo nas mãos daqui (window.__ir(t) e o vídeo do fundo no mesmo instante),
+    fotografada em 720×1280. A duração do motion e mais 0,6 s parado no fim (o loop da galeria). Só refaz um motion se o
+    .html dele é mais novo que a prévia."""
     from playwright.sync_api import sync_playwright
     origem = BIBLIOTECA / 'motions' / 'presets'
     destino = BIBLIOTECA / 'motions' / 'previas'
@@ -722,31 +765,13 @@ def previas_motions(refazer: bool = False, ids: list[str] | None = None) -> None
         return
     srv = servidor.servir(0)
     porta = srv.server_address[1]
-    tmp = Path(tempfile.mkdtemp(prefix='previas-'))
     try:
-        with sync_playwright() as pw:
-            browser = pw.chromium.launch(channel='chromium')
-            try:
-                for mid, dur, mp4 in fila:
-                    ctx = browser.new_context(viewport={'width': 360, 'height': 640}, record_video_dir=str(tmp),
-                                              record_video_size={'width': 360, 'height': 640})
-                    pg = ctx.new_page()
-                    t0 = time.time()
-                    pg.goto(f'http://127.0.0.1:{porta}/render/motion.html?preset={mid}&formato=vertical&tocar=1', wait_until='load', timeout=60_000)
-                    pg.wait_for_timeout(300)  # as fontes e o primeiro quadro
-                    inicio = time.time() - t0
-                    pg.wait_for_timeout(int(dur * 1000) + 200)
-                    video = pg.video.path()
-                    ctx.close()  # a gravação só fecha o arquivo aqui
-                    ffmpeg('-ss', f'{inicio:.2f}', '-i', str(video), '-t', f'{dur:.2f}', '-an', '-c:v', 'libx264', '-crf', '26', '-preset', 'veryfast',
-                           '-pix_fmt', 'yuv420p', '-movflags', '+faststart', str(mp4))
-                    Path(video).unlink(missing_ok=True)
-                    print(f'{mid}: {dur:.1f} s')
-            finally:
-                browser.close()
+        # 4 navegadores ao mesmo tempo, um motion em cada (fotografar quadro a quadro é lento: uns 4,5 quadros por segundo)
+        with multiprocessing.get_context('spawn').Pool(min(4, len(fila))) as pool:
+            for linha in pool.imap_unordered(_previa_motion, [(mid, dur, str(mp4), porta) for mid, dur, mp4 in fila]):
+                print(linha, flush=True)
     finally:
         srv.shutdown()
-        shutil.rmtree(tmp, ignore_errors=True)
     print(f'{len(fila)} prévia(s) em biblioteca/motions/previas/.')
 
 
