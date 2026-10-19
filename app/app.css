@@ -351,8 +351,7 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 .aprovar-projeto svg { width: 14px; height: 14px; }
 .aprovar-projeto:hover { background: var(--color-green); color: var(--color-ink); transform: scale(1.08); }
 .aprovar-projeto ~ .abrir-exports { right: 44px; }
-.desaprovar-projeto { border-color: var(--color-cream-50); color: var(--color-cream); opacity: 0; }
-.caixa-projeto:hover .desaprovar-projeto, .desaprovar-projeto:focus-visible { opacity: 1; }
+.desaprovar-projeto { border-color: var(--color-cream-50); color: var(--color-cream); } /* sempre à mostra, como o ✓ dos em edição */
 .desaprovar-projeto:hover { border-color: var(--color-coral); background: var(--color-coral); color: var(--color-cream); }
 /* o play com som, no meio da miniatura */
 .centro-mini { position: absolute; inset: 0 0 auto; aspect-ratio: 9 / 16; z-index: 3; display: grid; place-items: center; pointer-events: none; }
