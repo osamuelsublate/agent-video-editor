@@ -1292,7 +1292,12 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 .sobre-mini { position: absolute; inset: 0 0 auto; aspect-ratio: 9 / 16; z-index: 3; display: flex; align-items: flex-end; gap: 6px; padding: 10px; pointer-events: none; }
 .sobre-mini > * { pointer-events: auto; }
 .sobre-mini .cta-categoria, .sobre-mini .codigo { border-color: transparent; background: var(--color-ink-85); color: var(--color-cream); }
-.sobre-mini .codigo { margin-left: auto; height: 23px; }
+.sobre-mini .duracao-mini { margin-left: auto; padding: 2px 8px; border-radius: var(--radius-full); background: var(--color-ink-85); color: var(--color-cream);
+  font-size: 11px; font-weight: 600; line-height: 1.5; font-variant-numeric: tabular-nums; pointer-events: none; }
+/* embaixo do card: as tags à esquerda e o código à direita */
+.pe-projeto { display: flex; align-items: flex-start; gap: 8px; margin-top: 8px; min-width: 0; }
+.pe-projeto .tags-card { flex: 1; min-width: 0; margin-top: 0; }
+.pe-projeto .codigo { margin-left: auto; }
 .chip-saidas { position: absolute; left: 10px; bottom: 38px; z-index: 2; padding: 2px 8px; border-radius: var(--radius-full); background: var(--color-green); color: var(--color-ink); font-size: 10px; font-weight: 600; }
 .filtro-categorias { display: flex; align-items: center; gap: 8px; }
 
