@@ -69,7 +69,8 @@ projetos/<slug>/
                      "valores": {"prompt": "…"}, "fundo": "verde_claro"}},
   "transicoes": {"p5": {"id": "corte-camera", "par": "full_ator>tela_dividida_insert"}},
   "audio": {"voz": {"limpeza": "leve", "timbre": "natural"}, "fundo": "lofi-piano", "fundo_mudo": false,
-            "niveis": {"ator": 0, "presets": 0, "transicoes": 0, "fundo": 0}, "voz_lufs": {"f1_leve": -27.3}},
+            "niveis": {"ator": 0, "presets": 0, "transicoes": 0, "fundo": 0}, "voz_lufs": {"f1_leve": -27.3},
+            "extras": [{"arquivo": "apoio/frase.wav", "palavra": "w00225", "depois": 0.19}]},  // fala gravada à parte, por cima da voz
   "legenda": {"ligada": true, "modo": "palavra", "ajustes": {}}
 }
 ```

@@ -266,6 +266,22 @@ def som(p: Path, edicao: dict, fonte: dict, clipes: list[dict], transcricao: lis
             'falas': audio.falas(palavras_na_saida(transcricao, clipes)), 'ducking_db': audio.DUCKING_DB, 'limpeza': limpeza}
 
 
+def falas_extras(p: Path, edicao: dict, transicao: list[dict], clipes: list[dict]) -> list[dict]:
+    """As falas gravadas à parte (`audio.extras`: `arquivo` do projeto, presa ao fim de uma `palavra` + `depois` s, `ganho`):
+    entram por cima da voz no fader do ator, já tratadas (ex.: o fim alternativo de uma versão sem ManyChat)."""
+    saida = {w['id']: w for w in palavras_na_saida(transicao, clipes)}
+    out = []
+    for x in (edicao.get('audio') or {}).get('extras') or []:
+        w, arq = saida.get(x.get('palavra')), p / x.get('arquivo', '')
+        if not w or not arq.is_file():
+            continue
+        dur = float(subprocess.run(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', str(arq)],
+                                   capture_output=True, text=True).stdout or 0)
+        out.append({'arquivo': str(arq), 't': w['saida_fim'] + float(x.get('depois', 0)), 'desde': 0.0, 'dur': dur,
+                    'ganho': float(x.get('ganho', 1.0)), 'grupo': 'voz'})
+    return out
+
+
 def sons_das_midias(edicao: dict, planos: list[dict]) -> list[dict]:
     """O áudio próprio dos inserts com `som: true` (ex.: a demo do produto falando): a 1ª mídia toca do começo do plano
     até o fim dele, no ganho `som_ganho` (padrão 1, o nível do arquivo). Um trecho toca o original a partir do início dele."""
@@ -538,7 +554,10 @@ def render(slug: str, final: bool = False) -> Path:
         fator = sons.fator_da_voz(db_voz)  # os sons na mesma relação com a voz deste vídeo que nas referências
         eventos = [{**ev, 'ganho': float(ev.get('ganho', sons.INTENSIDADES['baixo'])) * fator} for ev in r['sons'] or []]
         eventos += sons_das_midias(edicao, r.get('planos') or [])
+        extras = falas_extras(p, edicao, transcricao, clipes)
+        eventos += extras
         a = som(p, edicao, fonte, clipes, transcricao, avisos)
+        a['falas'] = sorted([*a['falas'], *((e['t'], e['t'] + e['dur']) for e in extras)])  # o fundo abaixa também nelas
         a['medida'], a['pronta'] = mistura(p, a, clipes, eventos, duracao)
         print(f"      voz {a['limpeza']}, fundo {(edicao.get('audio') or {}).get('fundo') or '—'}, ganho {a['medida']['ganho']:+.1f} dB → "
               f"{a['medida']['i']:.1f} LUFS, pico {a['medida']['pico']} dBFS", flush=True)

@@ -154,8 +154,9 @@ def voltas_do_fundo(laco: tuple[float, float], duracao: float, cruza: float = CR
 
 
 def com_faders(a: dict, eventos_som: list[dict]) -> list[dict]:
-    """Os sons com o fader do grupo de cada um (transições ou presets) no ganho."""
-    return [{**e, 'ganho': float(e.get('ganho', 0.3)) * db(a['niveis']['transicoes' if e.get('grupo') == 'transicoes' else 'presets'])} for e in eventos_som]
+    """Os sons com o fader do grupo de cada um (transições, presets; as falas gravadas à parte, no do ator) no ganho."""
+    grupo = {'transicoes': 'transicoes', 'voz': 'ator'}
+    return [{**e, 'ganho': float(e.get('ganho', 0.3)) * db(a['niveis'][grupo.get(e.get('grupo'), 'presets')])} for e in eventos_som]
 
 
 def filtros(a: dict, clipes: list[dict], eventos_som: list[dict], primeira_entrada: int, saida: str, duracao: float,

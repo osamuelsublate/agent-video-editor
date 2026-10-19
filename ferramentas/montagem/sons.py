@@ -6,7 +6,7 @@ import re
 import subprocess
 from pathlib import Path
 
-from base import BIBLIOTECA
+from base import BIBLIOTECA, PROJETOS
 
 RAIZ = BIBLIOTECA / 'sons'
 # o ganho de cada intensidade sobre o som normalizado (pico de energia a -18 dBFS), para uma voz no nível das
@@ -27,9 +27,9 @@ def arquivo(sid: str) -> Path:
 
 
 def midia(caminho: str) -> Path:
-    """O áudio de uma mídia do banco que toca no vídeo (um insert com som): só dentro da biblioteca."""
+    """O áudio de uma mídia que toca no vídeo (um insert com som, uma fala gravada à parte): só da biblioteca ou de um projeto."""
     p = Path(caminho).resolve()
-    if not p.is_file() or BIBLIOTECA.resolve() not in p.parents:
+    if not p.is_file() or not (BIBLIOTECA.resolve() in p.parents or PROJETOS.resolve() in p.parents):
         raise FileNotFoundError(caminho)
     return p
 
