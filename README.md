@@ -1,41 +1,89 @@
 # agent-video-editor
 
-Um editor de Reels por linguagem natural: o **Claude Code é o editor**. Você manda o vídeo bruto (e, se quiser, um
+Um editor de vídeo por linguagem natural: o **Claude Code é o editor**. Você manda o vídeo bruto (e, se quiser, um
 briefing) e ele entrega a edição completa — cortes, 9:16, look, direção visual, inserts reais, motions, transições,
-áudio e legenda. Você revisa num app local estilo frame.io, comenta no ponto exato do vídeo e avisa no
-chat: ele aplica e renderiza a próxima versão.
+áudio e legenda. Você revisa num app local estilo frame.io, comenta no ponto exato do vídeo e avisa no chat: ele aplica e
+renderiza a próxima versão. Aprovado, ele exporta em 4K e publica (Drive, Notion, Obsidian, agendamento).
 
-![O app de revisão](docs/revisao.jpg)
+[![O app de revisão: a revisão por blocos](docs/revisao.jpg)](docs/demo.mp4)
+
+▶ **[Assista ao demo (1 min)](docs/demo.mp4):** um passeio pelo app (projetos, CTAs, a revisão por blocos, motions,
+referências e calibragem) e, no fim, um trecho de um Reels editado por ele.
 
 ## Como funciona
 
-Tudo mora numa skill do Claude Code, em [`.claude/skills/editor/`](.claude/skills/editor/SKILL.md):
+Tudo mora em duas skills do Claude Code:
 
-1. **Vídeo novo → v1, sem parar:** preparar (transcrição palavra a palavra, proxy, rosto, voz limpa) → cortes →
-   direção (o roteiro dirigido, plano a plano) → inserts, motions, áudio, legenda e transições em paralelo →
-   enriquecimento → render e autorrevisão.
-2. **Revisão:** você comenta no app (nos vídeos longos, por blocos de ~30 s, que se finalizam um a um) e avisa no
-   chat; os comentários pendentes viram a v(N+1), com uma resposta curta em cada um.
-3. **Aprovado:** exporta o final e conclui o vídeo — as correções viram aprendizados (só os que você confirmar), lidos
-   antes de cada etapa nos próximos vídeos.
-
-Cada vídeo tem uma **categoria** (📱 Reels, 💰 Ad, 📺 VSL, 🎥 YouTube, 📚 Aula; outras no painel Categorias do app), e
-cada categoria tem a sua Calibragem e a sua Heurística: a direção de um vídeo aprende com os vídeos da categoria dele.
+- [`editor`](.claude/skills/editor/SKILL.md) — do bruto ao vídeo aprovado:
+  1. **Vídeo novo → v1, sem parar:** preparar (transcrição palavra a palavra, proxy, rosto, voz limpa) → cortes →
+     direção (o roteiro dirigido, plano a plano) → inserts, motions, áudio, legenda e transições em paralelo (os inserts
+     e os motions novos em subagentes) → enriquecimento → render e autorrevisão.
+  2. **Revisão:** você comenta no app e avisa no chat ("comentei no VSL Isca"); o Claude aplica os comentários
+     pendentes, renderiza a versão nova e responde cada um numa frase curta.
+  3. **Aprovado:** exporta o final em 4K e conclui o vídeo — analisa por que errou em cada correção e grava os
+     aprendizados que você confirmar, lidos antes de cada etapa nos próximos vídeos.
+- [`publicar`](.claude/skills/publicar/SKILL.md) — do aprovado ao ar: encaixa o corpo de um Reels nos CTAs, exporta,
+  sobe no Google Drive, cria os cards no Notion, atualiza a nota da copy no Obsidian e agenda (Metricool, ManyChat).
 
 As decisões editoriais são do Claude, guiadas pelos exemplos do criador; os scripts validam, calculam tempos e
 renderizam. Tudo fica preso às palavras da transcrição (IDs), nunca a segundos — o contrato está em
 [`edicao.md`](.claude/skills/editor/edicao.md).
 
+### A revisão por blocos
+
+Nos vídeos de mais de 2 minutos, a revisão é por **blocos de ~30 s**, cortados nas trocas de plano e presos às
+palavras (o mesmo bloco continua o mesmo trecho nas versões seguintes):
+
+- escolha um bloco na linha do tempo: o painel mostra só os comentários dele e o que já foi pedido nele nas versões
+  anteriores, com a resposta do Claude;
+- **Finalizar** trava o bloco (o Claude não mexe mais nele); em cima, a % do vídeo concluída; **Aprovar** fecha o vídeo;
+- cada bloco tem a sua **versão** (só sobe quando ele muda); uma estrela pulsando marca o bloco que mudou e você ainda
+  não viu, e um loader marca os blocos em que o Claude está trabalhando;
+- dá para comentar uma versão enquanto o Claude refaz outro bloco: os pendentes de todas as versões entram na próxima.
+
+Nos vídeos curtos, a revisão é do vídeo inteiro, por versão.
+
+## O app
+
+`uv run ferramentas/servidor.py` → http://localhost:8719/app/
+
+| Página | O que tem |
+|---|---|
+| **Projetos** e **CTAs** | os vídeos em edição e os aprovados (os CTAs, categorias com "CTA" no nome, à parte): tocar, aprovar e desaprovar no card, tags, ocultar, categoria e o código para citar no chat |
+| **Revisão** (um projeto aberto) | o vídeo, a linha do tempo (blocos, planos, fala e comentários), o que entrou em cada plano, o provador de look e o painel de comentários (com prints e vídeos colados) |
+| **Banco** | as mídias dos inserts, com selos (usada, aprovada, recusada), tags, trechos e o Recortar (o quadro e o começo e o fim) |
+| **Motions** | as animações (HTML + GSAP) com a prévia em vídeo; ao vivo no modal |
+| **Referências** | cada plano dos vídeos da Calibragem, por tipo, com favoritos e tags: o acervo de onde saem os presets |
+| **Presets** e **Transições** | as receitas de enriquecimento e de corte, cada uma com a referência e a recriação lado a lado |
+| **Áudio** | trilhas e sons |
+| **Calibragem**, **Heurística** e **Aprendizados** | os vídeos de referência analisados (que ensinam a direção), as regras do criador por categoria e as correções que viraram regra |
+
+Cada vídeo tem uma **categoria** (📱 Reels, 📺 VSL, 💰 CTA… no painel Categorias), e cada categoria tem a sua
+Calibragem, a sua Heurística e os seus aprendizados: a direção de um vídeo aprende com os vídeos da categoria dele.
+
 ## Estrutura
 
 | Pasta | O que tem |
 |---|---|
-| `.claude/skills/editor/` | `SKILL.md` (os fluxos) e `etapas/` (um .md por etapa) |
-| `ferramentas/` | um script por etapa (`uv run ferramentas/<script>.py`, dependências no próprio arquivo); `inicial/`, a biblioteca de uma instalação nova |
+| `.claude/skills/` | `editor/` (`SKILL.md`, `etapas/` com um .md por etapa e `edicao.md`) e `publicar/` |
+| `ferramentas/` | um script por etapa (`uv run ferramentas/<script>.py`, dependências no próprio arquivo, PEP 723); `servidor.py` (o app e a API); `inicial/`, a biblioteca de uma instalação nova |
 | `render/` | a página que desenha inserts, motions e legenda para o render, com o runtime dos motions, fontes e fundos |
-| `app/` | o app de revisão (HTML + JS puro) |
-| `biblioteca/` | o que é do criador (fora do git): exemplos da direção por categoria, aprendizados, presets, transições, sons, trilhas, LUTs, motions, banco de mídias, referências (os CTAs são projetos da categoria CTA) |
-| `projetos/` | um vídeo por pasta (fora do git) |
+| `app/` | o app de revisão (HTML + JS puro, sem build) |
+| `docs/` | o demo e o print do README |
+| `biblioteca/` | o que é do criador (fora do git): exemplos da direção por categoria, aprendizados, presets, transições, sons, trilhas, LUTs, motions (e as prévias), banco de mídias, referências |
+| `projetos/` | um vídeo por pasta (fora do git): o bruto, as versões, as revisões e o final |
+
+Alguns comandos do dia a dia:
+
+```bash
+uv run ferramentas/revisao.py pendentes          # os projetos com comentários sem resposta (em qualquer versão)
+uv run ferramentas/revisao.py ler <slug>         # os comentários pendentes, com bloco, palavra e plano
+uv run ferramentas/revisao.py historico <slug>   # todas as revisões, para a conclusão
+uv run ferramentas/render.py <slug>              # a versão nova (o render é incremental: só refaz o que mudou)
+uv run ferramentas/render.py <slug> --final      # o final em 4K
+uv run ferramentas/render.py previas-motions     # as prévias da página Motions (só as que mudaram)
+uv run ferramentas/codigo.py PRJ-12              # o que um código citado no chat é
+```
 
 ### A biblioteca e os projetos
 
@@ -54,10 +102,8 @@ OPENROUTER_API_KEY=...
 ELEVENLABS_API_KEY=...
 ```
 
-O app de revisão:
-
 ```bash
-uv run ferramentas/servidor.py   # http://localhost:8719/app/
+uv run ferramentas/servidor.py   # o app: http://localhost:8719/app/
 ```
 
-E no Claude Code, dentro da pasta: *"edite este vídeo: /caminho/do/bruto.mp4"*.
+E no Claude Code, dentro da pasta: *"edite este vídeo: /caminho/do/bruto.mp4"*. Depois, comente no app e avise no chat.
