@@ -7,19 +7,18 @@ import { barraDeTags, datalistTags, htmlTagsCard, ligarTags, tagEscolhida, temTa
 import { botaoCategorias, carregarCategorias, editarCategorias, pilulasCategoria, rotuloCategoria } from './categorias.js'
 
 // o ícone de cada grupo nos chips (o IconeGrupo do 18)
-const ICONE_GRUPO = { todos: 'grade', dividida: 'duasFaixas', cheia: 'celular', lettering: 'letra', ator: 'pessoa', comentario: 'balaoTexto' }
+const ICONE_GRUPO = { todos: 'grade', dividida: 'duasFaixas', cheia: 'celular', ator: 'pessoa', comentario: 'balaoTexto' }
 const GRUPOS = [
   ['dividida', 'Tela dividida', ['tela_dividida_insert', 'tela_dividida_motion']],
   ['cheia', 'Tela cheia', ['insert_tela_cheia', 'motion_tela_cheia']],
-  ['lettering', 'Full ator com lettering', ['full_ator_lettering']],
-  ['ator', 'Full ator', ['full_ator']],
   ['comentario', 'Comentário + insert + ator', ['comentario_insert_ator']],
+  ['ator', 'Full ator', ['full_ator', 'full_ator_lettering']], // com e sem lettering: só aparecem com este chip escolhido
 ]
 const SO_ATOR = ['full_ator', 'full_ator_lettering']
 // o que entra na tela: insert ou motion (o Full ator não tem nenhum dos dois)
 const CONTEUDOS = { todos: 'Todos', insert: 'Inserts', motion: 'Motions' }
 const conteudoDo = (t) => (t.includes('motion') ? 'motion' : t.includes('insert') ? 'insert' : null)
-const ORDENS = { video: 'Alfabética', aleatorio: 'Aleatório', longos: 'Mais longos', curtos: 'Mais curtos' }
+const ORDENS = { recentes: 'Mais recentes', video: 'Alfabética', aleatorio: 'Aleatório', longos: 'Mais longos', curtos: 'Mais curtos' }
 const sorteio = new Map() // o aleatório é sorteado uma vez por clipe enquanto a página está aberta: favoritar não embaralha
 const chaveClipe = (c) => `${c.ref}|${c.inicio}`
 const ENTRA = { na_pausa: 'numa pausa', entre_palavras: 'entre palavras coladas', dentro_da_palavra: 'no meio de uma palavra', depois_da_fala: 'depois que a fala acabou' }
@@ -52,9 +51,8 @@ export async function abrirReferencias(tela) {
   for (const t of new Set(clipes.map((c) => c.tipo))) if (!conhecidos.has(t)) grupos.splice(grupos.length - 1, 0, [t, nomePlano(t), [t]])
   // o que estava escolhido fica guardado: voltar à aba devolve os filtros, a busca, a ordem e quanto da grade já tinha aberto
   let filtro = preferencia('refFiltro', 'todos')
-  let semAtor = preferencia('semFullAtor', true)
   let conteudo = CONTEUDOS[preferencia('refConteudo', 'todos')] ? preferencia('refConteudo', 'todos') : 'todos'
-  let ordem = preferencia('refOrdem', 'video') // padrão: alfabética, pelo nome do vídeo, e na ordem dentro dele
+  let ordem = preferencia('refOrdem2', 'recentes') // padrão: os vídeos que entraram por último primeiro, e na ordem dentro de cada um
   let visiveis = []
   // a grade em lotes: os primeiros na hora, o resto conforme rola (mil e tantos cards de uma vez travavam a abertura)
   const LOTE = 120
@@ -68,8 +66,10 @@ export async function abrirReferencias(tela) {
   const textoDo = (c) => (c.busca ||= semAcento([c.ref_nome, nomePlano(c.tipo), c.descricao, c.fala, c.texto, codigoDo(c), ...(c.tags || []).map((t) => `#${t}`)].join(' ')))
   const acha = (c) => achaBusca(textoDo(c), busca)
   // os filtros de cima (sem a tag): o que a barra de tags conta
-  const semTag = () => clipes.filter((c) => (!busca || acha(c)) && (!semAtor || !SO_ATOR.includes(c.tipo)) && (conteudo === 'todos' || conteudoDo(c.tipo) === conteudo)
-    && (!categoria || (c.tipo_video || 'reels') === categoria))
+  // o Full ator (com e sem lettering) só entra com o chip dele: nos outros (e em Todos) ele polui a grade
+  const comAtor = () => filtro === 'ator'
+  const semTag = () => clipes.filter((c) => (!busca || acha(c)) && SO_ATOR.includes(c.tipo) === comAtor()
+    && (comAtor() || conteudo === 'todos' || conteudoDo(c.tipo) === conteudo) && (!categoria || (c.tipo_video || 'reels') === categoria))
   const base = () => semTag().filter((c) => !tagAtiva || temTag(c.tags, tagAtiva))
   const card = (c, k) => `<article class="card-clipe" data-k="${k}">
       <div class="mini mini-916">${c.miniatura ? `<img src="${c.miniatura}" alt="" loading="lazy">` : ''}
@@ -88,8 +88,10 @@ export async function abrirReferencias(tela) {
     const l = base()
     const nFav = l.filter((c) => c.favorito).length
     const contar = (tipos) => l.filter((c) => tipos.includes(c.tipo)).length
-    const ativos = grupos.filter(([id, , tipos]) => !(semAtor && tipos.every((t) => SO_ATOR.includes(t))))
+    const ativos = grupos
     if (filtro !== 'todos' && filtro !== 'favoritos' && !ativos.some(([id]) => id === filtro)) filtro = 'todos'
+    // a contagem do Full ator vem de fora da grade (que, fora do chip dele, não tem Full ator)
+    const nAtor = clipes.filter((c) => SO_ATOR.includes(c.tipo) && (!busca || acha(c)) && (!categoria || (c.tipo_video || 'reels') === categoria)).length
     const tiposDo = grupos.find(([id]) => id === filtro)?.[2]
     visiveis = l.filter((c) => (filtro === 'favoritos' ? c.favorito : !tiposDo || tiposDo.includes(c.tipo)))
     const dur = (c) => c.fim - c.inicio
@@ -98,8 +100,9 @@ export async function abrirReferencias(tela) {
       longos: (a, b) => dur(b) - dur(a),
       curtos: (a, b) => dur(a) - dur(b),
       video: (a, b) => a.ref_nome.localeCompare(b.ref_nome, 'pt-BR') || a.inicio - b.inicio,
+      recentes: (a, b) => (b.ref_criado_em || '').localeCompare(a.ref_criado_em || '') || a.ref.localeCompare(b.ref) || a.inicio - b.inicio,
     }[ordem])
-    const sig = JSON.stringify([filtro, semAtor, conteudo, categoria, ordem, busca, tagAtiva])
+    const sig = JSON.stringify([filtro, conteudo, categoria, ordem, busca, tagAtiva])
     if (sig !== assinatura) { // filtro novo: volta ao primeiro lote (um redesenho por tag ou favorito mantém o que já estava)
       assinatura = preferencia('refAssinatura', '', sig)
       mostrar = preferencia('refMostrar', LOTE, LOTE)
@@ -109,11 +112,10 @@ export async function abrirReferencias(tela) {
     tela.innerHTML = `<div class="filtros filtros-ref">
         ${chip('favoritos', `${filtro === 'favoritos' ? ESTRELA_CHEIA : ICONE.estrela} Favoritos <span class="conta">${nFav}</span>`, ' chip-favoritos')}
         ${chip('todos', `${icone('todos')} Todos <span class="conta">${l.length}</span>`)}
-        ${ativos.map(([id, nome, tipos]) => chip(id, `${icone(id)} ${esc(nome)} <span class="conta">${contar(tipos)}</span>`)).join('')}
+        ${ativos.map(([id, nome, tipos]) => chip(id, `${icone(id)} ${esc(nome)} <span class="conta">${id === 'ator' ? nAtor : contar(tipos)}</span>`)).join('')}
         <span class="filtros-dir"><input class="busca" type="search" data-busca placeholder="Buscar (nome, marcação, fala, #tag)" value="${esc(busca)}">
           <label class="caixa">Categoria <select data-categoria-ref><option value="">Todas</option>${cats.map((c) => `<option value="${esc(c.id)}"${c.id === categoria ? ' selected' : ''}>${esc(rotuloCategoria(cats, c.id))}</option>`).join('')}</select></label>
           <span class="alternar">${Object.entries(CONTEUDOS).map(([k, n]) => `<button class="pilula${k === conteudo ? ' ativa' : ''}" data-conteudo="${k}">${n}</button>`).join('')}</span>
-          <label class="caixa"><input type="checkbox" data-sem-ator ${semAtor ? 'checked' : ''}> Ignorar Full ator</label>
           <label class="caixa">Ordenar <select data-ordem>${Object.entries(ORDENS).map(([k, n]) => `<option value="${k}"${k === ordem ? ' selected' : ''}>${n}</option>`).join('')}</select></label></span></div>
       ${!clipes.length ? '<p class="vazio">Nenhum clipe ainda. Suba vídeos editados na <a href="#/calibragem">Calibragem</a>: quando a análise terminar, cada plano aparece aqui.</p>'
         : `${datalistTags('tags-conhecidas-ref', conhecidas())}<div class="banco-com-tags">${barraDeTags(semTag().map((c) => ({ chave: chaveDo(c), tags: c.tags })), tagAtiva, 'refs')}<div class="banco-grade">${visiveis.length ? `<div class="grade grade-clipes">${visiveis.slice(0, mostrar).map(card).join('')}</div>${visiveis.length > mostrar ? '<div class="mais-clipes" data-mais></div>' : ''}` : '<p class="vazio">Nenhum clipe com esses filtros.</p>'}</div></div>`}`
@@ -236,8 +238,7 @@ export async function abrirReferencias(tela) {
   })
   tela.addEventListener('change', (e) => {
     if (e.target.matches('[data-busca]')) return
-    if (e.target.matches('[data-sem-ator]')) semAtor = preferencia('semFullAtor', true, e.target.checked)
-    if (e.target.matches('[data-ordem]')) ordem = preferencia('refOrdem', 'video', e.target.value)
+    if (e.target.matches('[data-ordem]')) ordem = preferencia('refOrdem2', 'recentes', e.target.value)
     if (e.target.matches('[data-categoria-ref]')) categoria = preferencia('refCategoria', '', e.target.value)
     desenhar()
   })

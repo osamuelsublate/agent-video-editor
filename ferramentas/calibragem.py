@@ -579,7 +579,8 @@ def clipes() -> dict:
     todos, origens = [], {}
     for r, itens, palavras in _analisadas():
         lista, origens[r['id']] = _clipes_de(r, itens, palavras)
-        todos += [{**c, 'tipo_video': categoria_de(r)} for c in lista]  # a categoria do vídeo de origem, para o filtro
+        # a categoria do vídeo de origem (o filtro) e quando ele entrou (a ordem "Mais recentes")
+        todos += [{**c, 'tipo_video': categoria_de(r), 'ref_criado_em': r.get('criado_em') or ''} for c in lista]
     favoritos, tags = ler_favoritos(), ler_tags()
     for c in todos:
         c['favorito'] = any(mesmo_trecho(f, c['ref'], c['inicio'], c['fim']) for f in favoritos)
