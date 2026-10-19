@@ -34,6 +34,11 @@ async function nomesDosSons() {
   return sonsCache
 }
 
+/** As prévias dos motions tocam sozinhas, em loop, enquanto estão na tela (fora dela, pausam: a grade fica leve). */
+const tocandoNaTela = new IntersectionObserver((es) => {
+  for (const e of es) e.isIntersecting ? e.target.play().catch(() => {}) : e.target.pause()
+}, { rootMargin: '200px' })
+
 /** Um vídeo que toca com o mouse em cima (mudo) e volta ao começo ao sair. */
 function tocarNoHover(card, video, inicio = 0) {
   card.addEventListener('mouseenter', () => {
@@ -171,7 +176,7 @@ async function bancoInserts(el, tipo = 'inserts') {
     const e = estadoMotion(m)
     return { criado: m.criado_em || '', html: `<article class="card-banco card-banco-motion${selecao?.has(`m:${m.id}`) ? ' selecionado' : ''}" data-motion="${esc(m.id)}" data-busca="${esc(busca)}">
       <div class="mini mini-169 fundo-${esc(m.fundo || 'escuro')}"><div class="palco-motion">${comPrevia.has(m.id)
-        ? `<video class="previa-motion" muted loop playsinline preload="metadata" src="/biblioteca/motions/previas/${encodeURIComponent(m.id)}.mp4#t=${m.miniatura ?? 0.5}"></video>`
+        ? `<video class="previa-motion" muted loop playsinline preload="metadata" src="/biblioteca/motions/previas/${encodeURIComponent(m.id)}.mp4"></video>`
         : `<iframe src="/render/motion.html?preset=${encodeURIComponent(m.id)}&formato=vertical&tocar=1" loading="lazy" tabindex="-1" title="${esc(m.nome || m.id)}"></iframe>`}</div>
         ${e === 'sem' ? '<span class="selo selo-coral">A revisar</span>' : ''}${m.duracao ? `<span class="duracao">${seg(m.duracao)}</span>` : ''}
         <span class="chip-tipo chip-tipo-motion">Motion</span></div>
@@ -374,7 +379,7 @@ async function bancoInserts(el, tipo = 'inserts') {
   for (const card of $$('.card-banco', el)) {
     if (card.dataset.motion) {
       const previa = $('video.previa-motion', card)
-      if (previa) tocarNoHover(card, previa)
+      if (previa) tocandoNaTela.observe(previa)
       card.addEventListener('click', (e) => {
         if (e.target.closest('a, summary, button, .tags-card')) return
         if (selecao) return marcar(card, e)
