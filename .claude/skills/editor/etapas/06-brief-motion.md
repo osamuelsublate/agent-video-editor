@@ -4,7 +4,7 @@ Leia antes: {raiz}/biblioteca/aprendizados/motions.md (o que o criador já corri
 {exemplos}/aprendizados/motions.md (os gostos dele nos vídeos de {categoria}, a categoria deste; pode não existir); os recusados em
 {raiz}/biblioteca/motions/presets/_recusados/ (o JSON do topo tem o `motivo`), para não repetir; 2 presets existentes
 (prompt.html e lettering.html) e {raiz}/render/motion/runtime.js: copie a estrutura (o JSON <script id="preset">
-com nome, descricao, fundo, duracao, sons e "a_revisar": true; o <script id="campos">; o <style>; a timeline do GSAP
+com nome, descricao, fundo, duracao, sons, "a_revisar": true e "projeto": "{projeto}"; o <script id="campos">; o <style>; a timeline do GSAP
 pausada entregue com motion.pronto(tl); motion.som/motion.digitar/motion.curva/motion.aCada).
 Pedido: {pedido}
 Formato: {formato} ({palco}) · duração ~{duracao} s · fala: "{fala}"

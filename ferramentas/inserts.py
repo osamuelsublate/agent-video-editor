@@ -298,7 +298,7 @@ def motion_brief(slug: str, plano: str, preset: str, duracao: float | None, pedi
     fala = ' '.join(w['texto'] for w in saida[idx[pl['palavra_ini']]:idx[pl['palavra_fim']] + 1])
     dividida = pl['tipo'].startswith('tela_dividida')
     texto = (ETAPAS / '06-brief-motion.md').read_text(encoding='utf-8').format(
-        raiz=RAIZ, preset=preset, pedido=pl.get('descricao') or pedido_extra or '—', formato='dividida' if dividida else 'vertical',
+        raiz=RAIZ, preset=preset, projeto=slug, pedido=pl.get('descricao') or pedido_extra or '—', formato='dividida' if dividida else 'vertical',
         categoria=_categoria(edicao), exemplos=_exemplos(edicao),
         palco='1080×960, a metade de cima; o ator fica embaixo' if dividida else '1080×1920, a tela toda',
         duracao=num(duracao or (b - a), 1), fala=fala, extra=f'Mais: {pedido_extra}' if pedido_extra else '')

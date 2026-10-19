@@ -882,10 +882,11 @@ def _tira(h, q, id_):
 
 @rota('GET', '/api/estados')
 def _estados(h, q):
-    """Os selos do banco (usado · aprovado · recusado, com os usos nos vídeos aprovados) e os usos aprovados dos motions."""
+    """Os selos do banco (usado · aprovado · recusado, com os usos nos vídeos aprovados), os usos aprovados dos motions e
+    os projetos aprovados (o selo de um motion: `estado_motion`, igual no app)."""
     b = _banco()
-    _, motions, _ = b.usos_aprovados()
-    return {'midias': b.estados(), 'motions': motions}
+    _, motions, aprovados = b.usos_aprovados()
+    return {'midias': b.estados(), 'motions': motions, 'aprovados': sorted(aprovados)}
 
 
 MOTION_TAGS = BIBLIOTECA / 'motions' / '_tags.json'  # {preset: [tags]}
@@ -1032,6 +1033,34 @@ def usos_preset(id_: str) -> dict[str, list[str]]:
     return out
 
 
+def editar_json_motion(id_: str, mudar) -> dict:
+    """Reescreve só o JSON do topo de um preset de motion (`mudar(dados)`); o resto do arquivo fica igual."""
+    arq = BIBLIOTECA / 'motions' / 'presets' / f'{id_}.html'
+    if not arq.is_file():
+        raise Erro(f'Motion não encontrado: {id_}', 404)
+    html = arq.read_text(encoding='utf-8')
+    m = JSON_DO_MOTION.search(html)
+    if not m:
+        raise Erro(f'{arq.name} não tem o JSON do preset no topo.', 422)
+    dados = json.loads(m.group(2))
+    mudar(dados)
+    arq.write_text(html[:m.start(2)] + json.dumps(dados, ensure_ascii=False) + html[m.end(2):], encoding='utf-8')
+    return dados
+
+
+def estado_motion(dados: dict, usos: list, aprovados: set[str]) -> str:
+    """O selo de um motion, como o das mídias do banco: `usado` (entrou num vídeo aprovado), o selo à mão (`estado`:
+    aprovado ou recusado), `recusado` (escrito para um projeto já aprovado, `projeto`, e que ficou de fora), `sem` (a
+    revisar, de um projeto em edição) ou `aprovado` (sem a marca "a revisar"). O app calcula igual (biblioteca.js)."""
+    if usos:
+        return 'usado'
+    if dados.get('estado') in ('aprovado', 'recusado'):
+        return dados['estado']
+    if dados.get('a_revisar'):
+        return 'recusado' if dados.get('projeto') in aprovados else 'sem'
+    return 'aprovado'
+
+
 def usos_motion(id_: str) -> dict[str, list[str]]:
     out = {}
     for arq in sorted(PROJETOS.glob('*/edicao.json')):
@@ -1100,6 +1129,42 @@ def _usos_motion(h, q, id_):
     if not (BIBLIOTECA / 'motions' / 'presets' / f'{id_}.html').is_file():
         raise Erro(f'Motion não encontrado: {id_}', 404)
     return usos_motion(id_)
+
+
+@rota('PUT', r'/api/motions/([\w-]+)/estado')
+def _estado_motion(h, q, id_):
+    """O selo à mão de um motion: aprovado (tira o "a revisar"), recusado (com o motivo: fica na biblioteca, em
+    Recusados, até o Limpar recusados) ou None (volta ao automático)."""
+    c = h.corpo()
+    estado = c.get('estado')
+    motivo = str(c.get('motivo') or '').strip()[:1000]
+
+    def mudar(d):
+        d.pop('estado', None)
+        if estado == 'aprovado':
+            d.pop('a_revisar', None)
+            d['estado'] = 'aprovado'
+        elif estado == 'recusado':
+            d.update(estado='recusado', recusado_em=agora_iso(), **({'motivo': motivo} if motivo else {}))
+    return editar_json_motion(id_, mudar)
+
+
+@rota('POST', '/api/motions/limpar-recusados')
+def _limpar_motions_recusados(h, q):
+    """Tira da biblioteca os motions recusados (que nenhum vídeo aprovado usa): vão para motions/presets/_recusados/, o
+    registro que o subagente de motion lê para não repetir o que o criador não quis (não é uma lixeira)."""
+    _, usos, aprovados = _banco().usos_aprovados()
+    pasta_p = BIBLIOTECA / 'motions' / 'presets'
+    levados = []
+    for arq in sorted(pasta_p.glob('*.html')):
+        m = JSON_DO_MOTION.search(arq.read_text(encoding='utf-8'))
+        dados = json.loads(m.group(2)) if m else {}
+        if estado_motion(dados, usos.get(arq.stem), aprovados) != 'recusado':
+            continue
+        (pasta_p / '_recusados').mkdir(exist_ok=True)
+        arq.replace(pasta_p / '_recusados' / arq.name)
+        levados.append(arq.stem)
+    return {'levados': levados}
 
 
 @rota('POST', r'/api/motions/([\w-]+)/recusar')

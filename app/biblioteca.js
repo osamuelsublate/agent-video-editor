@@ -112,7 +112,11 @@ async function bancoInserts(el, tipo = 'inserts') {
   for (const m of ms) m.tags = tagsMotion[m.id] || []
   const estados = est?.midias || {}
   const usosM = est?.motions || {}
-  const estadoMotion = (m) => (usosM[m.id]?.length ? 'usado' : m.a_revisar ? 'sem' : 'aprovado')
+  const aprovadosPrj = new Set(est?.aprovados || [])
+  // o selo de um motion, como o das mídias (a mesma regra de servidor.estado_motion): usado num vídeo aprovado · o
+  // selo à mão · recusado (escrito para um projeto já aprovado e que ficou de fora) · a revisar · aprovado
+  const estadoMotion = (m) => (usosM[m.id]?.length ? 'usado' : ['aprovado', 'recusado'].includes(m.estado) ? m.estado
+    : m.a_revisar ? (aprovadosPrj.has(m.projeto) ? 'recusado' : 'sem') : 'aprovado')
   const chaveFiltro = tipo === 'motions' ? 'motions.filtro' : 'banco.filtro'
   let filtro = FILTROS_BANCO[preferencia(chaveFiltro, 'todos')] ? preferencia(chaveFiltro, 'todos') : 'todos'
   const cod = cods.midia || {}
@@ -161,15 +165,16 @@ async function bancoInserts(el, tipo = 'inserts') {
   const cardsMotion = motionsT.filter((m) => filtro === 'todos' || estadoMotion(m) === filtro).map((m) => {
     const [rotulo, cor] = SELOS[estadoMotion(m)] || []
     const busca = semAcento([m.nome, m.id, m.descricao, cods.motion?.[m.id], ...(m.tags || []).map((t) => `#${t}`)].join(' '))
-    return { criado: m.criado_em || '', html: `<article class="card-banco card-banco-motion" data-motion="${esc(m.id)}" data-busca="${esc(busca)}">
+    const e = estadoMotion(m)
+    return { criado: m.criado_em || '', html: `<article class="card-banco card-banco-motion${selecao?.has(`m:${m.id}`) ? ' selecionado' : ''}" data-motion="${esc(m.id)}" data-busca="${esc(busca)}">
       <div class="mini mini-169 fundo-${esc(m.fundo || 'escuro')}"><div class="palco-motion"><iframe src="/render/motion.html?preset=${encodeURIComponent(m.id)}&formato=vertical&tocar=1" loading="lazy" tabindex="-1" title="${esc(m.nome || m.id)}"></iframe></div>
-        ${m.a_revisar && !usosM[m.id]?.length ? '<span class="selo selo-coral">A revisar</span>' : ''}${m.duracao ? `<span class="duracao">${seg(m.duracao)}</span>` : ''}
+        ${e === 'sem' ? '<span class="selo selo-coral">A revisar</span>' : ''}${m.duracao ? `<span class="duracao">${seg(m.duracao)}</span>` : ''}
         <span class="chip-tipo chip-tipo-motion">Motion</span></div>
       <div class="card-titulo"><h3 title="${esc(m.descricao || '')}">${esc(m.nome || m.id)}</h3>${chipCodigo(cods.motion?.[m.id], m.nome || m.id)}</div>
       ${rotulo ? `<div class="estado-banco"><span class="selo-linha ${cor}">${rotulo}</span>${chipsDeUso(usosM[m.id], cods)}</div>` : ''}
       ${htmlTagsCard(m.tags)}
-      ${m.a_revisar && !usosM[m.id]?.length ? `<div class="acoes-pe"><button class="botao pequeno" data-aprovar-motion title="Tira a marca “a revisar”">${ICONE.check} Aprovar</button>
-        <button class="botao pequeno botao-perigo-contorno" data-recusar-motion title="Recusa a sugestão (vai para motions/presets/_recusados/)">${ICONE.fechar} Recusar</button></div>` : ''}
+      ${e === 'sem' && !selecao ? `<div class="acoes-pe"><button class="botao pequeno" data-aprovar-motion title="Tira a marca “a revisar”">${ICONE.check} Aprovar</button>
+        <button class="botao pequeno botao-perigo-contorno" data-recusar-motion title="Recusa a sugestão (fica em Recusados até o Limpar recusados)">${ICONE.fechar} Recusar</button></div>` : ''}
     </article>` }
   })
   const cards = [...(tipo === 'motions' ? [] : cardsMidia), ...(tipo === 'inserts' ? [] : cardsMotion)].sort((a, b) => b.criado.localeCompare(a.criado)).map((c) => c.html)
@@ -179,16 +184,17 @@ async function bancoInserts(el, tipo = 'inserts') {
       ${Object.entries(FILTROS_BANCO).filter(([k]) => k === 'todos' || conta(k)).map(([k, [n, ic]]) => chip(k === filtro, `${icone(ic)}${n} <span class="conta">${conta(k)}</span>`, `data-filtro-banco="${k}"`)).join('')}
       <span class="barra-banco-acoes"><input class="busca" type="search" data-busca placeholder="Buscar (nome, descrição, código, #tag)" value="${esc(buscas[tipo])}">
         ${tipo === 'motions' ? '' : `<label class="botao pequeno botao-subir" title="Vídeos e imagens, vários de uma vez (ou arraste para esta página): entram Aprovados e a IA descreve">${ICONE.subir} Subir mídia<input type="file" multiple accept="video/mp4,video/quicktime,video/webm,image/png,image/jpeg,image/webp" hidden data-subir></label>`}
-        ${tipo === 'motions' ? '' : selecao
+        ${selecao
     ? `<span class="barra-selecao"><b data-sel-conta>${selecao.size}</b> <span data-sel-rotulo>${selecao.size === 1 ? 'selecionada' : 'selecionadas'}</span>
-        <button class="botao pequeno" data-sel-todas title="Marca todas as mídias que estão na tela (com este filtro, a tag e a busca)">Todas visíveis</button>
+        <button class="botao pequeno" data-sel-todas title="Marca tudo o que está na tela (com este filtro, a tag e a busca)">Todas visíveis</button>
         <button class="botao pequeno botao-verde" data-sel-aplicar="aprovado" title="Aprovar as selecionadas: boas, mesmo sem uso (saem do Limpar recusados)">${ICONE.check} Aprovar</button>
         <button class="botao pequeno" data-sel-aplicar="recusado" title="Recusar as selecionadas">${ICONE.fechar} Recusar</button>
         <button class="botao pequeno" data-sel-sair>Cancelar</button></span>`
-    : '<button class="botao pequeno" data-selecionar title="Marque várias mídias (clique; shift-clique marca um intervalo) e aprove ou recuse todas de uma vez">Selecionar</button>'}
+    : `<button class="botao pequeno" data-selecionar title="Marque vários ${tipo === 'motions' ? 'motions' : 'itens'} (clique; shift-clique marca um intervalo) e aprove ou recuse todos de uma vez">Selecionar</button>`}
         ${nRecusados && tipo !== 'motions' ? `<button class="botao pequeno botao-perigo-contorno" data-limpar-recusados title="Apaga de vez os recusados (não dá para recuperar)">${ICONE.lixo} Limpar recusados (${nRecusados})</button>` : ''}
+        ${nRecusados && tipo === 'motions' ? `<button class="botao pequeno botao-perigo-contorno" data-limpar-motions title="Tira da biblioteca os motions recusados (vão para o registro que o Claude lê para não repetir)">${ICONE.lixo} Limpar recusados (${nRecusados})</button>` : ''}
         ${lixo?.itens ? `<button class="botao pequeno botao-perigo-contorno" data-esvaziar-lixeira title="A lixeira antiga do banco (biblioteca/banco/_lixeira/): apaga de vez">${ICONE.lixo} Esvaziar lixeira (${lixo.itens} · ${(lixo.bytes / 1e9).toFixed(1).replace('.', ',')} GB)</button>` : ''}
-        ${ajuda(tipo === 'motions' ? 'Os presets de motion. Usado em vídeo: entrou num vídeo aprovado (o chip abre o plano). A revisar: o Claude escreveu e você ainda não aprovou. Passe o mouse para tocar.' : 'Os inserts (vídeos e imagens). Usado em vídeo: entrou num vídeo aprovado (o chip abre o plano). Aprovado: bom, mesmo sem uso. Recusado: ficou de fora de um vídeo aprovado (o Limpar recusados apaga de vez). Passe o mouse para tocar; clique num insert para editar, marcar trechos ou mudar o selo.')}</span></div>` +
+        ${ajuda(tipo === 'motions' ? 'Os presets de motion. Usado em vídeo: entrou num vídeo aprovado (o chip abre o plano). A revisar: o Claude escreveu e você ainda não aprovou. Aprovado: bom, mesmo sem uso. Recusado: você recusou, ou foi escrito para um vídeo já aprovado e ficou de fora (o Limpar recusados tira da biblioteca). Passe o mouse para tocar; Selecionar aprova ou recusa vários de uma vez.' : 'Os inserts (vídeos e imagens). Usado em vídeo: entrou num vídeo aprovado (o chip abre o plano). Aprovado: bom, mesmo sem uso. Recusado: ficou de fora de um vídeo aprovado (o Limpar recusados apaga de vez). Passe o mouse para tocar; clique num insert para editar, marcar trechos ou mudar o selo.')}</span></div>` +
     `${datalistTags('tags-conhecidas-card', conhecidas)}<div class="banco-com-tags">${barraDeTags(doTipo.map((it) => ({ chave: it.id, tags: it.tags })), tagAtiva, pref)}<div class="banco-grade">` +
     (cards.length ? `<div class="grade grade-banco">${cards.join('')}</div><p class="vazio" data-sem-busca hidden>Nada com essa busca.</p>` : '<p class="vazio">Nada com esses filtros.</p>') +
     '</div></div>'
@@ -241,7 +247,7 @@ async function bancoInserts(el, tipo = 'inserts') {
   for (const b of $$('[data-aprovar-motion]', el)) b.addEventListener('click', async (e) => {
     e.stopPropagation()
     try {
-      await enviar('PUT', `/api/motions/${encodeURIComponent(b.closest('[data-motion]').dataset.motion)}/aprovar`)
+      await enviar('PUT', `/api/motions/${encodeURIComponent(b.closest('[data-motion]').dataset.motion)}/estado`, { estado: 'aprovado' })
       aviso('Motion aprovado')
       bancoInserts(el, tipo)
     } catch (x) {
@@ -278,23 +284,24 @@ async function bancoInserts(el, tipo = 'inserts') {
     bancoInserts(el, tipo)
   })
   $('[data-sel-todas]', el)?.addEventListener('click', () => {
-    for (const c of $$('.card-banco[data-id]', el)) {
+    for (const c of $$('.card-banco[data-id], .card-banco[data-motion]', el)) {
       if (c.style.display === 'none') continue
-      selecao.add(c.dataset.id)
+      selecao.add(chave(c))
       c.classList.add('selecionado')
     }
     contarSelecao()
   })
   for (const b of $$('[data-sel-aplicar]', el)) b.addEventListener('click', async () => {
     const ids = [...selecao]
-    if (!ids.length) return aviso('Nenhuma mídia selecionada', 'erro')
+    if (!ids.length) return aviso('Nada selecionado', 'erro')
     const estado = b.dataset.selAplicar
     let feitos = 0
+    const gravar = (k) => (k.startsWith('m:') ? enviar('PUT', `/api/motions/${encodeURIComponent(k.slice(2))}/estado`, { estado }) : enviar('PUT', `/api/banco/${k}`, { estado }))
     try {
       for (let k = 0; k < ids.length; k += 8) {  // de 8 em 8, para não abrir dezenas de pedidos de uma vez
-        await Promise.all(ids.slice(k, k + 8).map((id) => enviar('PUT', `/api/banco/${id}`, { estado }).then(() => feitos++)))
+        await Promise.all(ids.slice(k, k + 8).map((id) => gravar(id).then(() => feitos++)))
       }
-      aviso(`${feitos} ${feitos === 1 ? 'mídia' : 'mídias'} ${estado === 'aprovado' ? (feitos === 1 ? 'aprovada' : 'aprovadas') : (feitos === 1 ? 'recusada' : 'recusadas')}`)
+      aviso(`${feitos} ${feitos === 1 ? 'item' : 'itens'} ${estado === 'aprovado' ? (feitos === 1 ? 'aprovado' : 'aprovados') : (feitos === 1 ? 'recusado' : 'recusados')}`)
     } catch (x) {
       aviso(`${feitos} de ${ids.length} feitas · ${x.message}`, 'erro')
     }
@@ -318,6 +325,18 @@ async function bancoInserts(el, tipo = 'inserts') {
     }
   })
 
+  $('[data-limpar-motions]', el)?.addEventListener('click', async () => {
+    const ok = await confirmar({ titulo: `Limpar ${nRecusados} ${nRecusados === 1 ? 'motion recusado' : 'motions recusados'}?`,
+      texto: 'Saem da biblioteca e vão para motions/presets/_recusados/, com o motivo: é o registro que o Claude lê para não sugerir de novo o mesmo tipo de coisa. Os que um vídeo aprovado usa ficam.', ok: 'Limpar', perigo: true })
+    if (!ok) return
+    try {
+      const r = await enviar('POST', '/api/motions/limpar-recusados')
+      aviso(`${r.levados.length} ${r.levados.length === 1 ? 'motion saiu' : 'motions saíram'} da biblioteca`)
+      bancoInserts(el, tipo)
+    } catch (x) {
+      aviso(x.message, 'erro')
+    }
+  })
   $('[data-esvaziar-lixeira]', el)?.addEventListener('click', async () => {
     const ok = await confirmar({ titulo: `Esvaziar a lixeira do banco (${lixo.itens} ${lixo.itens === 1 ? 'item' : 'itens'})?`,
       texto: 'O que foi para a lixeira antes (biblioteca/banco/_lixeira/) é apagado de vez: não dá para recuperar.', ok: 'Apagar de vez', perigo: true })
@@ -331,10 +350,27 @@ async function bancoInserts(el, tipo = 'inserts') {
     }
   })
 
+  const chave = (c) => (c.dataset.motion ? `m:${c.dataset.motion}` : c.dataset.id)
+  /** No modo Selecionar, o clique marca ou desmarca; com shift, o intervalo desde o último marcado (só os visíveis). */
+  const marcar = (card, e) => {
+    const visiveisAgora = $$('.card-banco[data-id], .card-banco[data-motion]', el).filter((c) => c.style.display !== 'none')
+    const de = visiveisAgora.findIndex((c) => chave(c) === ultimoMarcado)
+    const ate = visiveisAgora.indexOf(card)
+    const alvo = e.shiftKey && de >= 0 ? visiveisAgora.slice(Math.min(de, ate), Math.max(de, ate) + 1) : [card]
+    const ligar = e.shiftKey ? true : !selecao.has(chave(card))
+    for (const c of alvo) {
+      if (ligar) selecao.add(chave(c))
+      else selecao.delete(chave(c))
+      c.classList.toggle('selecionado', ligar)
+    }
+    ultimoMarcado = chave(card)
+    contarSelecao()
+  }
   for (const card of $$('.card-banco', el)) {
     if (card.dataset.motion) {
       card.addEventListener('click', (e) => {
         if (e.target.closest('a, summary, button, .tags-card')) return
+        if (selecao) return marcar(card, e)
         const m = ms.find((x) => x.id === card.dataset.motion)
         detalheMotion(m, estadoMotion(m), usosM[m.id], cods, () => bancoInserts(el, tipo))
       })
@@ -343,22 +379,7 @@ async function bancoInserts(el, tipo = 'inserts') {
     card.addEventListener('click', (e) => {
       if (e.target.closest('a, summary, .tags-card')) return
       if (!selecao) return detalheBanco(card.dataset.id, () => bancoInserts(el, tipo), cod, estados[card.dataset.id], cods)
-      // no modo Selecionar: marca ou desmarca; com shift, o intervalo desde a última marcada (só as visíveis)
-      const visiveisAgora = $$('.card-banco[data-id]', el).filter((c) => c.style.display !== 'none')
-      const alvo = []
-      const de = visiveisAgora.findIndex((c) => c.dataset.id === ultimoMarcado)
-      if (e.shiftKey && de >= 0) {
-        const ate = visiveisAgora.indexOf(card)
-        alvo.push(...visiveisAgora.slice(Math.min(de, ate), Math.max(de, ate) + 1))
-      } else alvo.push(card)
-      const marcar = e.shiftKey ? true : !selecao.has(card.dataset.id)
-      for (const c of alvo) {
-        if (marcar) selecao.add(c.dataset.id)
-        else selecao.delete(c.dataset.id)
-        c.classList.toggle('selecionado', marcar)
-      }
-      ultimoMarcado = card.dataset.id
-      contarSelecao()
+      marcar(card, e)
     })
     const v = $('video', card)
     if (!v) continue
@@ -1363,12 +1384,12 @@ async function lerMotions() {
   }))
 }
 
-/** Recusar um motion sugerido: vai para motions/presets/_recusados/<id>.html, com o motivo no JSON do topo. */
+/** Recusar um motion: o selo Recusado, com o motivo no JSON do topo; o Limpar recusados tira da biblioteca. */
 /** O modal de um motion: a animação tocando grande, os dados (campos, duração, fundo), o selo com os usos e, se o Claude
  *  o escreveu e ninguém aprovou ainda, Aprovar e Recusar. */
 function detalheMotion(m, estado, usos, cods, recarregar) {
   const [rotulo, cor] = SELOS[estado] || []
-  const revisar = m.a_revisar && !usos?.length
+  const revisar = estado === 'sem'
   const campos = Object.entries(m.campos || {})
   const { el, fechar } = janela(`
     <header class="janela-cabeca"><span class="selo-linha selo-amarelo">Motion</span>
@@ -1384,13 +1405,15 @@ function detalheMotion(m, estado, usos, cods, recarregar) {
         ${campos.length ? `<div class="bloco-lista"><span class="eyebrow">Campos · ${campos.length}</span><ul class="lista-simples">${campos.map(([k, c]) => `<li><span>${esc(c.rotulo || k)}</span><span class="apagado">${esc(c.tipo || 'texto')}${c.padrao ? ` · “${esc(String(c.padrao))}”` : ''}</span></li>`).join('')}</ul></div>` : ''}
         <div class="bloco-lista"><span class="eyebrow">Selo</span>
           <div class="acoes-linha">${rotulo ? `<span class="selo-linha ${cor}">${rotulo}</span>` : revisar ? '<span class="selo-linha selo-coral">A revisar</span>' : '<span class="dica">Sem selo</span>'}
-            ${revisar ? `<button class="botao pequeno" data-aprovar>${ICONE.check} Aprovar</button><button class="botao pequeno botao-perigo-contorno" data-recusar>${ICONE.fechar} Recusar</button>` : ''}</div>
+            ${estado === 'usado' ? '' : `${estado === 'aprovado' ? '' : `<button class="botao pequeno" data-aprovar>${ICONE.check} Aprovar</button>`}
+              ${estado === 'recusado' ? '' : `<button class="botao pequeno botao-perigo-contorno" data-recusar>${ICONE.fechar} Recusar</button>`}
+              ${m.estado ? '<button class="botao pequeno" data-automatico title="Volta ao selo automático">Automático</button>' : ''}`}</div>
           ${usos?.length ? `<div class="estado-banco">${chipsDeUso(usos, cods)}</div>` : ''}</div>
       </div>
     </div>`, { classe: 'janela-banco' })
   $('[data-aprovar]', el)?.addEventListener('click', async () => {
     try {
-      await enviar('PUT', `/api/motions/${encodeURIComponent(m.id)}/aprovar`)
+      await enviar('PUT', `/api/motions/${encodeURIComponent(m.id)}/estado`, { estado: 'aprovado' })
       aviso('Motion aprovado')
       fechar()
       recarregar()
@@ -1402,6 +1425,15 @@ function detalheMotion(m, estado, usos, cods, recarregar) {
     fechar()
     recusarMotion(m, recarregar)
   })
+  $('[data-automatico]', el)?.addEventListener('click', async () => {
+    try {
+      await enviar('PUT', `/api/motions/${encodeURIComponent(m.id)}/estado`, { estado: null })
+      fechar()
+      recarregar()
+    } catch (x) {
+      aviso(x.message, 'erro')
+    }
+  })
   for (const a of $$('a.chip-uso', el)) a.addEventListener('click', () => fechar())
 }
 
@@ -1410,14 +1442,14 @@ async function recusarMotion(m, recarregar) {
   const onde = Object.entries(usos || {}).map(([slug, planos]) => `${slug} (${planos.join(', ')})`)
   const motivo = await confirmar({
     titulo: `Recusar “${m.nome || m.id}”?`,
-    texto: `A sugestão sai da biblioteca (vai para motions/presets/_recusados/).${onde.length ? `\nUsado em ${onde.join('; ')}: esses planos ficam sem motion até o Claude pôr outro.` : ''}`,
+    texto: `Fica em Recusados; o Limpar recusados tira da biblioteca.${onde.length ? `\nUsado em ${onde.join('; ')} (projetos ainda em edição).` : ''}`,
     ok: 'Recusar',
     perigo: true,
     campo: { rotulo: 'Por quê? (opcional: o Claude lê para não sugerir de novo o mesmo tipo de coisa)', dica: 'ex.: lento demais, texto pequeno' },
   })
   if (motivo == null) return
   try {
-    await enviar('POST', `/api/motions/${encodeURIComponent(m.id)}/recusar`, { motivo })
+    await enviar('PUT', `/api/motions/${encodeURIComponent(m.id)}/estado`, { estado: 'recusado', motivo })
     aviso(`“${m.nome || m.id}” recusado`)
     recarregar()
   } catch (x) {
