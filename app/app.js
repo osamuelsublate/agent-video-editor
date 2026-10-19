@@ -44,7 +44,7 @@ function quandoFoi(ts) {
   return n < 730 ? 'há 1 ano' : `há ${Math.floor(n / 365)} anos`
 }
 
-/** O play do meio do card: o vídeo com som, ali mesmo (só um por vez); de novo, pausa e volta à prévia muda. */
+/** O play do meio do card: o vídeo com som, ali mesmo (só um por vez); de novo, pausa. */
 function tocarComSom(caixa, ligar) {
   const v = $('video', caixa)
   const b = $('[data-tocar-card]', caixa)
@@ -138,18 +138,8 @@ async function inicio(tela, ctas = false) {
       },
     })
     for (const b of $$('[data-ordem]', tela)) b.classList.toggle('ativa', b.dataset.ordem === ordem)
-    // o vídeo toca mudo com o mouse em cima
-    // (o mouse em cima toca a prévia muda; tocando com som pelo botão do meio, o mouse não interfere)
-    for (const c of $$('.caixa-projeto', tela)) {
-      const v = $('video', c)
-      c.addEventListener('mouseenter', () => !v.dataset.som && v.play().catch(() => {}))
-      c.addEventListener('mouseleave', () => {
-        if (v.dataset.som) return
-        v.pause()
-        v.currentTime = 1.5
-      })
-      v.addEventListener('ended', () => tocarComSom(c, false))
-    }
+    // o vídeo só toca pelo play do meio (com som); ao acabar, volta ao botão de play
+    for (const c of $$('.caixa-projeto', tela)) $('video', c).addEventListener('ended', () => tocarComSom(c, false))
   }
   tela.innerHTML = `<div class="cabeca-secao"><span class="eyebrow">${titulo}</span>
       <div class="filtro-categorias"></div>
