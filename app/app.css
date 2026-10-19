@@ -311,8 +311,12 @@ kbd {
 .ajuda:hover { border-color: var(--color-cream-50); color: var(--color-cream); }
 .grade { display: grid; gap: 32px 20px; }
 .grade-projetos { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
-.pagina-inicio .grade-projetos { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 24px 18px; } /* Projetos e CTAs: 6 por linha */
-@media (max-width: 1000px) { .pagina-inicio .grade-projetos { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.pagina-inicio .grade-projetos { grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 24px 14px; } /* Projetos e CTAs: 8 por linha */
+/* o nome inteiro, em até 2 linhas, num corpo que cabe no card estreito */
+.pagina-inicio .card-projeto h3 { font-size: 13px; line-height: 1.3; letter-spacing: -0.01em; }
+@media (max-width: 1600px) { .pagina-inicio .grade-projetos { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+@media (max-width: 1200px) { .pagina-inicio .grade-projetos { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (max-width: 800px) { .pagina-inicio .grade-projetos { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .grade-banco { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 32px 24px; }
 .grade-transicoes { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); }
 .grade-presets { grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 32px 24px; }
