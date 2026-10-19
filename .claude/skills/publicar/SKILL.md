@@ -134,8 +134,9 @@ Por rede: Instagram `instagramData.type: "REEL"`; YouTube `youtubeData.type: "sh
 `madeForKids: false`; TikTok `tiktokData` com o `title`. `autoPublish: true` (publica sozinho).
 
 **O que vai pelo Metricool é sempre a versão para redes: 1080×1920, H.264.** O final do editor (4K 2160×3840, HEVC)
-fica como master (Drive, anúncios): mandado direto, as redes recodificam o 4K HEVC e o vídeo sai borrado, pior no
-TikTok (o Metricool repassa o arquivo sem mexer; o Instagram pede H.264 até 1920 px). Gere ao lado da saída e suba
+fica como master (Drive, anúncios): mandado direto, o TikTok recodifica o 4K HEVC e o vídeo sai borrado (o Metricool
+repassa o arquivo sem mexer; no Instagram, em 19/10, o 4K HEVC saiu bom, mas a especificação dele pede H.264 até
+1920 px). Mande a mesma versão para todas as redes. Gere ao lado da saída e suba
 na mesma pasta do Drive; use o link desse arquivo no `media`:
 ```bash
 ffmpeg -i "<saída>.mp4" -vf "scale=1080:1920:flags=lanczos,format=yuv420p" -c:v libx264 -preset slow \
