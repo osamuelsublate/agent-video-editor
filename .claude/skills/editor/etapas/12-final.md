@@ -25,6 +25,9 @@ uv run ferramentas/render.py <slug> --final
   Diga ao criador que o vídeo está na Calibragem do app como "a revisar" (com os comentários das revisões guardados):
   ele confere a direção e marca como revisado. Só aí ela entra nos roteiros de exemplo e ensina a direção.
 
-Tempo esperado: ~1 min por minuto de vídeo.
+Tempo esperado: ~1 min por minuto de vídeo com a camada do 4K já no cache; sem ela, a foto da camada em 4K leva ~4 min
+a mais por vídeo de 45 s. Por isso, **quando entregar uma versão que pode ser a aprovada** (sem comentários pendentes,
+ou o criador falou em exportar), rode em segundo plano `uv run ferramentas/render.py <slug> --camadas --final`: o
+`--final` acha a camada pronta e só monta.
 
 Depois, **conclua o vídeo**: `14-concluir.md` (aprendizados com o criador e faxina do banco).

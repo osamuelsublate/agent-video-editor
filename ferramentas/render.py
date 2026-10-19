@@ -9,6 +9,7 @@
         ao lado, o .md com a transcrição (a fala que ficou no corte)
     uv run ferramentas/render.py <slug> --camadas  → só fotografa a camada dos inserts e motions para o cache (o pré-render:
         rode em segundo plano enquanto a edição segue; o render da entrega espera ele e acha tudo pronto)
+    uv run ferramentas/render.py <slug> --camadas --final  → o mesmo no tamanho do 4K: o export final só monta
     uv run ferramentas/render.py amostra-look <slug> <t> <lut|-> <intensidade> <vinheta> [nitidez]
         → um trecho de 3 s do ator (do bruto, no instante t do vídeo final) com aquele look: o provador da revisão
     uv run ferramentas/render.py previas-motions [--refazer] [<id> …]
@@ -639,16 +640,18 @@ def _cadeado_camadas(p: Path, esperar: bool):
             fcntl.flock(f, fcntl.LOCK_UN)
 
 
-def pre_render(slug: str) -> None:
+def pre_render(slug: str, final: bool = False) -> None:
     """O pré-render: fotografa para o cache (`.cache/camadas/`) os trechos de insert e motion do estado de agora, sem
     áudio, montagem nem versão. Rodado em segundo plano a cada leva de inserts que fica pronta, o render da entrega acha
-    a camada quase toda feita (só o que mudou depois é fotografado de novo). Já há um rodando: sai sem fazer nada."""
+    a camada quase toda feita (só o que mudou depois é fotografado de novo). Já há um rodando: sai sem fazer nada.
+    `final`: no tamanho do 4K (o cache guarda cada tamanho à parte): rodado enquanto o criador revisa a última versão,
+    o `--final` acha a camada pronta e só monta (a foto do 4K é a maior parte do tempo do export)."""
     t0 = time.time()
     p = pasta(slug)
     edicao = ler(slug)
     if not v1_tocada(edicao):
         raise SystemExit(f'O projeto {slug} ainda não tem cortes.')
-    w, h, _ = PROXY
+    w, h, _ = FINAL if final else PROXY
     with _cadeado_camadas(p, esperar=False) as livre:
         if not livre:
             print('Já há um pré-render deste projeto rodando: nada a fazer (o próximo pega o que mudou).')
@@ -811,6 +814,6 @@ if __name__ == '__main__':
     if len(args) != 1:
         raise SystemExit(__doc__)
     if '--camadas' in sys.argv[1:]:
-        pre_render(args[0])
+        pre_render(args[0], final='--final' in sys.argv[1:])
     else:
         render(args[0], final='--final' in sys.argv[1:])
