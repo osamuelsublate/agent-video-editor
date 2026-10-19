@@ -31,8 +31,25 @@ Blocos: B1 0:00,0–0:31,3 ✓ finalizado, B2 0:31,3–1:00,4, B3 1:00,4–1:30,
 - **Finalizados (travados)**: o criador deu o bloco por pronto. Não mude nada que apareça neles (plano, insert, motion,
   legenda, áudio). Se uma correção precisar atravessar a fronteira (um corte que puxa a fala do bloco vizinho),
   pergunte antes.
-- A versão nova sai inteira (o render é do vídeo todo), mas só os blocos com comentários mudam; os outros ficam como
-  estavam (o app conta a versão de cada bloco pelo que mudou nele).
+- A versão nova sai inteira, mas só os blocos com comentários mudam; os outros ficam como estavam (o app conta a versão
+  de cada bloco pelo que mudou nele).
+
+## O ritmo: um bloco, um render
+
+O render monta o vídeo em trechos de ~20 s guardados no cache (`10-render.md`): uma versão nova só remonta os trechos
+em que algo mudou, e sai em ~1 min. Por isso:
+
+- **Renderize logo depois de aplicar os comentários de cada bloco**, sem juntar vários blocos num render só no fim: o
+  criador revisa o bloco pronto enquanto você faz o próximo. Avisou "obs no B10"? Aplique o B10, renderize, responda,
+  e só então passe ao próximo bloco que ele comentou.
+- **Vídeos sem blocos** (até 2 min: os CTAs, os Reels) seguem o mesmo ritmo **por projeto**: com comentários em vários
+  projetos, aplique e renderize um de cada vez (na ordem em que ele comentou), e não todos e só no fim.
+- **O aviso no app** ("Claude aplicando…") acende com o `revisao.py ler` e apaga sozinho quando a versão nova chega:
+  rode o `ler` de cada projeto (ou bloco) no momento em que começa a trabalhar nele.
+- **Nunca apague uma versão** (`versoes/vN`): o app, os comentários e o histórico dos blocos dependem delas. Uma versão
+  errada se corrige com a próxima.
+- **Não mexa no `edicao.json`** de um projeto enquanto um render ou um pré-render dele está fotografando a camada: o
+  que mudar no meio sai misturado. Espere terminar (ou pare o render) e renderize de novo.
 
 ## Aplicar
 
