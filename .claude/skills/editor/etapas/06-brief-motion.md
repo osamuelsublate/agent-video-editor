@@ -16,5 +16,6 @@ menor que ~28 px no palco de 1080). No formato vertical, deixe livre a faixa do 
 passa ali.
 Teste: abra render/motion.html?preset={preset}&formato={formato}&duracao={duracao}&tocar=1 com o servidor
 (`uv run ferramentas/servidor.py <porta livre>`) e fotografe 4 instantes com Playwright; olhe as imagens e corrija até
-ficar limpo e legível. Não ligue o motion ao plano (quem edita liga) e não edite outros arquivos. Responda com o id, os
-campos e 1 linha sobre como ficou.
+ficar limpo e legível. No fim, grave a prévia que a página Motions do app toca: `uv run ferramentas/render.py
+previas-motions {preset}`. Não ligue o motion ao plano (quem edita liga) e não edite outros arquivos. Responda com o id,
+os campos e 1 linha sobre como ficou.

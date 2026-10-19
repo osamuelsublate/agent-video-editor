@@ -11,6 +11,9 @@
         rode em segundo plano enquanto a edição segue; o render da entrega espera ele e acha tudo pronto)
     uv run ferramentas/render.py amostra-look <slug> <t> <lut|-> <intensidade> <vinheta> [nitidez]
         → um trecho de 3 s do ator (do bruto, no instante t do vídeo final) com aquele look: o provador da revisão
+    uv run ferramentas/render.py previas-motions [--refazer] [<id> …]
+        → biblioteca/motions/previas/<id>.mp4: a prévia de cada motion (360×640, mudo, a duração dele), o que a aba
+        Motions do app toca na grade (a animação ao vivo fica só no modal). Só refaz o que mudou desde a última prévia.
 
 Como a exportação do 18 (SPEC §13; a cola de backend/app/exportacao.py `_gravar`/`_trechos`, reescrita aqui): a página
 de render (`render/`, servida por `servidor.servir`) calcula no navegador o que a prévia calcula (`window.__render`) e é
@@ -694,7 +697,63 @@ def amostra_look(slug: str, t: float, lk: dict) -> Path:
     return destino
 
 
+def previas_motions(refazer: bool = False, ids: list[str] | None = None) -> None:
+    """Grava a prévia de cada motion: a página dele tocando (render/motion.html?tocar=1, com o fundo), filmada pelo
+    navegador em 360×640 e recortada na duração do motion. Um motion só é refeito se o .html dele é mais novo que a prévia."""
+    from playwright.sync_api import sync_playwright
+    origem = BIBLIOTECA / 'motions' / 'presets'
+    destino = BIBLIOTECA / 'motions' / 'previas'
+    destino.mkdir(parents=True, exist_ok=True)
+    fila = []
+    for arq in sorted(origem.glob('*.html')):
+        mp4 = destino / f'{arq.stem}.mp4'
+        if ids and arq.stem not in ids:
+            continue
+        if not refazer and mp4.exists() and mp4.stat().st_mtime >= arq.stat().st_mtime:
+            continue
+        m = re.search(r'<script[^>]*id=["\']preset["\'][^>]*>(.*?)</script>', arq.read_text(encoding='utf-8'), re.S)
+        try:
+            dur = float(json.loads(m.group(1)).get('duracao') or 4) if m else 4.0
+        except (ValueError, TypeError):
+            dur = 4.0
+        fila.append((arq.stem, min(max(dur, 1.0), 15.0), mp4))
+    if not fila:
+        print('As prévias estão em dia (use --refazer para refazer).')
+        return
+    srv = servidor.servir(0)
+    porta = srv.server_address[1]
+    tmp = Path(tempfile.mkdtemp(prefix='previas-'))
+    try:
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch(channel='chromium')
+            try:
+                for mid, dur, mp4 in fila:
+                    ctx = browser.new_context(viewport={'width': 360, 'height': 640}, record_video_dir=str(tmp),
+                                              record_video_size={'width': 360, 'height': 640})
+                    pg = ctx.new_page()
+                    t0 = time.time()
+                    pg.goto(f'http://127.0.0.1:{porta}/render/motion.html?preset={mid}&formato=vertical&tocar=1', wait_until='load', timeout=60_000)
+                    pg.wait_for_timeout(300)  # as fontes e o primeiro quadro
+                    inicio = time.time() - t0
+                    pg.wait_for_timeout(int(dur * 1000) + 200)
+                    video = pg.video.path()
+                    ctx.close()  # a gravação só fecha o arquivo aqui
+                    ffmpeg('-ss', f'{inicio:.2f}', '-i', str(video), '-t', f'{dur:.2f}', '-an', '-c:v', 'libx264', '-crf', '26', '-preset', 'veryfast',
+                           '-pix_fmt', 'yuv420p', '-movflags', '+faststart', str(mp4))
+                    Path(video).unlink(missing_ok=True)
+                    print(f'{mid}: {dur:.1f} s')
+            finally:
+                browser.close()
+    finally:
+        srv.shutdown()
+        shutil.rmtree(tmp, ignore_errors=True)
+    print(f'{len(fila)} prévia(s) em biblioteca/motions/previas/.')
+
+
 if __name__ == '__main__':
+    if sys.argv[1:2] == ['previas-motions']:
+        previas_motions('--refazer' in sys.argv, [a for a in sys.argv[2:] if not a.startswith('--')])
+        sys.exit(0)
     if sys.argv[1:2] == ['amostra-look']:
         _, _, slug, t, lut, intensidade, vinheta, *nit = sys.argv
         print(amostra_look(slug, float(t), {'lut': None if lut == '-' else lut, 'intensidade': float(intensidade), 'vinheta': vinheta,

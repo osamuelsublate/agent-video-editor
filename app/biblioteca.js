@@ -106,9 +106,12 @@ let ultimoMarcado = null
 const buscas = { inserts: preferencia('banco.busca', ''), motions: preferencia('motions.busca', '') } // a busca de cada página (guardada: voltar à aba devolve)
 
 async function bancoInserts(el, tipo = 'inserts') {
-  const [nomes, cods, est, ms, tagsMotion, lixo] = await Promise.all([lista('biblioteca/banco'), codigos(), json('/api/estados', { midias: {}, motions: {} }), lerMotions(),
+  const [nomes, cods, est, ms, tagsMotion, lixo, previas] = await Promise.all([lista('biblioteca/banco'), codigos(), json('/api/estados', { midias: {}, motions: {} }), lerMotions(),
     fetch('/biblioteca/motions/_tags.json', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : {})).catch(() => ({})),
-    tipo === 'motions' ? null : json('/api/banco-lixeira', { itens: 0, bytes: 0 })])
+    tipo === 'motions' ? null : json('/api/banco-lixeira', { itens: 0, bytes: 0 }),
+    lista('biblioteca/motions/previas')])
+  // a prévia em vídeo de cada motion (render.py previas-motions): a grade toca o vídeo; a animação ao vivo, só no modal
+  const comPrevia = new Set((previas || []).map((n) => n.replace(/\.mp4$/, '')))
   for (const m of ms) m.tags = tagsMotion[m.id] || []
   const estados = est?.midias || {}
   const usosM = est?.motions || {}
@@ -167,7 +170,9 @@ async function bancoInserts(el, tipo = 'inserts') {
     const busca = semAcento([m.nome, m.id, m.descricao, cods.motion?.[m.id], ...(m.tags || []).map((t) => `#${t}`)].join(' '))
     const e = estadoMotion(m)
     return { criado: m.criado_em || '', html: `<article class="card-banco card-banco-motion${selecao?.has(`m:${m.id}`) ? ' selecionado' : ''}" data-motion="${esc(m.id)}" data-busca="${esc(busca)}">
-      <div class="mini mini-169 fundo-${esc(m.fundo || 'escuro')}"><div class="palco-motion"><iframe src="/render/motion.html?preset=${encodeURIComponent(m.id)}&formato=vertical&tocar=1" loading="lazy" tabindex="-1" title="${esc(m.nome || m.id)}"></iframe></div>
+      <div class="mini mini-169 fundo-${esc(m.fundo || 'escuro')}"><div class="palco-motion">${comPrevia.has(m.id)
+        ? `<video class="previa-motion" muted loop playsinline preload="metadata" src="/biblioteca/motions/previas/${encodeURIComponent(m.id)}.mp4#t=${m.miniatura ?? 0.5}"></video>`
+        : `<iframe src="/render/motion.html?preset=${encodeURIComponent(m.id)}&formato=vertical&tocar=1" loading="lazy" tabindex="-1" title="${esc(m.nome || m.id)}"></iframe>`}</div>
         ${e === 'sem' ? '<span class="selo selo-coral">A revisar</span>' : ''}${m.duracao ? `<span class="duracao">${seg(m.duracao)}</span>` : ''}
         <span class="chip-tipo chip-tipo-motion">Motion</span></div>
       <div class="card-titulo"><h3 title="${esc(m.descricao || '')}">${esc(m.nome || m.id)}</h3>${chipCodigo(cods.motion?.[m.id], m.nome || m.id)}</div>
@@ -368,6 +373,8 @@ async function bancoInserts(el, tipo = 'inserts') {
   }
   for (const card of $$('.card-banco', el)) {
     if (card.dataset.motion) {
+      const previa = $('video.previa-motion', card)
+      if (previa) tocarNoHover(card, previa)
       card.addEventListener('click', (e) => {
         if (e.target.closest('a, summary, button, .tags-card')) return
         if (selecao) return marcar(card, e)
