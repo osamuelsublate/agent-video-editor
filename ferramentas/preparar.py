@@ -240,7 +240,7 @@ def preparar(video: Path, nome: str, pasta: Path, briefing: str | None, categori
         'inserts': {'pedidos': [], 'fundo': FUNDO_INSERTS, 'ator_planos': {}},
         'motions': {},
         'transicoes': {},
-        'audio': {'voz': {'limpeza': 'leve', 'timbre': 'referencia'}, 'fundo': None, 'fundo_mudo': False,
+        'audio': {'voz': {'limpeza': 'leve', 'timbre': 'encorpada'}, 'fundo': None, 'fundo_mudo': False,
                   'niveis': {'ator': 0.0, 'presets': 0.0, 'transicoes': 0.0, 'fundo': 0.0}, 'voz_lufs': {'f1_leve': res['voz_lufs']}},
         'legenda': {'ligada': True, 'modo': 'palavra', 'ajustes': {}},
     }

@@ -22,10 +22,6 @@ TIMBRES: dict[str, list[tuple]] = {
     # corpo nos graves, menos "caixa" nos médios e menos estridência em 2 kHz, e o ar acima de 8 kHz que o microfone
     # não pega (vsl-isca-fid, 2026-10-18)
     'encorpada': [('lowshelf', 130, 6.5, 0.7), (750, -2.5, 0.9), (2000, -3.5, 0.8), (3500, -2.0, 1.2), ('highshelf', 8000, 6.5, 0.7)],
-    # a voz do Reels "Image to HTML" (48), que o criador escolheu como alvo para todos os vídeos: médios-graves cheios
-    # (200–400 Hz), presença em 1,7 kHz, menos chiado em 5,5 kHz e sem o realce de 8 kHz da 'encorpada' (que soava fina
-    # e estridente). Medida por 1/3 de oitava na fala, fica a até ~3 dB do original de 100 Hz a 14 kHz (2026-10-19)
-    'referencia': [('lowshelf', 200, 7.0, 0.7), (280, 5.0, 0.9), (1000, -2.0, 1.4), (1700, 4.0, 1.2), (3200, -2.0, 1.2), (5500, -3.0, 1.0)],
 }
 PASSA_ALTAS = 80
 COMPRESSOR = {'limiar': -20, 'razao': 2.5, 'ataque': 0.01, 'soltura': 0.15, 'joelho': 6}
@@ -43,7 +39,7 @@ SUBIDA, DESCIDA = 0.15, 0.35  # s: a música abaixa antes da fala começar e vol
 JUNTA = 0.6  # s: pausas menores que isto não devolvem a música
 FADE_FUNDO = 1.5
 CRUZA_FUNDO = 2.0  # s: o crossfade de uma volta do fundo para a próxima
-PADRAO = {'voz': {'limpeza': 'leve', 'timbre': 'referencia'}, 'fundo': None, 'fundo_mudo': False,
+PADRAO = {'voz': {'limpeza': 'leve', 'timbre': 'encorpada'}, 'fundo': None, 'fundo_mudo': False,
           'niveis': {t: 0.0 for t in TRILHAS}}
 # a voz entra na mistura como o navegador toca: o mono vai igual aos dois canais (ganho 1; o `aformat` daria −3 dB)
 VOZ_ESTEREO = 'pan=stereo|c0=c0|c1=c0'
