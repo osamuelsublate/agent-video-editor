@@ -1223,6 +1223,14 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 .barra-banco .alternar .pilula svg, .barra-banco .pilula.pequena svg { width: 13px; height: 13px; }
 .barra-banco .barra-sep { margin: 0 8px; }
 .barra-banco-acoes { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+/* o modo Selecionar do banco: a barra com a contagem e as ações, e o card marcado */
+.barra-selecao { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+.barra-selecao b { font-variant-numeric: tabular-nums; }
+.botao-verde { background: var(--color-green); border-color: var(--color-green); color: var(--color-ink); }
+.card-banco.selecionado { outline: 2px solid var(--color-green); outline-offset: 2px; }
+.card-banco.selecionado .mini::after { content: '✓'; position: absolute; top: 50%; left: 50%; z-index: 3; width: 44px; height: 44px; margin: -22px 0 0 -22px;
+  border-radius: 50%; display: grid; place-items: center; background: var(--color-green); color: var(--color-ink); font-weight: 700; font-size: 22px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.45); }
 
 /* a página dos CTAs */
 .cabeca-secao .botao-subir { margin-left: auto; }

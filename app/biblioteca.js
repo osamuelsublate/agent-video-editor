@@ -99,6 +99,10 @@ const chipsDeUso = (usos, cods) => {
 }
 
 let tagsConhecidas = [] // as tags do banco, para o autocompletar do modal da mídia
+// o modo Selecionar do banco: os ids marcados (null = fora do modo); o clique no card marca em vez de abrir, e o selo
+// (Aprovar / Recusar) vai para todos de uma vez. `ultimoMarcado`: o shift-clique marca o intervalo até ele
+let selecao = null
+let ultimoMarcado = null
 const buscas = { inserts: preferencia('banco.busca', ''), motions: preferencia('motions.busca', '') } // a busca de cada página (guardada: voltar à aba devolve)
 
 async function bancoInserts(el, tipo = 'inserts') {
@@ -139,7 +143,7 @@ async function bancoInserts(el, tipo = 'inserts') {
     const video = it.tipo === 'video'
     const ts = trechos[it.id] || []
     const busca = semAcento([it.nome, it.descricao, it.fonte, ...(it.palavras || []), cod[it.id], ...ts.flatMap((t) => [t.nome, cod[t.id]]), ...(it.tags || []).map((t) => `#${t}`)].join(' '))
-    return `<article class="card-banco" data-id="${it.id}" data-busca="${esc(busca)}">
+    return `<article class="card-banco${selecao?.has(it.id) ? ' selecionado' : ''}" data-id="${it.id}" data-busca="${esc(busca)}">
       <div class="mini mini-169"><img src="${base}miniatura.jpg" alt="" loading="lazy">
         ${video ? `<video muted loop playsinline preload="none" data-src="${base}${it.proxy || 'proxy.mp4'}"></video>` : ''}
         <span class="selo ${video ? 'selo-azul' : 'selo-menta'}">${video ? 'Vídeo' : 'Imagem'} · ${esc(it.formato || '')}</span>
@@ -174,6 +178,13 @@ async function bancoInserts(el, tipo = 'inserts') {
       ${Object.entries(FILTROS_BANCO).filter(([k]) => k === 'todos' || conta(k)).map(([k, [n, ic]]) => chip(k === filtro, `${icone(ic)}${n} <span class="conta">${conta(k)}</span>`, `data-filtro-banco="${k}"`)).join('')}
       <span class="barra-banco-acoes"><input class="busca" type="search" data-busca placeholder="Buscar (nome, descrição, código, #tag)" value="${esc(buscas[tipo])}">
         ${tipo === 'motions' ? '' : `<label class="botao pequeno botao-subir" title="Vídeos e imagens, vários de uma vez (ou arraste para esta página): entram Aprovados e a IA descreve">${ICONE.subir} Subir mídia<input type="file" multiple accept="video/mp4,video/quicktime,video/webm,image/png,image/jpeg,image/webp" hidden data-subir></label>`}
+        ${tipo === 'motions' ? '' : selecao
+    ? `<span class="barra-selecao"><b data-sel-conta>${selecao.size}</b> <span data-sel-rotulo>${selecao.size === 1 ? 'selecionada' : 'selecionadas'}</span>
+        <button class="botao pequeno" data-sel-todas title="Marca todas as mídias que estão na tela (com este filtro, a tag e a busca)">Todas visíveis</button>
+        <button class="botao pequeno botao-verde" data-sel-aplicar="aprovado" title="Aprovar as selecionadas: boas, mesmo sem uso (saem do Limpar recusados)">${ICONE.check} Aprovar</button>
+        <button class="botao pequeno" data-sel-aplicar="recusado" title="Recusar as selecionadas">${ICONE.fechar} Recusar</button>
+        <button class="botao pequeno" data-sel-sair>Cancelar</button></span>`
+    : '<button class="botao pequeno" data-selecionar title="Marque várias mídias (clique; shift-clique marca um intervalo) e aprove ou recuse todas de uma vez">Selecionar</button>'}
         ${nRecusados && tipo !== 'motions' ? `<button class="botao pequeno botao-perigo-contorno" data-limpar-recusados title="Leva os recusados para a lixeira do banco (biblioteca/banco/_lixeira/), de onde dá para recuperar">${ICONE.lixo} Limpar recusados (${nRecusados})</button>` : ''}
         ${ajuda(tipo === 'motions' ? 'Os presets de motion. Usado em vídeo: entrou num vídeo aprovado (o chip abre o plano). A revisar: o Claude escreveu e você ainda não aprovou. Passe o mouse para tocar.' : 'Os inserts (vídeos e imagens). Usado em vídeo: entrou num vídeo aprovado (o chip abre o plano). Aprovado: bom, mesmo sem uso. Recusado: ficou de fora de um vídeo aprovado. Passe o mouse para tocar; clique num insert para editar, marcar trechos ou mudar o selo.')}</span></div>` +
     `${datalistTags('tags-conhecidas-card', conhecidas)}<div class="banco-com-tags">${barraDeTags(doTipo.map((it) => ({ chave: it.id, tags: it.tags })), tagAtiva, pref)}<div class="banco-grade">` +
@@ -248,6 +259,46 @@ async function bancoInserts(el, tipo = 'inserts') {
     gravar: (it, tags) => enviar('PUT', tipo === 'motions' ? `/api/motions/${encodeURIComponent(it.id)}/tags` : `/api/banco/${it.id}`, { tags }),
     recarregar: () => bancoInserts(el, tipo),
   })
+  const contarSelecao = () => {
+    const n = selecao?.size || 0
+    const c = $('[data-sel-conta]', el)
+    if (c) c.textContent = n
+    const r = $('[data-sel-rotulo]', el)
+    if (r) r.textContent = n === 1 ? 'selecionada' : 'selecionadas'
+  }
+  $('[data-selecionar]', el)?.addEventListener('click', () => {
+    selecao = new Set()
+    ultimoMarcado = null
+    bancoInserts(el, tipo)
+  })
+  $('[data-sel-sair]', el)?.addEventListener('click', () => {
+    selecao = null
+    bancoInserts(el, tipo)
+  })
+  $('[data-sel-todas]', el)?.addEventListener('click', () => {
+    for (const c of $$('.card-banco[data-id]', el)) {
+      if (c.style.display === 'none') continue
+      selecao.add(c.dataset.id)
+      c.classList.add('selecionado')
+    }
+    contarSelecao()
+  })
+  for (const b of $$('[data-sel-aplicar]', el)) b.addEventListener('click', async () => {
+    const ids = [...selecao]
+    if (!ids.length) return aviso('Nenhuma mídia selecionada', 'erro')
+    const estado = b.dataset.selAplicar
+    let feitos = 0
+    try {
+      for (let k = 0; k < ids.length; k += 8) {  // de 8 em 8, para não abrir dezenas de pedidos de uma vez
+        await Promise.all(ids.slice(k, k + 8).map((id) => enviar('PUT', `/api/banco/${id}`, { estado }).then(() => feitos++)))
+      }
+      aviso(`${feitos} ${feitos === 1 ? 'mídia' : 'mídias'} ${estado === 'aprovado' ? (feitos === 1 ? 'aprovada' : 'aprovadas') : (feitos === 1 ? 'recusada' : 'recusadas')}`)
+    } catch (x) {
+      aviso(`${feitos} de ${ids.length} feitas · ${x.message}`, 'erro')
+    }
+    selecao = null
+    bancoInserts(el, tipo)
+  })
   for (const b of $$('[data-filtro-banco]', el)) b.addEventListener('click', () => {
     preferencia(chaveFiltro, 'todos', b.dataset.filtroBanco)
     bancoInserts(el, tipo)
@@ -274,7 +325,26 @@ async function bancoInserts(el, tipo = 'inserts') {
       })
       continue
     }
-    card.addEventListener('click', (e) => !e.target.closest('a, summary, .tags-card') && detalheBanco(card.dataset.id, () => bancoInserts(el, tipo), cod, estados[card.dataset.id], cods))
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('a, summary, .tags-card')) return
+      if (!selecao) return detalheBanco(card.dataset.id, () => bancoInserts(el, tipo), cod, estados[card.dataset.id], cods)
+      // no modo Selecionar: marca ou desmarca; com shift, o intervalo desde a última marcada (só as visíveis)
+      const visiveisAgora = $$('.card-banco[data-id]', el).filter((c) => c.style.display !== 'none')
+      const alvo = []
+      const de = visiveisAgora.findIndex((c) => c.dataset.id === ultimoMarcado)
+      if (e.shiftKey && de >= 0) {
+        const ate = visiveisAgora.indexOf(card)
+        alvo.push(...visiveisAgora.slice(Math.min(de, ate), Math.max(de, ate) + 1))
+      } else alvo.push(card)
+      const marcar = e.shiftKey ? true : !selecao.has(card.dataset.id)
+      for (const c of alvo) {
+        if (marcar) selecao.add(c.dataset.id)
+        else selecao.delete(c.dataset.id)
+        c.classList.toggle('selecionado', marcar)
+      }
+      ultimoMarcado = card.dataset.id
+      contarSelecao()
+    })
     const v = $('video', card)
     if (!v) continue
     let trecho = null // [ini, fim] enquanto o mouse está num trecho
