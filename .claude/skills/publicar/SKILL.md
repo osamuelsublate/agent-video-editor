@@ -133,6 +133,18 @@ hora); só agende depois de um "sim". Data = o Prazo do card; sem hora definida,
 Por rede: Instagram `instagramData.type: "REEL"`; YouTube `youtubeData.type: "short"`, com `title` e
 `madeForKids: false`; TikTok `tiktokData` com o `title`. `autoPublish: true` (publica sozinho).
 
+**O que vai pelo Metricool é sempre a versão para redes: 1080×1920, H.264.** O final do editor (4K 2160×3840, HEVC)
+fica como master (Drive, anúncios): mandado direto, as redes recodificam o 4K HEVC e o vídeo sai borrado, pior no
+TikTok (o Metricool repassa o arquivo sem mexer; o Instagram pede H.264 até 1920 px). Gere ao lado da saída e suba
+na mesma pasta do Drive; use o link desse arquivo no `media`:
+```bash
+ffmpeg -i "<saída>.mp4" -vf "scale=1080:1920:flags=lanczos,format=yuv420p" -c:v libx264 -preset slow \
+  -profile:v high -level 4.1 -crf 16 -maxrate 16M -bufsize 32M -g 48 -keyint_min 48 -sc_threshold 0 \
+  -color_primaries bt709 -color_trc bt709 -colorspace bt709 -c:a aac -b:a 256k -ar 48000 -movflags +faststart \
+  "<saída> (redes).mp4"
+```
+(mantém os 24 fps do editor; ~11 Mbps num Reels de 45 s, ~60 MB).
+
 O Metricool copia o vídeo do Drive para ele na hora (`media` volta como `static.metricool.com/...`): o link
 `https://drive.google.com/file/d/<id>/view` basta (id pelo `rclone lsjson`). Ele recusa horário no passado: confira a
 hora (`TZ=America/Sao_Paulo date`) antes de propor o horário.
