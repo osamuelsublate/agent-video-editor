@@ -50,6 +50,8 @@ function tocarComSom(caixa, ligar) {
   const b = $('[data-tocar-card]', caixa)
   if (ligar) {
     for (const outra of $$('.caixa-projeto')) if (outra !== caixa && $('video', outra)?.dataset.som) tocarComSom(outra, false)
+    if (!v.dataset.comecou || v.ended) v.currentTime = 0 // a 1ª vez do começo (a miniatura mostra o quadro de 1,5 s); depois de pausar, segue de onde parou
+    v.dataset.comecou = '1'
     v.dataset.som = '1'
     v.muted = false
     v.play().catch(() => {})
@@ -139,7 +141,10 @@ async function inicio(tela, ctas = false) {
     })
     for (const b of $$('[data-ordem]', tela)) b.classList.toggle('ativa', b.dataset.ordem === ordem)
     // o vídeo só toca pelo play do meio (com som); ao acabar, volta ao botão de play
-    for (const c of $$('.caixa-projeto', tela)) $('video', c).addEventListener('ended', () => tocarComSom(c, false))
+    for (const c of $$('.caixa-projeto', tela)) $('video', c).addEventListener('ended', (e) => {
+      delete e.target.dataset.comecou // acabou: o próximo play começa do início
+      tocarComSom(c, false)
+    })
   }
   tela.innerHTML = `<div class="cabeca-secao"><span class="eyebrow">${titulo}</span>
       <div class="filtro-categorias"></div>
