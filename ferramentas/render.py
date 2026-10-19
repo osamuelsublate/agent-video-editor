@@ -447,7 +447,11 @@ def montar_por_trechos(video: Path, clipes: list[dict], horizontal: bool, enq_x:
                 print(f'      {j}/{len(faltam)} montados', flush=True)
     lista = tmp / 'trechos.txt'
     lista.write_text(''.join(f"file '{cache / f'{k}.mp4'}'\n" for k, _, _ in tarefas))
-    ffmpeg('-f', 'concat', '-safe', '0', '-i', str(lista), '-i', str(a['pronta']), '-map', '0:v', '-map', '1:a', '-c:v', 'copy',
+    # a cor declarada por inteiro (BT.709 na matriz, nas primárias e na curva): o encoder do chip de vídeo só grava a
+    # matriz, e um conversor que não acha as outras duas chuta outro padrão (no vturb, a pele saiu laranja)
+    cor = f"{'hevc' if codec == 'hevc' else 'h264'}_metadata=colour_primaries=1:transfer_characteristics=1:matrix_coefficients=1:video_full_range_flag=0"
+    ffmpeg('-f', 'concat', '-safe', '0', '-i', str(lista), '-i', str(a['pronta']), '-map', '0:v', '-map', '1:a', '-c:v', 'copy', '-bsf:v', cor,
+           '-color_primaries', 'bt709', '-color_trc', 'bt709', '-colorspace', 'bt709', '-color_range', 'tv',
            *(['-tag:v', 'hvc1'] if codec == 'hevc' else []), '-c:a', 'aac', '-b:a', '320k', '-ar', '48000', '-t', f'{duracao:.4f}',
            '-movflags', '+faststart', str(destino))
     return [k for k, _, _ in tarefas]
