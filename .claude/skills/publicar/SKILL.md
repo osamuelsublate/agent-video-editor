@@ -79,8 +79,10 @@ o card pelo nome: se o criador já criou, preencha esse.
   do Reels) e a **descrição** proposta com a skill `roteiro-to-descricao` (vault: `~/Obsidian Notes/3 Skills/`).
 - **Perpétuo** (template Criativo `3063ee05-7ee5-816f-b147-f12935ee6519`), um card por funil: título `[FUNIL]_NNN_Nome`
   (ex.: `[VSL]_1085_3 Níveis de IA`), ícone 💰; Produto (ex.: 🤖 FIA), Mídia 💰 Criativo, Etapa do Funil Topo;
-  **Campanha**: LP em branco · VSL `[COD_PROD]_VSL_Nome_do_ad` · ISCA `[COD_PROD]_ISCA_Nome_do_ad`; **Landing Page em branco**
-  (o criador preenche).
+  **Campanha**: LP em branco · VSL `[COD_PROD]_VSL_Nome_do_ad` · ISCA `[COD_PROD]_ISC_NNN_Nome_do_ad` (ex.:
+  `[FIA]_ISC_932_5_plugins_Claude`); **Landing Page em branco** (o criador preenche). **Campanha e Landing Page são
+  listas fechadas**: valor novo é recusado (criá-lo muda a estrutura da base, só o criador). Use uma opção que já
+  existe ou deixe vazio e escreva o valor proposto (e o link de destino, ex. a isca no GitHub) no topo do corpo do card.
 - **Pico · Black** (template Criativo): título **`P2🟡BF26_Nome_do_ad`** (ex.: `P2🟡BF26_3_niveis_de_IA`), com
   **Nível prioridade = P2🟡 Importante mas não urgente** (o prefixo do título é a prioridade); Fase Black Friday (Captura ou
   Carrinho), Produto Black Friday, Público Black Friday (Público geral), Mídia 💰 Criativo. A pasta do Drive segue
