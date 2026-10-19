@@ -450,6 +450,20 @@ def _nome_projeto(h, q, slug):
     return {'nome': nome}
 
 
+@rota('POST', r'/api/projetos/([\w-]+)/aprovar')
+def _aprovar_projeto(h, q, slug):
+    """Aprovar pelo card do projeto: a revisão da última versão ganha `aprovado` (o resto dela fica como está), como o
+    Aprovar da página de revisão. O app copia o "Aprovado · <slug> · vN" para o criador colar no chat."""
+    vs = versoes(PROJETOS / slug)
+    if not vs:
+        raise Erro('Projeto sem versão', 404)
+    arq = PROJETOS / slug / 'revisoes' / f'v{vs[-1]}.json'
+    rev = ler_json(arq, None) or {'projeto': slug, 'versao': vs[-1], 'comentarios': []}
+    rev['aprovado'] = True
+    gravar_json(arq, rev)
+    return {'versao': vs[-1]}
+
+
 @rota('PUT', r'/api/projetos/([\w-]+)/oculto')
 def _ocultar_projeto(h, q, slug):
     """Ocultar: o projeto sai da lista de Projetos (ou de CTAs) e vai para a vista Ocultos; nada mais muda."""

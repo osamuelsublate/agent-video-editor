@@ -44,6 +44,24 @@ function quandoFoi(ts) {
   return n < 730 ? 'há 1 ano' : `há ${Math.floor(n / 365)} anos`
 }
 
+/** O play do meio do card: o vídeo com som, ali mesmo (só um por vez); de novo, pausa e volta à prévia muda. */
+function tocarComSom(caixa, ligar) {
+  const v = $('video', caixa)
+  const b = $('[data-tocar-card]', caixa)
+  if (ligar) {
+    for (const outra of $$('.caixa-projeto')) if (outra !== caixa && $('video', outra)?.dataset.som) tocarComSom(outra, false)
+    v.dataset.som = '1'
+    v.muted = false
+    v.play().catch(() => {})
+  } else {
+    delete v.dataset.som
+    v.muted = true
+    v.pause()
+  }
+  caixa.classList.toggle('tocando-com-som', ligar)
+  if (b) b.innerHTML = ligar ? ICONE.pausar : ICONE.tocar
+}
+
 /** Os projetos (#/) ou, com `ctas`, os CTAs (#/ctas): a mesma página, cada uma com as suas categorias, filtros e tags. */
 async function inicio(tela, ctas = false) {
   tela.className = 'pagina pagina-inicio'
@@ -66,13 +84,15 @@ async function inicio(tela, ctas = false) {
     return `<div class="caixa-projeto" data-slug="${esc(p.slug)}">
       <button class="apagar-projeto" data-apagar title="Apagar o projeto" aria-label="Apagar ${esc(p.nome)}">${ICONE.lixo}</button>
       <button class="apagar-projeto ocultar-projeto" data-ocultar title="${p.oculto ? 'Mostrar de novo na lista' : 'Ocultar (sai da lista e vai para Ocultos)'}" aria-label="${p.oculto ? 'Mostrar' : 'Ocultar'} ${esc(p.nome)}">${p.oculto ? ICONE.olho : ICONE.olhoFechado}</button>
+      ${p.estado !== 'aprovado' ? `<button class="aprovar-projeto" data-aprovar-projeto title="Aprovar o vídeo (copia o “Aprovado” para colar no chat do Claude)" aria-label="Aprovar ${esc(p.nome)}">${ICONE.check}</button>` : ''}
       ${p.tem_final ? `<button class="abrir-exports" data-abrir-final title="Abrir a pasta dos exports no Finder" aria-label="Abrir os exports de ${esc(p.nome)}">${ICONE.abrir}</button>` : ''}
       <a class="card-projeto" href="#/p/${encodeURIComponent(p.slug)}">
       <div class="mini mini-916"><video muted playsinline preload="metadata" src="${proxy}#t=1.5"></video>
         <span class="selo ${cor}">${estado}</span>${p.saidas ? `<span class="chip-saidas" title="O corpo encaixado em ${p.saidas} CTAs (final/saidas/)">${p.saidas} ${p.saidas === 1 ? 'saída' : 'saídas'}</span>` : ''}</div>
       <div class="card-titulo"><h3 title="${esc(p.nome)}">${esc(p.nome)}</h3><button class="botao-icone pequeno renomear" data-renomear title="Renomear" aria-label="Renomear ${esc(p.nome)}">${ICONE.lapis}</button></div>
       <p class="sub" title="${esc(p.slug)}">${quandoFoi(p.atualizado)} · ${p.conclusao != null ? `${p.conclusao}% concluído` : `v${p.ultima}`}${p.comentarios ? ` · ${p.comentarios} ${p.comentarios === 1 ? 'comentário' : 'comentários'}` : ''}</p>
-    </a><div class="sobre-mini">${seletorCategoria(cats, p.formato || 'reels')}${p.duracao ? `<span class="duracao-mini">${mmss(p.duracao)}</span>` : ''}</div>
+    </a><div class="centro-mini"><button class="tocar-card" data-tocar-card title="Tocar com som (clique de novo para pausar)" aria-label="Tocar ${esc(p.nome)}">${ICONE.tocar}</button></div>
+    <div class="sobre-mini">${seletorCategoria(cats, p.formato || 'reels')}${p.duracao ? `<span class="duracao-mini">${mmss(p.duracao)}</span>` : ''}</div>
     <div class="pe-projeto">${htmlTagsCard(p.tags)}${chipCodigo(cods.projeto?.[p.slug], p.nome)}</div></div>`
   }
   // as tags (como no Banco): a barra à esquerda conta os projetos da categoria escolhida e filtra a lista
@@ -119,13 +139,16 @@ async function inicio(tela, ctas = false) {
     })
     for (const b of $$('[data-ordem]', tela)) b.classList.toggle('ativa', b.dataset.ordem === ordem)
     // o vídeo toca mudo com o mouse em cima
-    for (const c of $$('.card-projeto', tela)) {
+    // (o mouse em cima toca a prévia muda; tocando com som pelo botão do meio, o mouse não interfere)
+    for (const c of $$('.caixa-projeto', tela)) {
       const v = $('video', c)
-      c.addEventListener('mouseenter', () => v.play().catch(() => {}))
+      c.addEventListener('mouseenter', () => !v.dataset.som && v.play().catch(() => {}))
       c.addEventListener('mouseleave', () => {
+        if (v.dataset.som) return
         v.pause()
         v.currentTime = 1.5
       })
+      v.addEventListener('ended', () => tocarComSom(c, false))
     }
   }
   tela.innerHTML = `<div class="cabeca-secao"><span class="eyebrow">${titulo}</span>
@@ -205,6 +228,22 @@ async function inicio(tela, ctas = false) {
       })
     if (e.target.closest('[data-ver-ocultos]')) {
       verOcultos = !verOcultos
+      return desenhar()
+    }
+    const tc = e.target.closest('[data-tocar-card]')
+    if (tc) return tocarComSom(tc.closest('.caixa-projeto'), !$('video', tc.closest('.caixa-projeto')).dataset.som)
+    const ap = e.target.closest('[data-aprovar-projeto]')
+    if (ap) {
+      const p = todos.find((x) => x.slug === ap.closest('.caixa-projeto').dataset.slug)
+      if (!(await confirmar({ titulo: `Aprovar “${p.nome}”?`, texto: 'O Claude exporta o vídeo final em 4K. O “Aprovado” vai para a área de transferência: cole no chat.', ok: 'Aprovar e copiar' }))) return
+      try {
+        const { versao } = await enviar('POST', `/api/projetos/${encodeURIComponent(p.slug)}/aprovar`)
+        await copiar(`Aprovado · ${p.slug} · v${versao}`)
+        p.estado = 'aprovado'
+        aviso('Aprovado e copiado: cole no chat do Claude Code')
+      } catch (err) {
+        aviso(err.message, 'erro')
+      }
       return desenhar()
     }
     const oc = e.target.closest('[data-ocultar]')
