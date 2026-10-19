@@ -83,6 +83,13 @@ def versoes(projeto: Path) -> list[int]:
     return sorted(int(v.name[1:]) for v in projeto.glob('versoes/v*') if v.name[1:].isdigit() and (v / 'proxy.mp4').is_file())
 
 
+def ultima_edicao(p: Path, vs: list[int]) -> float:
+    """Quando o projeto foi mexido pela última vez: a versão mais nova, um comentário ou bloco finalizado nas revisões
+    (o app grava sozinho) ou a edição (edicao.json). É a ordem "Recentes" e a data do card."""
+    arqs = [p / 'versoes' / f'v{vs[-1]}' / 'proxy.mp4', p / 'edicao.json', *(p / 'revisoes').glob('v*.json')]
+    return max(a.stat().st_mtime for a in arqs if a.is_file())
+
+
 def projetos() -> list[dict]:
     """Os projetos com ao menos uma versão, do mais recente para o mais antigo, com o estado da revisão da última."""
     lista = []
@@ -105,7 +112,7 @@ def projetos() -> list[dict]:
                       'comentarios': len(rev.get('comentarios', [])),
                       'conclusao': (100 if estado == 'aprovado' else round(100 * sum(1 for b in blocos if b.get('aprovado')) / len(blocos))) if blocos else None,
                       'saidas': len(ed.get('saidas') or []), 'tem_final': any((p / 'final').rglob('*.mp4')) if (p / 'final').is_dir() else False,
-                      'atualizado': (p / 'versoes' / f'v{ultima}' / 'proxy.mp4').stat().st_mtime})
+                      'atualizado': ultima_edicao(p, vs)})
     return sorted(lista, key=lambda x: -x['atualizado'])
 
 
