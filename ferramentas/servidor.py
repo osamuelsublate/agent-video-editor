@@ -464,6 +464,20 @@ def _aprovar_projeto(h, q, slug):
     return {'versao': vs[-1]}
 
 
+@rota('POST', r'/api/projetos/([\w-]+)/desaprovar')
+def _desaprovar_projeto(h, q, slug):
+    """Desfazer a aprovação: a revisão aprovada mais nova perde o `aprovado` e o projeto volta para Em edição. O final já
+    exportado (final/) fica onde está."""
+    for v in reversed(versoes(PROJETOS / slug)):
+        arq = PROJETOS / slug / 'revisoes' / f'v{v}.json'
+        rev = ler_json(arq, None)
+        if rev and rev.get('aprovado'):
+            rev['aprovado'] = False
+            gravar_json(arq, rev)
+            return {'versao': v}
+    raise Erro('Este projeto não está aprovado.', 422)
+
+
 @rota('PUT', r'/api/projetos/([\w-]+)/oculto')
 def _ocultar_projeto(h, q, slug):
     """Ocultar: o projeto sai da lista de Projetos (ou de CTAs) e vai para a vista Ocultos; nada mais muda."""

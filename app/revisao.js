@@ -694,6 +694,7 @@ class Revisao {
   renderAprovar() {
     const b = $('#b-aprovar')
     b.innerHTML = this.rev.aprovado ? `${ICONE.check} Aprovado` : 'Aprovar'
+    b.title = this.rev.aprovado ? 'Aprovado · clique para desaprovar' : 'Aprovar o vídeo todo: o Claude exporta o final em 4K'
     b.classList.toggle('botao-menta', !!this.rev.aprovado)
     b.classList.toggle('botao-coral', !this.rev.aprovado)
   }
@@ -1282,14 +1283,21 @@ class Revisao {
   async aprovar() {
     if (this.editor) this.salvarEditor()
     const texto = `Aprovado · ${this.slug} · v${this.v}`
-    if (!this.rev.aprovado) {
-      const ok = await confirmar({ titulo: 'Aprovar o vídeo?', texto: 'O Claude exporta o vídeo final em 4K.', ok: 'Aprovar e copiar' })
+    if (this.rev.aprovado) { // já aprovado: o clique oferece desfazer
+      const ok = await confirmar({ titulo: 'Desaprovar o vídeo?', texto: 'Ele volta para Em edição. O final já exportado fica onde está.', ok: 'Desaprovar', perigo: true })
       if (!ok) return
-      this.rev.aprovado = true
+      this.rev.aprovado = false
       await this.salvar()
       this.renderVersoes()
       this.renderEstado()
+      return aviso('Desaprovado: o vídeo voltou para Em edição')
     }
+    const ok = await confirmar({ titulo: 'Aprovar o vídeo?', texto: 'O Claude exporta o vídeo final em 4K.', ok: 'Aprovar e copiar' })
+    if (!ok) return
+    this.rev.aprovado = true
+    await this.salvar()
+    this.renderVersoes()
+    this.renderEstado()
     await copiar(texto)
     aviso('Copiado — cole no chat do Claude Code')
   }

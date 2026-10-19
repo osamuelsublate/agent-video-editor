@@ -86,7 +86,8 @@ async function inicio(tela, ctas = false) {
     return `<div class="caixa-projeto" data-slug="${esc(p.slug)}">
       <button class="apagar-projeto" data-apagar title="Apagar o projeto" aria-label="Apagar ${esc(p.nome)}">${ICONE.lixo}</button>
       <button class="apagar-projeto ocultar-projeto" data-ocultar title="${p.oculto ? 'Mostrar de novo na lista' : 'Ocultar (sai da lista e vai para Ocultos)'}" aria-label="${p.oculto ? 'Mostrar' : 'Ocultar'} ${esc(p.nome)}">${p.oculto ? ICONE.olho : ICONE.olhoFechado}</button>
-      ${p.estado !== 'aprovado' ? `<button class="aprovar-projeto" data-aprovar-projeto title="Aprovar o vídeo (copia o “Aprovado” para colar no chat do Claude)" aria-label="Aprovar ${esc(p.nome)}">${ICONE.check}</button>` : ''}
+      ${p.estado !== 'aprovado' ? `<button class="aprovar-projeto" data-aprovar-projeto title="Aprovar o vídeo (copia o “Aprovado” para colar no chat do Claude)" aria-label="Aprovar ${esc(p.nome)}">${ICONE.check}</button>`
+        : `<button class="aprovar-projeto desaprovar-projeto" data-desaprovar-projeto title="Desaprovar (volta para Em edição)" aria-label="Desaprovar ${esc(p.nome)}">${ICONE.refazer}</button>`}
       ${p.tem_final ? `<button class="abrir-exports" data-abrir-final title="Abrir a pasta dos exports no Finder" aria-label="Abrir os exports de ${esc(p.nome)}">${ICONE.abrir}</button>` : ''}
       <a class="card-projeto" href="#/p/${encodeURIComponent(p.slug)}">
       <div class="mini mini-916"><video muted playsinline preload="metadata" src="${proxy}#t=1.5"></video>
@@ -236,6 +237,19 @@ async function inicio(tela, ctas = false) {
         await copiar(`Aprovado · ${p.slug} · v${versao}`)
         p.estado = 'aprovado'
         aviso('Aprovado e copiado: cole no chat do Claude Code')
+      } catch (err) {
+        aviso(err.message, 'erro')
+      }
+      return desenhar()
+    }
+    const dp = e.target.closest('[data-desaprovar-projeto]')
+    if (dp) {
+      const p = todos.find((x) => x.slug === dp.closest('.caixa-projeto').dataset.slug)
+      if (!(await confirmar({ titulo: `Desaprovar “${p.nome}”?`, texto: 'Ele volta para Em edição. O final já exportado fica onde está.', ok: 'Desaprovar', perigo: true }))) return
+      try {
+        await enviar('POST', `/api/projetos/${encodeURIComponent(p.slug)}/desaprovar`)
+        p.estado = 'em_revisao'
+        aviso(`“${p.nome}” voltou para Em edição`)
       } catch (err) {
         aviso(err.message, 'erro')
       }
