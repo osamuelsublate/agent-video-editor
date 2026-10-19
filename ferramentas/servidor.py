@@ -103,7 +103,7 @@ def projetos() -> list[dict]:
         lista.append({'slug': p.name, 'nome': ed.get('nome') or p.name, 'formato': ed.get('formato') or 'reels',
                       'tags': ed.get('tags') or [], 'oculto': bool(ed.get('oculto')), 'versoes': vs, 'ultima': ultima, 'duracao': info.get('duracao'), 'estado': estado,
                       'comentarios': len(rev.get('comentarios', [])),
-                      'conclusao': round(100 * sum(1 for b in blocos if b.get('aprovado')) / len(blocos)) if blocos else None,
+                      'conclusao': (100 if estado == 'aprovado' else round(100 * sum(1 for b in blocos if b.get('aprovado')) / len(blocos))) if blocos else None,
                       'saidas': len(ed.get('saidas') or []), 'tem_final': any((p / 'final').rglob('*.mp4')) if (p / 'final').is_dir() else False,
                       'atualizado': (p / 'versoes' / f'v{ultima}' / 'proxy.mp4').stat().st_mtime})
     return sorted(lista, key=lambda x: -x['atualizado'])

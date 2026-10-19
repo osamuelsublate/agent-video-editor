@@ -311,8 +311,8 @@ kbd {
 .ajuda:hover { border-color: var(--color-cream-50); color: var(--color-cream); }
 .grade { display: grid; gap: 32px 20px; }
 .grade-projetos { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
-.pagina-inicio .grade-projetos { grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 20px 16px; } /* Projetos e CTAs: 8 por linha */
-@media (max-width: 1500px) { .pagina-inicio .grade-projetos { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); } }
+.pagina-inicio .grade-projetos { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 24px 18px; } /* Projetos e CTAs: 6 por linha */
+@media (max-width: 1000px) { .pagina-inicio .grade-projetos { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 .grade-banco { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 32px 24px; }
 .grade-transicoes { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); }
 .grade-presets { grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 32px 24px; }
@@ -333,7 +333,7 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 .sub { margin-top: 2px; font-size: 11px; color: var(--color-fog); }
 .desc { margin-top: 2px; font-size: 12px; line-height: 1.5; color: rgba(250, 247, 238, 0.85); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .card-projeto { display: block; text-decoration: none; }
-.card-projeto h3 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card-projeto h3 { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; } /* o nome inteiro, em até 2 linhas */
 /* a lixeira do card (como no 18): aparece com o mouse em cima, no canto de cima à esquerda */
 .caixa-projeto { position: relative; }
 .apagar-projeto {
