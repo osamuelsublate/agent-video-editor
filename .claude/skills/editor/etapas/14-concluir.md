@@ -86,7 +86,7 @@ gostos daquele formato). As etapas leem os dois.
 2. **Não apague.** Com o vídeo aprovado, os selos do banco se resolvem sozinhos (`banco.estados`, a partir da versão
    aprovada): o que entrou no vídeo vira **Usado em vídeo** (com o chip do projeto e do plano), e o que você trouxe para
    este projeto e ficou de fora vira **Recusado**. As recusadas só saem quando o criador clica em "Limpar recusados" no
-   Banco do app (vão para `biblioteca/banco/_lixeira/`, recuperável); antes disso ele pode promover qualquer uma a
+   Banco do app (são apagadas de vez, sem lixeira); antes disso ele pode promover qualquer uma a
    **Aprovado** (boa, mesmo sem uso). Os motions usados no vídeo ganham o mesmo selo de uso.
 3. **Melhore a descrição** das que ficaram, para servirem de novo: nome claro, descrição do que aparece e do que ela
    ilustrou ("home da Anthropic, título serifado em fundo creme; usada como exemplo de 'clichê de site de IA'"),

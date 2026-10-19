@@ -215,10 +215,9 @@ def renomear_tag(de: str, para: str) -> int:
 
 
 def limpar_recusados() -> list[str]:
-    """Leva para a lixeira do banco (`banco/_lixeira/<id>-<data>`) os originais recusados, com os trechos: nunca o que o
-    criador subiu, nem o que algum projeto ainda usa. Devolve os ids levados."""
+    """Apaga de vez (decisão do criador: nada de lixeira) os originais recusados, com os trechos: nunca o que o criador
+    subiu, nem o que algum projeto ainda usa. Devolve os ids apagados."""
     est, em_uso = estados(), usos()
-    lixeira = RAIZ / '_lixeira'
     levados = []
     for i in todos():
         if i.get('pai') or est.get(i['id'], {}).get('estado') != 'recusado' or i.get('do_criador'):
@@ -226,12 +225,25 @@ def limpar_recusados() -> list[str]:
         ids = [i['id']] + [t['id'] for t in todos() if t.get('pai') == i['id']]
         if any(em_uso.get(x) for x in ids):
             continue
-        lixeira.mkdir(exist_ok=True)
-        carimbo = datetime.now().strftime('%Y%m%d-%H%M%S')
         for x in ids:
-            shutil.move(str(pasta_item(x)), str(lixeira / f'{x}-{carimbo}'))
+            shutil.rmtree(pasta_item(x), ignore_errors=True)
         levados += ids
     return levados
+
+
+def lixeira() -> dict:
+    """O que sobrou na lixeira antiga do banco (`banco/_lixeira/`, de quando o Limpar recusados não apagava): quantos
+    itens e quanto ocupam."""
+    pasta_lixo = RAIZ / '_lixeira'
+    itens = [p for p in pasta_lixo.iterdir() if p.is_dir()] if pasta_lixo.is_dir() else []
+    return {'itens': len(itens), 'bytes': sum(f.stat().st_size for p in itens for f in p.rglob('*') if f.is_file())}
+
+
+def esvaziar_lixeira() -> int:
+    """Apaga de vez a lixeira do banco. Devolve quantos itens saíram."""
+    n = lixeira()['itens']
+    shutil.rmtree(RAIZ / '_lixeira', ignore_errors=True)
+    return n
 
 
 def apagar(bid: str) -> list[str]:

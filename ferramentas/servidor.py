@@ -24,7 +24,8 @@ Rotas (JSON; um erro volta como {"erro": "…"}, com 422 numa validação):
 - GET /api/presets/amostras (o ator e as mídias do banco da simulação dos presets, render/preset.html)
   · PUT /api/presets/<id> {aprovado} · PUT /api/presets/ordem {chave, ids, favoritos} · PUT /api/transicoes/<id> {aprovado}
   · PUT /api/transicoes/ordem {chave, ids, favoritas} · GET|PUT|DELETE /api/banco/<id> ({estado} marca o selo à mão; {tags} as tags, aninhadas com /) · PUT /api/motions/<id>/tags {tags} · PUT /api/referencias/<id>/tags {inicio, fim, tags} · POST /api/tags/<banco|motions|referencias> {de, para} (renomeia ou tira em todos) · GET /api/estados (selos do banco e usos dos motions nos
-  vídeos aprovados) · POST /api/limpar-recusados · POST /api/banco (subir: o arquivo cru, nome em X-Nome) ·
+  vídeos aprovados) · POST /api/limpar-recusados (apaga de vez) · GET /api/banco-lixeira · POST
+  /api/banco-lixeira/esvaziar (a lixeira antiga do banco) · POST /api/banco (subir: o arquivo cru, nome em X-Nome) ·
   POST /api/banco/<id>/trechos {inicio, fim, nome} · POST /api/banco/<id>/recorte {x, y, w, h} (px do original: um
   item novo com o quadro recortado; banco.py recortar) · GET /api/banco/<id>/tira · PUT /api/motions/<id>/aprovar.
 - Recusar: GET /api/presets/<id>/usos e /api/motions/<id>/usos (os projetos que usam) · POST /api/presets/<id>/recusar
@@ -950,6 +951,16 @@ def _renomear_tag(h, q, onde):
 @rota('POST', '/api/limpar-recusados')
 def _limpar_recusados(h, q):
     return {'levados': _banco().limpar_recusados()}
+
+
+@rota('GET', '/api/banco-lixeira')
+def _lixeira_banco(h, q):
+    return _banco().lixeira()
+
+
+@rota('POST', '/api/banco-lixeira/esvaziar')
+def _esvaziar_lixeira_banco(h, q):
+    return {'apagados': _banco().esvaziar_lixeira()}
 
 
 @rota('PUT', r'/api/banco/(\w+)')
