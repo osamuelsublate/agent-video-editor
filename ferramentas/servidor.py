@@ -208,8 +208,8 @@ def _revisao(h, q, slug, v):  # o app grava a revisão inteira
     if not rev['mexido_em']:
         rev.pop('mexido_em')
     gravar_json(destino, rev)
-    if rev.get('aprovado') and not antes.get('aprovado') and eh_cta(slug):
-        exportar_cta(slug)  # o Aprovar da revisão num CTA: o final sai logo, como pelo card
+    if rev.get('aprovado') and not antes.get('aprovado'):  # o Aprovar da revisão: o mesmo que pelo card
+        exportar_cta(slug) if eh_cta(slug) else pre_render_final(slug)
     return {'ok': True}
 
 
@@ -531,6 +531,16 @@ def eh_cta(slug: str) -> bool:
 def exportar_cta(slug: str) -> None:
     """Um CTA aprovado é exportado logo, em segundo plano (`render.py <cta> --final`): as saídas que o plugam usam esse final
     pronto (`etapas/12-final.md`). Um export dele já rodando: não começa outro. O log fica em `.cache/export-final.log`."""
+    _em_segundo_plano(slug, ['--final'])
+
+
+def pre_render_final(slug: str) -> None:
+    """Um corpo aprovado tem a camada dos inserts e motions fotografada em 4K logo, em segundo plano (`render.py <slug>
+    --camadas --final`): o export das saídas, quando o criador pedir, só monta (a foto do 4K é a maior parte dele)."""
+    _em_segundo_plano(slug, ['--camadas', '--final'])
+
+
+def _em_segundo_plano(slug: str, args: list[str]) -> None:
     trava = PROJETOS / slug / '.cache' / 'exportando.json'
     pid = (ler_json(trava, {}) or {}).get('pid')
     if pid:
@@ -541,7 +551,7 @@ def exportar_cta(slug: str) -> None:
             pass
     trava.parent.mkdir(parents=True, exist_ok=True)
     log = open(PROJETOS / slug / '.cache' / 'export-final.log', 'w')
-    pr = subprocess.Popen(['uv', 'run', str(RAIZ / 'ferramentas' / 'render.py'), slug, '--final'], cwd=RAIZ, stdout=log,
+    pr = subprocess.Popen(['uv', 'run', str(RAIZ / 'ferramentas' / 'render.py'), slug, *args], cwd=RAIZ, stdout=log,
                           stderr=subprocess.STDOUT, start_new_session=True)
     gravar_json(trava, {'pid': pr.pid, 'desde': agora_iso()})
 
@@ -559,8 +569,7 @@ def _aprovar_projeto(h, q, slug):
     rev['mexido_em'] = agora_iso()
     gravar_json(arq, rev)
     aprovar_saidas(slug, True)
-    if eh_cta(slug):
-        exportar_cta(slug)
+    exportar_cta(slug) if eh_cta(slug) else pre_render_final(slug)
     return {'versao': vs[-1]}
 
 

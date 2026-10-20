@@ -11,7 +11,7 @@ from . import look as look_mod
 from . import sons
 from . import transicoes as transicoes_mod
 
-NAVEGADORES = 6  # navegadores fotografando em paralelo
+NAVEGADORES = 8  # navegadores fotografando em paralelo
 FADE = 0.015  # s de fade do áudio em cada emenda, contra estalos
 
 
