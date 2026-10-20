@@ -77,17 +77,18 @@ class Revisao {
   }
 
   async abrir() {
-    const [rev, cods, edicao, infoCorpo] = await Promise.all([json(this.urlRevisao, null), codigos(), json(this.base + 'edicao.json', {}), json(this.base + 'info.json', {})])
-    // as saídas desta versão (corpo + final): as que têm prévia aqui; a escolhida fica guardada por projeto
+    const [rev, cods, edicao, infoCorpo] = await Promise.all([json(this.urlRevisao, null), codigos(), json(`/projetos/${encodeURIComponent(this.slug)}/edicao.json?${Date.now()}`, {}), json(this.base + 'info.json', {})])
+    // as saídas do projeto (corpo + final), com a prévia desta versão (uma nova só tem prévia na próxima versão); a
+    // escolhida fica guardada por projeto
     this.saidas = []
     for (const x of (edicao.saidas || []).filter((x) => x?.final)) {
       const info = x.final.tipo === 'nenhum' ? null : await json(`${this.base}saidas/${x.id}/info.json`, null)
-      if (info || x.final.tipo === 'nenhum') this.saidas.push({ id: x.id, destino: x.destino, tipo: x.final.tipo, cta: x.final.cta, aprovado: !!x.aprovado, info })
+      this.saidas.push({ id: x.id, destino: x.destino, tipo: x.final.tipo, cta: x.final.cta, aprovado: !!x.aprovado, info })
     }
     this.corpoDur = infoCorpo?.duracao || 0
     const pedida = preferencia(`saida.${this.slug}`, null)
-    this.saidaId = this.saidas.find((x) => x.id === pedida && x.info)?.id ?? this.saidas.find((x) => x.info)?.id ?? null
-    this.dir = this.saidaId ? `${this.base}saidas/${this.saidaId}/` : this.base
+    this.saidaId = this.saidas.find((x) => x.id === pedida)?.id ?? this.saidas.find((x) => x.info)?.id ?? null
+    this.dir = this.saidaAtual()?.info ? `${this.base}saidas/${this.saidaId}/` : this.base // a sem final é o próprio corpo
     const [palavras, planos, info] = await Promise.all([json(this.dir + 'palavras.json', []), json(this.dir + 'planos.json', []), json(this.dir + 'info.json', {})])
     this.codigo = cods.projeto?.[this.slug]
     this.cods = cods
@@ -701,9 +702,10 @@ class Revisao {
     const rotulo = (x) => `${esc(x.destino)}${x.aprovado ? ' ✓' : ''}`
     el.innerHTML = `${this.saidas.length ? `<label class="cta-categoria escolha-saida" title="A saída: o corpo seguido do final dela">
         <span>${sx ? `Saída · ${rotulo(sx)}` : 'Só o corpo'}</span>${ICONE.seta_baixo}
-        <select data-trocar-saida aria-label="Saída">${this.saidas.map((x) => `<option value="${esc(x.id)}"${x.id === this.saidaId ? ' selected' : ''}${x.info ? '' : ' disabled'}>${rotulo(x)}${x.tipo === 'nenhum' ? ' (o corpo)' : ''}</option>`).join('')}
+        <select data-trocar-saida aria-label="Saída">${this.saidas.map((x) => `<option value="${esc(x.id)}"${x.id === this.saidaId ? ' selected' : ''}${x.info || x.tipo === 'nenhum' ? '' : ' disabled'}>${rotulo(x)}${x.tipo === 'nenhum' ? ' (o corpo)' : x.info ? '' : ' (na próxima versão)'}</option>`).join('')}
           <option value=""${this.saidaId ? '' : ' selected'}>Só o corpo</option></select></label>` : ''}
       ${sx ? `<button class="botao pequeno aprovar-saida${sx.aprovado ? ' feito' : ''}" data-aprovar-saida="${esc(sx.id)}" title="${sx.aprovado ? 'Saída aprovada · clique para desaprovar' : 'Aprovar só esta saída: o Claude exporta ela'}">${ICONE.check} ${sx.aprovado ? 'Saída aprovada' : 'Aprovar saída'}</button>` : ''}
+      ${sx ? `<button class="botao-icone pequeno" data-tirar-saida="${esc(sx.id)}" title="Remover a saída ${esc(sx.destino)}" aria-label="Remover a saída ${esc(sx.destino)}">${ICONE.lixo}</button>` : ''}
       <button class="botao pequeno" data-nova-saida title="Uma saída nova com um CTA gravado à parte (os finais falados, peça ao Claude)">${ICONE.mais} Saída</button>`
   }
 
@@ -711,7 +713,7 @@ class Revisao {
   async trocarSaida(id) {
     preferencia(`saida.${this.slug}`, null, id || null)
     this.saidaId = id || null
-    this.dir = this.saidaId ? `${this.base}saidas/${this.saidaId}/` : this.base
+    this.dir = this.saidaAtual()?.info ? `${this.base}saidas/${this.saidaId}/` : this.base // a sem final é o próprio corpo
     const t = this.video.currentTime
     const [palavras, planos, info] = await Promise.all([json(this.dir + 'palavras.json', []), json(this.dir + 'planos.json', []), json(this.dir + 'info.json', {})])
     this.palavras = listaDe(palavras, 'palavras').slice().sort((a, b) => a.ini - b.ini)
@@ -725,6 +727,20 @@ class Revisao {
     this.renderSaidas()
     this.renderLista()
     this.renderLinha()
+  }
+
+  /** Remover uma saída: some do projeto (as prévias e os arquivos já exportados ficam onde estão). */
+  async tirarSaida(id) {
+    const sx = this.saidas.find((x) => x.id === id)
+    if (!(await confirmar({ titulo: `Remover a saída ${sx.destino}?`, texto: 'Ela sai do projeto. O arquivo que já foi exportado fica na pasta final.', ok: 'Remover', perigo: true }))) return
+    try {
+      await enviar('DELETE', `/api/projetos/${encodeURIComponent(this.slug)}/saidas/${encodeURIComponent(id)}`)
+      this.saidas = this.saidas.filter((x) => x !== sx)
+      aviso(`Saída ${sx.destino} removida`)
+      await this.trocarSaida(this.saidas.find((x) => x.info || x.tipo === 'nenhum')?.id || '')
+    } catch (e) {
+      aviso(e.message, 'erro')
+    }
   }
 
   async aprovarSaida(id) {
@@ -1627,7 +1643,7 @@ class Revisao {
     this.tela.addEventListener('click', this.cliques)
     $('#barra-versao').addEventListener('click', this.cliques)
     this.trocaSaida = (e) => e.target.matches('[data-trocar-saida]') && this.trocarSaida(e.target.value)
-    $('#barra-versao').addEventListener('change', this.trocaSaida)
+    this.tela.addEventListener('change', this.trocaSaida) // o seletor fica no painel da direita
     this.teclas = (e) => this.tecla(e)
     window.addEventListener('keydown', this.teclas)
     this.redim = () => this.ajustar && this.renderLinha()
@@ -1773,6 +1789,7 @@ class Revisao {
     if (d.sairBloco != null) return this.escolherBloco(null)
     if (d.aprovarSaida) return this.aprovarSaida(d.aprovarSaida)
     if (d.novaSaida != null) return this.novaSaida()
+    if (d.tirarSaida) return this.tirarSaida(d.tirarSaida)
     if (d.irVelho != null) return this.buscar(+d.irVelho) // um comentário de uma versão anterior: só vai ao ponto
     if (d.novidade) return this.abrirBloco(d.novidade)
     if (d.bloco) return this.abrirBloco(d.bloco)
@@ -1902,7 +1919,7 @@ class Revisao {
 
   fechar() {
     $('#barra-versao').removeEventListener('click', this.cliques)
-    $('#barra-versao').removeEventListener('change', this.trocaSaida)
+    this.tela.removeEventListener('change', this.trocaSaida)
     this.guardarPosicao()
     this.fechado = true
     if (this.sujo) this.salvar(true)
