@@ -208,6 +208,8 @@ def _revisao(h, q, slug, v):  # o app grava a revisão inteira
     if not rev['mexido_em']:
         rev.pop('mexido_em')
     gravar_json(destino, rev)
+    if rev.get('aprovado') and not antes.get('aprovado') and eh_cta(slug):
+        exportar_cta(slug)  # o Aprovar da revisão num CTA: o final sai logo, como pelo card
     return {'ok': True}
 
 
@@ -519,6 +521,31 @@ def _nome_projeto(h, q, slug):
     return {'nome': nome}
 
 
+def eh_cta(slug: str) -> bool:
+    """O projeto é um CTA (a página CTAs): a categoria dele (`formato`) tem "CTA" no nome."""
+    cat = (ler_json(PROJETOS / slug / 'edicao.json', {}) or {}).get('formato')
+    nomes = {c.get('id'): c.get('nome', '') for c in ler_json(BIBLIOTECA / 'categorias-video.json', []) or []}
+    return 'cta' in (nomes.get(cat) or cat or '').lower()
+
+
+def exportar_cta(slug: str) -> None:
+    """Um CTA aprovado é exportado logo, em segundo plano (`render.py <cta> --final`): as saídas que o plugam usam esse final
+    pronto (`etapas/12-final.md`). Um export dele já rodando: não começa outro. O log fica em `.cache/export-final.log`."""
+    trava = PROJETOS / slug / '.cache' / 'exportando.json'
+    pid = (ler_json(trava, {}) or {}).get('pid')
+    if pid:
+        try:
+            os.kill(pid, 0)
+            return
+        except OSError:
+            pass
+    trava.parent.mkdir(parents=True, exist_ok=True)
+    log = open(PROJETOS / slug / '.cache' / 'export-final.log', 'w')
+    pr = subprocess.Popen(['uv', 'run', str(RAIZ / 'ferramentas' / 'render.py'), slug, '--final'], cwd=RAIZ, stdout=log,
+                          stderr=subprocess.STDOUT, start_new_session=True)
+    gravar_json(trava, {'pid': pr.pid, 'desde': agora_iso()})
+
+
 @rota('POST', r'/api/projetos/([\w-]+)/aprovar')
 def _aprovar_projeto(h, q, slug):
     """Aprovar pelo card do projeto: a revisão da última versão ganha `aprovado` (o resto dela fica como está), como o
@@ -532,6 +559,8 @@ def _aprovar_projeto(h, q, slug):
     rev['mexido_em'] = agora_iso()
     gravar_json(arq, rev)
     aprovar_saidas(slug, True)
+    if eh_cta(slug):
+        exportar_cta(slug)
     return {'versao': vs[-1]}
 
 

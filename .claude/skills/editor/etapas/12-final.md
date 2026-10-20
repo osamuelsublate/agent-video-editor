@@ -10,8 +10,8 @@ vídeo" do banco e dos motions saem da versão aprovada.
 disser; um "aprovado" sem pedido de export: marque, conclua (`14-concluir.md`) e pergunte o que exportar e para onde.
 
 **O CTA aprovado é pré-exportado** (a exceção): o projeto da página CTAs é uma peça que entra pronta nos corpos, pelas
-saídas. Aprovou um CTA (ou uma versão nova dele) → exporte o final dele em segundo plano, logo, sem perguntar
-(`render.py <cta> --final`; para não esperar a foto do 4K, rode `--camadas --final` assim que entregar a versão que pode
+saídas. Aprovou um CTA (ou uma versão nova dele) → o app já dispara o export do final em segundo plano (`servidor.exportar_cta`, log
+em `.cache/export-final.log`); aprovado pelo chat, exporte você, logo, sem perguntar (`render.py <cta> --final`; para não esperar a foto do 4K, rode `--camadas --final` assim que entregar a versão que pode
 ser a aprovada). Quem pluga o CTA não renderiza nem abre o projeto dele: usa esse final (ver as saídas, abaixo e em
 `02-cortes.md`). Para conferir o que falta: um CTA aprovado cujo final em `final/` é mais velho que a versão aprovada
 precisa ser exportado de novo. (2026-10-19/20: o criador parou o export de 16 CTAs quando eu comecei sem combinar, e

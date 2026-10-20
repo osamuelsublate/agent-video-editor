@@ -33,7 +33,7 @@ pasta, avise o criador antes de publicar.
 
 1. Liste `final/saidas/` (e `final/`) e confira que cada vídeo tem o `.md` ao lado; mostre a lista ao criador com a
    duração de cada um (`ffprobe`).
-2. Os arquivos são 2160×3840 (4K), 24 fps, HEVC, −14 LUFS. Para as redes, a versão 1080p H.264 sai na hora de agendar
+2. Os arquivos são 2160×3840 (4K), 24 fps, HEVC, −14 LUFS. Para as redes, a versão 4K em H.264 sai na hora de agendar
    (seção do Metricool).
 
 ## 3. Drive
@@ -130,18 +130,16 @@ hora); só agende depois de um "sim". Data = o Prazo do card; sem hora definida,
 Por rede: Instagram `instagramData.type: "REEL"`; YouTube `youtubeData.type: "short"`, com `title` e
 `madeForKids: false`; TikTok `tiktokData` com o `title`. `autoPublish: true` (publica sozinho).
 
-**O que vai pelo Metricool é sempre a versão para redes: 1080×1920, H.264.** O final do editor (4K 2160×3840, HEVC)
-fica como master (Drive, anúncios): mandado direto, o TikTok recodifica o 4K HEVC e o vídeo sai borrado (o Metricool
-repassa o arquivo sem mexer; no Instagram, em 19/10, o 4K HEVC saiu bom, mas a especificação dele pede H.264 até
-1920 px). Mande a mesma versão para todas as redes. Gere ao lado da saída e suba
-na mesma pasta do Drive; use o link desse arquivo no `media`:
+**O que vai pelo Metricool é 4K (2160×3840) a 24 fps, em H.264.** O criador quer 4K nas redes: elas sempre recomprimem,
+e um 1080p sai mais estragado que um 4K (2026-10-20). O que borrou no TikTok em 19/10 foi o **HEVC** (ele recodifica mal);
+por isso a versão das redes é o mesmo 4K do editor recodificado em H.264, uma para todas as redes. Gere ao lado da saída e
+suba na mesma pasta do Drive; use o link desse arquivo no `media`:
 ```bash
-ffmpeg -i "<saída>.mp4" -vf "scale=1080:1920:flags=lanczos,format=yuv420p" -c:v libx264 -preset slow \
-  -profile:v high -level 4.1 -crf 16 -maxrate 16M -bufsize 32M -g 48 -keyint_min 48 -sc_threshold 0 \
-  -color_primaries bt709 -color_trc bt709 -colorspace bt709 -c:a aac -b:a 256k -ar 48000 -movflags +faststart \
-  "<saída> (redes).mp4"
+ffmpeg -i "<saída>.mp4" -c:v libx264 -preset slow -profile:v high -level 5.2 -crf 16 -maxrate 45M -bufsize 90M \
+  -pix_fmt yuv420p -g 48 -keyint_min 48 -sc_threshold 0 -color_primaries bt709 -color_trc bt709 -colorspace bt709 \
+  -c:a aac -b:a 256k -ar 48000 -movflags +faststart "<saída> (redes).mp4"
 ```
-(mantém os 24 fps do editor; ~11 Mbps num Reels de 45 s, ~60 MB).
+(mantém os 24 fps do editor; ~35 Mbps num Reels de 45 s, ~200 MB). O 4K HEVC original fica como master (Drive, anúncios).
 
 O Metricool copia o vídeo do Drive para ele na hora (`media` volta como `static.metricool.com/...`): o link
 `https://drive.google.com/file/d/<id>/view` basta (id pelo `rclone lsjson`). Ele recusa horário no passado: confira a
