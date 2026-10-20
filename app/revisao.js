@@ -813,24 +813,25 @@ class Revisao {
     const tags = [...new Set(ctas.flatMap((p) => p.tags || []))].sort()
     // os escolhidos, na ordem do clique: slug do CTA ('' = nenhum, o corpo puro) → o destino (o nome da saída)
     const escolhidos = new Map()
-    const nomeDe = (slug) => (slug ? ctas.find((p) => p.slug === slug)?.nome || slug : 'Nenhum (o corpo puro)')
-    const destinoPadrao = (slug) => (slug ? nomeDe(slug).replace(/^\s*CTA\b[\s·:-]*/i, '').trim() || nomeDe(slug) : 'Corpo')
+    const nomeDe = (slug) => (slug ? ctas.find((p) => p.slug === slug)?.nome || slug : 'Só o corpo (sem CTA)')
+    const destinoPadrao = (slug) => (slug ? nomeDe(slug).replace(/^\s*CTA\b[\s·:-]*/i, '').trim() || nomeDe(slug) : 'Só o corpo')
     let tag = ''
     const card = (p) => `<div class="cta-escolha" data-escolher-cta="${esc(p.slug)}" data-busca="${esc(`${p.nome} ${(p.tags || []).join(' ')}`.toLowerCase())}" data-tags="${esc((p.tags || []).join('|'))}">
-        <div class="mini mini-916"><video muted playsinline preload="metadata" src="/projetos/${encodeURIComponent(p.slug)}/versoes/v${p.ultima}/proxy.mp4#t=1.5"></video>
+        <div class="mini mini-916"><video muted playsinline preload="metadata" src="/projetos/${encodeURIComponent(p.slug || this.slug)}/versoes/v${p.ultima}/proxy.mp4#t=1.5"></video>
           <button type="button" class="tocar-card" data-tocar-cta title="Tocar com som (clique de novo para pausar)" aria-label="Tocar ${esc(p.nome)}">${ICONE.tocar}</button>
           ${p.duracao ? `<span class="duracao-mini">${mmss(p.duracao)}</span>` : ''}</div>
         <h3 title="${esc(p.nome)}">${esc(p.nome)}</h3>
+        ${p.dica ? `<p class="dica">${esc(p.dica)}</p>` : ''}
         ${p.tags?.length ? `<div class="tags-cta">${p.tags.map((t) => `<button type="button" class="tag" data-filtrar-tag="${esc(t)}">${esc(t)}</button>`).join('')}</div>` : ''}</div>`
     const { el, fechar } = janela(`<header class="janela-cabeca"><h2>Nova saída</h2><button class="botao-icone" data-fechar title="Fechar (Esc)">${ICONE.fechar}</button></header>
       <form class="form-saida form-saida-ctas">
         <div class="filtros-cta"><input type="search" name="busca" placeholder="Buscar CTA por nome ou tag…" aria-label="Buscar CTA">
           ${tags.length ? `<div class="tags-cta">${tags.map((t) => `<button type="button" class="tag" data-filtrar-tag="${esc(t)}">${esc(t)}</button>`).join('')}</div>` : ''}</div>
-        <div class="grade-ctas">${ctas.map(card).join('') || '<p class="dica">Nenhum CTA aprovado ainda (página CTAs).</p>'}</div>
+        <div class="grade-ctas">${card({ slug: '', nome: 'Só o corpo (sem CTA)', dica: 'O vídeo termina no corpo', ultima: this.v, duracao: this.proj?.duracao, tags: [] })}
+          ${ctas.map(card).join('') || '<p class="dica">Nenhum CTA aprovado ainda (página CTAs).</p>'}</div>
         <div class="escolhidos-saida" id="escolhidos-saida"></div>
         <div class="pe-saida">
-          <button type="button" class="botao pequeno" data-escolher-cta="" title="A saída sem final: o corpo puro">Nenhum (o corpo puro)</button>
-          <p class="dica">Escolha um ou vários CTAs; cada um vira uma saída, com o nome do destino (LP, VSL, Isca…). Um final falado, peça ao Claude no chat.</p>
+          <p class="dica">Escolha um ou vários CTAs (ou só o corpo, para o vídeo terminar sem CTA); cada um vira uma saída, com o nome do destino (LP, VSL, Isca…). Um final falado, peça ao Claude no chat.</p>
           <button class="botao pequeno botao-coral" disabled>Criar saída</button></div>
       </form>`, { classe: 'janela-ctas' })
     const form = $('form', el)
@@ -852,7 +853,7 @@ class Revisao {
     }
     const filtrar = () => {
       const q = form.busca.value.trim().toLowerCase()
-      for (const c of $$('.cta-escolha', el)) c.hidden = (q && !c.dataset.busca.includes(q)) || (tag && !c.dataset.tags.split('|').includes(tag))
+      for (const c of $$('.cta-escolha:not([data-escolher-cta=""])', el)) c.hidden = (q && !c.dataset.busca.includes(q)) || (tag && !c.dataset.tags.split('|').includes(tag))
       for (const b of $$('.filtros-cta [data-filtrar-tag]', el)) b.classList.toggle('ativa', b.dataset.filtrarTag === tag)
     }
     form.busca.addEventListener('input', filtrar)
