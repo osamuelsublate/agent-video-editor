@@ -48,13 +48,15 @@ rclone copy "<arquivo>" asimov: --drive-root-folder-id <id da pasta> --drive-chu
   --contimeout 30s --timeout 60s --low-level-retries 3 -v --stats 15s --stats-one-line
 rclone lsl asimov: --drive-root-folder-id <id da pasta>     # confira nome e tamanho
 ```
-Sem os timeouts, um upload pode travar em silêncio (em 20/10 ficou 9 min num arquivo de 92 MB, com a rede livre): com
+Lote grande: um script em segundo plano que cria cada pasta (número livre conferido na hora), sobe e compara o
+tamanho remoto com o local, gravando o resultado em JSON para retomar de onde parou. Sem os timeouts, um upload pode travar em silêncio (em 20/10 ficou 9 min num arquivo de 92 MB, com a rede livre): com
 eles, o rclone refaz o pedaço e termina. Um vídeo por vez, com o progresso à vista.
 Nem o MCP do Drive nem o navegador sobem arquivos grandes (o upload do Claude in Chrome tem limite de 10 MB), e o Drive
 Desktop está fora: ele dá conflito com o app da câmera (EOS Canon). Sem o remote (`rclone listremotes` vazio), rode
-`rclone config create asimov drive scope=drive` e peça ao criador para autorizar no navegador. O rclone avisa que o
-client_id compartilhado dele será desligado em 2026: quando parar, crie um client_id próprio
-(https://rclone.org/drive/#making-your-own-client-id).
+`rclone config create asimov drive scope=drive` e peça ao criador para autorizar no navegador. Desde 20/10 o remote
+usa um **client_id próprio** (OAuth "Desktop app" `rclone-asimov` no projeto Google Cloud "Asimov Academy"): o
+compartilhado do rclone estourava a cota (`403 rateLimitExceeded`) e travava os uploads. Se o token cair, o criador
+roda `rclone config reconnect asimov:`; nunca mostre nem registre client_secret ou token.
 
 | Saída | Pasta raiz | Nome da pasta |
 |---|---|---|
