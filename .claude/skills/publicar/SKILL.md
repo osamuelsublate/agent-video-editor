@@ -102,7 +102,10 @@ com **3 títulos** diferentes (`### Títulos`, uma lista; curtos, até ~40 carac
 (`### Texto principal 1`, o longo, em 4–5 parágrafos; `### Texto principal 2`, o curto, num parágrafo), sempre terminando
 no CTA do funil (LP: comprar/começar hoje; VSL: assistir à aula gratuita, curiosidade, ainda não é venda; ISCA: pegar a
 isca; captura da Black: cadastrar na live). O template Criativo já traz um toggle vazio "Copy de Descrições (Tráfego)"
-com Texto principal 1–3: substitua esse bloco inteiro pelo novo (`notion-update-page` → `update_content`). Escreva a
+com Texto principal 1–3: substitua esse bloco inteiro pelo novo (`notion-update-page` → `update_content`).
+**Escreva o toggle como `<toggle heading="h2">` … `</toggle>`** (título na 1ª linha, filhos sem tab, em parágrafos
+separados por linha em branco). Desde 20/10 o `## COPY DE TRÁFEGO {toggle="true"}` com filhos indentados vira texto
+cru (`\{toggle\}`, `<br />`). Depois de criar, faça `notion-fetch` de um card e confira que volta `<toggle heading="h2">`. Escreva a
 partir do roteiro do corpo e do CTA; preços só conferidos em https://asimov.academy/#assine (mudam); sem superlativos
 que a fala não sustenta.
 
