@@ -674,11 +674,33 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 .seletor-saida:empty { display: none; }
 .escolha-saida { flex: 1; min-width: 0; height: 32px; padding: 0 12px; border-color: var(--color-coral); color: var(--color-cream); }
 .escolha-saida span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.seletor-saida .botao.feito { background: var(--color-green); border-color: var(--color-green); color: var(--color-ink); }
+.seletor-saida .aprovar-saida { border-color: transparent; background: rgba(124, 207, 134, 0.12); color: var(--color-green); }
+.seletor-saida .aprovar-saida:hover { background: rgba(124, 207, 134, 0.22); }
+.seletor-saida .aprovar-saida.feito { background: var(--color-green); color: var(--color-ink); }
 .form-saida { display: flex; flex-direction: column; gap: 12px; padding: 16px 20px 20px; min-width: 360px; }
 .form-saida .campo { display: flex; flex-direction: column; gap: 6px; }
 .form-saida input, .form-saida select { padding: 8px 10px; border: 1px solid var(--color-line-dark); border-radius: var(--radius-lg); background: var(--color-deeper); color: var(--color-cream); font: inherit; }
 .form-saida .acoes-linha { display: flex; justify-content: flex-end; gap: 8px; }
+/* + Saída: os CTAs aprovados, com as tags e o vídeo para tocar */
+.janela-ctas { width: min(1040px, calc(100vw - 32px)); max-height: calc(100vh - 48px); display: flex; flex-direction: column; }
+.form-saida-ctas { min-height: 0; flex: 1; }
+.filtros-cta { display: flex; flex-direction: column; gap: 8px; }
+.tags-cta { display: flex; flex-wrap: wrap; gap: 4px; }
+.tags-cta .tag { padding: 1px 8px; border: 1px solid var(--color-line-dark); border-radius: var(--radius-full); background: none; color: var(--color-fog); font: inherit; font-size: 11px; cursor: pointer; }
+.tags-cta .tag:hover, .tags-cta .tag.ativa { border-color: var(--color-coral); color: var(--color-cream); }
+.grade-ctas { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 16px; min-height: 0; overflow-y: auto; padding: 4px; }
+.cta-escolha { display: flex; flex-direction: column; gap: 6px; padding: 6px; border: 2px solid transparent; border-radius: var(--radius-lg); cursor: pointer; }
+.cta-escolha[hidden] { display: none; }
+.cta-escolha:hover { background: var(--color-deeper); }
+.cta-escolha.escolhido { border-color: var(--color-coral); background: var(--color-deeper); }
+.cta-escolha .mini { position: relative; }
+.cta-escolha .tocar-card { position: absolute; inset: 50% auto auto 50%; transform: translate(-50%, -50%); z-index: 2; }
+.cta-escolha:hover .tocar-card, .cta-escolha.tocando .tocar-card { opacity: 1; }
+.cta-escolha .duracao-mini { position: absolute; right: 6px; bottom: 6px; z-index: 2; }
+.cta-escolha h3 { margin: 0; font-size: 13px; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
+.pe-saida { display: flex; align-items: flex-end; gap: 10px; }
+.pe-saida .campo { flex: 1; }
+.pe-saida .botao.escolhido { border-color: var(--color-coral); color: var(--color-cream); }
 /* no card do projeto: as saídas (✓ as aprovadas) */
 .saidas-card { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
 .saidas-card span { padding: 1px 8px; border: 1px solid var(--color-line-dark); border-radius: var(--radius-full); font-size: 10.5px; color: var(--color-fog); }

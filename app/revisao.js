@@ -703,7 +703,7 @@ class Revisao {
         <span>${sx ? `Saída · ${rotulo(sx)}` : 'Só o corpo'}</span>${ICONE.seta_baixo}
         <select data-trocar-saida aria-label="Saída">${this.saidas.map((x) => `<option value="${esc(x.id)}"${x.id === this.saidaId ? ' selected' : ''}${x.info ? '' : ' disabled'}>${rotulo(x)}${x.tipo === 'nenhum' ? ' (o corpo)' : ''}</option>`).join('')}
           <option value=""${this.saidaId ? '' : ' selected'}>Só o corpo</option></select></label>` : ''}
-      ${sx ? `<button class="botao pequeno${sx.aprovado ? ' feito' : ''}" data-aprovar-saida="${esc(sx.id)}" title="${sx.aprovado ? 'Saída aprovada · clique para desaprovar' : 'Aprovar só esta saída: o Claude exporta ela'}">${ICONE.check} ${sx.aprovado ? 'Saída aprovada' : 'Aprovar saída'}</button>` : ''}
+      ${sx ? `<button class="botao pequeno aprovar-saida${sx.aprovado ? ' feito' : ''}" data-aprovar-saida="${esc(sx.id)}" title="${sx.aprovado ? 'Saída aprovada · clique para desaprovar' : 'Aprovar só esta saída: o Claude exporta ela'}">${ICONE.check} ${sx.aprovado ? 'Saída aprovada' : 'Aprovar saída'}</button>` : ''}
       <button class="botao pequeno" data-nova-saida title="Uma saída nova com um CTA gravado à parte (os finais falados, peça ao Claude)">${ICONE.mais} Saída</button>`
   }
 
@@ -730,8 +730,8 @@ class Revisao {
   async aprovarSaida(id) {
     const sx = this.saidas.find((x) => x.id === id)
     const ligar = !sx.aprovado
-    if (!(await confirmar(ligar ? { titulo: `Aprovar a saída ${sx.destino}?`, texto: 'O Claude exporta só ela (o corpo e este final). O “Aprovado” vai para a área de transferência: cole no chat.', ok: 'Aprovar e copiar' }
-      : { titulo: `Desaprovar a saída ${sx.destino}?`, texto: 'O arquivo já exportado fica onde está.', ok: 'Desaprovar', perigo: true }))) return
+    // aprovar pede confirmação (o Claude exporta); clicar de novo desaprova direto (o arquivo já exportado fica)
+    if (ligar && !(await confirmar({ titulo: `Aprovar a saída ${sx.destino}?`, texto: 'O Claude exporta só ela (o corpo e este final). O “Aprovado” vai para a área de transferência: cole no chat.', ok: 'Aprovar e copiar' }))) return
     try {
       await enviar('PUT', `/api/projetos/${encodeURIComponent(this.slug)}/saidas/${encodeURIComponent(id)}`, { aprovado: ligar })
       sx.aprovado = ligar
@@ -744,22 +744,76 @@ class Revisao {
   }
 
   /** + Saída: um CTA gravado à parte (um projeto da página CTAs) ou o corpo puro, com o nome do destino. */
+  /** + Saída: escolher um CTA aprovado (com as tags e o vídeo para tocar ali mesmo) e dar o nome do destino. */
   async novaSaida() {
     const [projetos, cats] = await Promise.all([json('/api/projetos', []), carregarCategorias()])
-    const ctas = projetos.filter((p) => categoriaCta(cats, p.formato || 'reels'))
+    const ctas = projetos.filter((p) => p.estado === 'aprovado' && !p.oculto && categoriaCta(cats, p.formato || 'reels'))
+      .sort((a, b) => (b.atualizado || 0) - (a.atualizado || 0))
+    const tags = [...new Set(ctas.flatMap((p) => p.tags || []))].sort()
+    let escolhido = null // o slug do CTA; '' = nenhum (o corpo puro)
+    let tag = ''
+    const card = (p) => `<div class="cta-escolha" data-escolher-cta="${esc(p.slug)}" data-busca="${esc(`${p.nome} ${(p.tags || []).join(' ')}`.toLowerCase())}" data-tags="${esc((p.tags || []).join('|'))}">
+        <div class="mini mini-916"><video muted playsinline preload="metadata" src="/projetos/${encodeURIComponent(p.slug)}/versoes/v${p.ultima}/proxy.mp4#t=1.5"></video>
+          <button type="button" class="tocar-card" data-tocar-cta title="Tocar com som (clique de novo para pausar)" aria-label="Tocar ${esc(p.nome)}">${ICONE.tocar}</button>
+          ${p.duracao ? `<span class="duracao-mini">${mmss(p.duracao)}</span>` : ''}</div>
+        <h3 title="${esc(p.nome)}">${esc(p.nome)}</h3>
+        ${p.tags?.length ? `<div class="tags-cta">${p.tags.map((t) => `<button type="button" class="tag" data-filtrar-tag="${esc(t)}">${esc(t)}</button>`).join('')}</div>` : ''}</div>`
     const { el, fechar } = janela(`<header class="janela-cabeca"><h2>Nova saída</h2><button class="botao-icone" data-fechar title="Fechar (Esc)">${ICONE.fechar}</button></header>
-      <form class="form-saida">
-        <label class="campo"><span class="eyebrow">Destino</span><input name="destino" placeholder="LP, VSL, Isca, BF Captura…" required maxlength="60"></label>
-        <label class="campo"><span class="eyebrow">Final</span><select name="cta"><option value="">Nenhum (o corpo puro)</option>${ctas.map((p) => `<option value="${esc(p.slug)}">${esc(p.nome)}</option>`).join('')}</select></label>
+      <form class="form-saida form-saida-ctas">
+        <div class="filtros-cta"><input type="search" name="busca" placeholder="Buscar CTA por nome ou tag…" aria-label="Buscar CTA">
+          ${tags.length ? `<div class="tags-cta">${tags.map((t) => `<button type="button" class="tag" data-filtrar-tag="${esc(t)}">${esc(t)}</button>`).join('')}</div>` : ''}</div>
+        <div class="grade-ctas">${ctas.map(card).join('') || '<p class="dica">Nenhum CTA aprovado ainda (página CTAs).</p>'}</div>
+        <div class="pe-saida">
+          <button type="button" class="botao pequeno" data-escolher-cta="" title="A saída sem final: o corpo puro">Nenhum (o corpo puro)</button>
+          <label class="campo"><span class="eyebrow">Destino</span><input name="destino" placeholder="LP, VSL, Isca, BF Captura…" required maxlength="60"></label>
+          <button class="botao pequeno botao-coral" disabled>Criar saída</button></div>
         <p class="dica">Um final falado (gravado na mesma tomada), peça ao Claude no chat. A prévia da saída nova aparece na próxima versão.</p>
-        <div class="acoes-linha"><button class="botao pequeno" type="button" data-fechar>Cancelar</button><button class="botao pequeno botao-coral">Criar saída</button></div>
-      </form>`, { classe: 'janela-produtos' })
-    $('form', el).addEventListener('submit', async (e) => {
+      </form>`, { classe: 'janela-ctas' })
+    const form = $('form', el)
+    const criar = $('.botao-coral', form)
+    const tocar = (caixa, ligar) => {
+      const v = $('video', caixa)
+      if (ligar) {
+        for (const outra of $$('.cta-escolha.tocando', el)) if (outra !== caixa) tocar(outra, false)
+        if (!v.dataset.comecou || v.ended) v.currentTime = 0
+        v.dataset.comecou = '1'
+        v.muted = false
+        v.play().catch(() => {})
+      } else {
+        v.muted = true
+        v.pause()
+      }
+      caixa.classList.toggle('tocando', ligar)
+      $('[data-tocar-cta]', caixa).innerHTML = ligar ? ICONE.pausar : ICONE.tocar
+    }
+    const filtrar = () => {
+      const q = form.busca.value.trim().toLowerCase()
+      for (const c of $$('.cta-escolha', el)) c.hidden = (q && !c.dataset.busca.includes(q)) || (tag && !c.dataset.tags.split('|').includes(tag))
+      for (const b of $$('.filtros-cta [data-filtrar-tag]', el)) b.classList.toggle('ativa', b.dataset.filtrarTag === tag)
+    }
+    form.busca.addEventListener('input', filtrar)
+    el.addEventListener('click', (e) => {
+      const tc = e.target.closest('[data-tocar-cta]')
+      if (tc) return tocar(tc.closest('.cta-escolha'), !tc.closest('.cta-escolha').classList.contains('tocando'))
+      const ft = e.target.closest('[data-filtrar-tag]')
+      if (ft) {
+        tag = tag === ft.dataset.filtrarTag ? '' : ft.dataset.filtrarTag
+        return filtrar()
+      }
+      const ec = e.target.closest('[data-escolher-cta]')
+      if (!ec) return
+      escolhido = escolhido === ec.dataset.escolherCta ? null : ec.dataset.escolherCta
+      for (const x of $$('[data-escolher-cta]', el)) x.classList.toggle('escolhido', x.dataset.escolherCta === escolhido)
+      criar.disabled = escolhido == null
+      if (escolhido != null) form.destino.focus()
+    })
+    form.addEventListener('submit', async (e) => {
       e.preventDefault()
-      const f = e.target
+      if (escolhido == null) return
+      const destino = form.destino.value.trim()
       try {
-        await enviar('POST', `/api/projetos/${encodeURIComponent(this.slug)}/saidas`, { destino: f.destino.value.trim(), cta: f.cta.value || null })
-        aviso(`Saída ${f.destino.value.trim()} criada: a prévia entra na próxima versão`)
+        await enviar('POST', `/api/projetos/${encodeURIComponent(this.slug)}/saidas`, escolhido ? { destino, cta: escolhido } : { destino, nenhum: true })
+        aviso(`Saída ${destino} criada: a prévia entra na próxima versão`)
         fechar()
       } catch (x) {
         aviso(x.message, 'erro')
