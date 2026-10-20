@@ -87,8 +87,9 @@ bloco **Final** dela. Um comentário feito no Final tem `saida` no JSON e o `ler
 
 - **Final falado:** mexa só na direção daquele final — um plano, motion, fala gravada ou ajuste de legenda que só esta
   saída tem leva `"saida": "<id>"` (`edicao.md`); sem isso, a mudança vale para todas as saídas que falam aquelas palavras.
-- **CTA à parte:** o comentário é sobre o projeto do CTA (um coringa pode estar em vários vídeos): aplique **no projeto
-  do CTA** e renderize ele; o corpo não muda.
+- **CTA à parte:** o comentário é sobre o projeto do CTA (um coringa pode estar em vários vídeos): só aí você abre o
+  projeto dele — aplique **no projeto do CTA** e renderize ele; o corpo não muda. Aprovado o CTA, exporte o final dele de
+  novo (`12-final.md`): é esse arquivo que todas as saídas plugam.
 - Um comentário do corpo vale para todas as saídas.
 
 O render do projeto já traz a prévia de cada saída na versão nova (`versoes/vN/saidas/<id>/`).

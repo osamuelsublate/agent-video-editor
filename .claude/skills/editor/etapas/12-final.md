@@ -6,10 +6,16 @@ aprovada no app, igual ao botão: `aprovado: true` em `projetos/<slug>/revisoes/
 `{"projeto", "versao", "aprovado": true, "enviado_em": null, "comentarios": []}` se não existir). Os selos "Usado em
 vídeo" do banco e dos motions saem da versão aprovada.
 
-**Aprovar não é pedir o export.** Só exporte o que o criador pedir, no destino que ele disser. Um "aprovado" sem pedido
-de export (sobretudo vários de uma vez, ou CTAs coringa, que entram nos corpos pelas saídas e exportam junto deles):
-marque, conclua (`14-concluir.md`) e pergunte o que exportar. (2026-10-19: 16 CTAs aprovados de uma vez; o export de
-todos foi parado pelo criador, que depois pediu só os dois da Black, numa pasta em Downloads.)
+**Aprovar não é pedir o export** — num corpo (Reels, VSL, ad): só exporte o que o criador pedir, no destino que ele
+disser; um "aprovado" sem pedido de export: marque, conclua (`14-concluir.md`) e pergunte o que exportar e para onde.
+
+**O CTA aprovado é pré-exportado** (a exceção): o projeto da página CTAs é uma peça que entra pronta nos corpos, pelas
+saídas. Aprovou um CTA (ou uma versão nova dele) → exporte o final dele em segundo plano, logo, sem perguntar
+(`render.py <cta> --final`; para não esperar a foto do 4K, rode `--camadas --final` assim que entregar a versão que pode
+ser a aprovada). Quem pluga o CTA não renderiza nem abre o projeto dele: usa esse final (ver as saídas, abaixo e em
+`02-cortes.md`). Para conferir o que falta: um CTA aprovado cujo final em `final/` é mais velho que a versão aprovada
+precisa ser exportado de novo. (2026-10-19/20: o criador parou o export de 16 CTAs quando eu comecei sem combinar, e
+depois combinou este processo, porque esperar o CTA a cada encaixe "demorou demais".)
 
 ```bash
 uv run ferramentas/render.py <slug> --final
@@ -25,7 +31,7 @@ uv run ferramentas/render.py <slug> --final
 - **Projeto com saídas** (`cortes.py saidas <slug>`): o Aprovar do projeto aprova todas — exporte todas com
   `uv run ferramentas/render.py <slug> --saidas`; "Aprovado · <slug> · saída <Destino>" é só uma: `--saida <id>`. Cada
   uma sai em `final/saidas/<nome> - <destino>.mp4` + `.md`: a falada renderizada em 4K com o final; a de CTA, o final do
-  corpo emendado no final do CTA (`encaixar.py`, com a transição destacada; o CTA precisa ter o final exportado); a sem
+  corpo emendado no final **pré-exportado** do CTA (`encaixar.py`, com a transição destacada: só a emenda e o áudio, o CTA não é renderizado; sem o final do CTA, exporte-o antes); a sem
   final, o corpo com o nome da saída. Exportar de novo substitui o arquivo da saída. É essa pasta que a `publicar` usa.
 - Depois, a vN aprovada vira referência da Calibragem (sem Gemini; refazer substitui):
 
