@@ -704,8 +704,13 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 .cta-escolha:hover .tocar-card, .cta-escolha.tocando .tocar-card { opacity: 1; }
 .cta-escolha .duracao-mini { position: absolute; right: 6px; bottom: 6px; z-index: 2; }
 .cta-escolha h3 { margin: 0; font-size: 13px; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
-.pe-saida { display: flex; align-items: flex-end; gap: 10px; }
-.pe-saida .campo { flex: 1; }
+.pe-saida { display: flex; align-items: center; gap: 10px; }
+.pe-saida .dica { flex: 1; margin: 0; }
+.escolhidos-saida { display: flex; flex-direction: column; gap: 6px; }
+.escolhidos-saida:empty { display: none; }
+.escolhido-saida { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto; align-items: center; gap: 8px; }
+.nome-escolhido { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--color-cream); }
+.seta-escolhido { color: var(--color-fog); }
 .pe-saida .botao.escolhido { border-color: var(--color-coral); color: var(--color-cream); }
 .barra-versao .menu-versoes { right: auto; left: 0; }
 .resumo { font-size: 13px; color: var(--color-cream); }

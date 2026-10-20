@@ -585,10 +585,17 @@ def _nova_saida(h, q, slug):
     arq = _edicao(slug)
     ed = ler_json(arq, {})
     try:
-        cortes.por_saida(ed, destino, final)
+        x = cortes.por_saida(ed, destino, final)
     except SystemExit as e:
         raise Erro(str(e), 422)
     gravar_json(arq, ed)
+    if final['tipo'] == 'cta':  # a prévia dela na versão mais nova, em segundo plano (o app a abre quando fica pronta)
+        cache = PROJETOS / slug / '.cache'
+        cache.mkdir(parents=True, exist_ok=True)
+        with open(cache / f'previa-{x["id"]}.log', 'w') as log:
+            proc = subprocess.Popen([shutil.which('uv') or 'uv', 'run', '--quiet', str(Path(__file__).parent / 'render.py'), slug, '--previa-saida', x['id']],
+                                    cwd=RAIZ, stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
+        threading.Thread(target=proc.wait, daemon=True).start()
     return {'saidas': resumo_saidas(ed)}
 
 

@@ -705,7 +705,7 @@ class Revisao {
     const rotulo = (x) => `${esc(x.destino)}${x.aprovado ? ' ✓' : ''}`
     el.innerHTML = `${this.saidas.length ? `<label class="cta-categoria escolha-saida" title="A saída: o corpo seguido do final dela">
         <span>${sx ? `Saída · ${rotulo(sx)}` : 'Só o corpo'}</span>${ICONE.seta_baixo}
-        <select data-trocar-saida aria-label="Saída">${this.saidas.map((x) => `<option value="${esc(x.id)}"${x.id === this.saidaId ? ' selected' : ''}${x.info || x.tipo === 'nenhum' ? '' : ' disabled'}>${rotulo(x)}${x.tipo === 'nenhum' ? ' (o corpo)' : x.info ? '' : ' (na próxima versão)'}</option>`).join('')}
+        <select data-trocar-saida aria-label="Saída">${this.saidas.map((x) => `<option value="${esc(x.id)}"${x.id === this.saidaId ? ' selected' : ''}${x.info || x.tipo === 'nenhum' ? '' : ' disabled'}>${rotulo(x)}${x.tipo === 'nenhum' ? ' (o corpo)' : x.info ? '' : x.gerando ? ' (gerando a prévia…)' : ' (na próxima versão)'}</option>`).join('')}
           <option value=""${this.saidaId ? '' : ' selected'}>Só o corpo</option></select></label>` : ''}
       ${sx ? `<button class="botao pequeno aprovar-saida${sx.aprovado ? ' feito' : ''}" data-aprovar-saida="${esc(sx.id)}" title="${sx.aprovado ? 'Saída aprovada · clique para desaprovar' : 'Aprovar só esta saída: o Claude exporta ela'}">${ICONE.check} ${sx.aprovado ? 'Saída aprovada' : 'Aprovar saída'}</button>` : ''}
       ${sx ? `<button class="botao-icone pequeno" data-tirar-saida="${esc(sx.id)}" title="Remover a saída ${esc(sx.destino)}" aria-label="Remover a saída ${esc(sx.destino)}">${ICONE.lixo}</button>` : ''}
@@ -746,6 +746,39 @@ class Revisao {
     }
   }
 
+  /** Depois do + Saída: a lista na hora; a de CTA mostra "gerando a prévia" e abre sozinha quando ela fica pronta
+   * (o servidor a monta em segundo plano, render.py --previa-saida); a sem final abre já (é o corpo). */
+  async saidasNovas(lista, destinos) {
+    const antes = new Map(this.saidas.map((x) => [x.id, x]))
+    this.saidas = lista.map((x) => ({ ...x, info: antes.get(x.id)?.info || null }))
+    const novas = this.saidas.filter((x) => destinos.includes(x.destino))
+    if (!novas.length) return this.renderSaidas()
+    const nomes = novas.map((x) => x.destino).join(', ')
+    const ctas = novas.filter((x) => x.tipo === 'cta')
+    for (const x of ctas) Object.assign(x, { info: null, gerando: true })
+    if (!ctas.length) {
+      aviso(`${novas.length > 1 ? 'Saídas criadas' : 'Saída criada'}: ${nomes}`)
+      return this.trocarSaida(novas[0].id)
+    }
+    this.renderSaidas()
+    aviso(`${novas.length > 1 ? 'Saídas criadas' : 'Saída criada'}: ${nomes}. Montando as prévias (uns segundos)`)
+    let abriu = false
+    for (let k = 0; k < 60 && !this.fechado && ctas.some((x) => x.gerando); k++) {
+      await new Promise((r) => setTimeout(r, 3000))
+      for (const x of ctas.filter((c) => c.gerando)) {
+        const info = await json(`${this.base}saidas/${x.id}/info.json?${Date.now()}`, null)
+        if (!info) continue
+        Object.assign(x, { info, gerando: false })
+        if (!abriu) {
+          abriu = true
+          await this.trocarSaida(x.id) // a primeira que fica pronta abre; as outras ficam no seletor
+        } else this.renderSaidas()
+      }
+    }
+    for (const x of ctas) x.gerando = false
+    this.renderSaidas() // a que não ficou pronta (o CTA sem versão): entra no próximo render
+  }
+
   async aprovarSaida(id) {
     const sx = this.saidas.find((x) => x.id === id)
     const ligar = !sx.aprovado
@@ -769,7 +802,10 @@ class Revisao {
     const ctas = projetos.filter((p) => p.estado === 'aprovado' && !p.oculto && categoriaCta(cats, p.formato || 'reels'))
       .sort((a, b) => (b.atualizado || 0) - (a.atualizado || 0))
     const tags = [...new Set(ctas.flatMap((p) => p.tags || []))].sort()
-    let escolhido = null // o slug do CTA; '' = nenhum (o corpo puro)
+    // os escolhidos, na ordem do clique: slug do CTA ('' = nenhum, o corpo puro) → o destino (o nome da saída)
+    const escolhidos = new Map()
+    const nomeDe = (slug) => (slug ? ctas.find((p) => p.slug === slug)?.nome || slug : 'Nenhum (o corpo puro)')
+    const destinoPadrao = (slug) => (slug ? nomeDe(slug).replace(/^\s*CTA\b[\s·:-]*/i, '').trim() || nomeDe(slug) : 'Corpo')
     let tag = ''
     const card = (p) => `<div class="cta-escolha" data-escolher-cta="${esc(p.slug)}" data-busca="${esc(`${p.nome} ${(p.tags || []).join(' ')}`.toLowerCase())}" data-tags="${esc((p.tags || []).join('|'))}">
         <div class="mini mini-916"><video muted playsinline preload="metadata" src="/projetos/${encodeURIComponent(p.slug)}/versoes/v${p.ultima}/proxy.mp4#t=1.5"></video>
@@ -782,11 +818,11 @@ class Revisao {
         <div class="filtros-cta"><input type="search" name="busca" placeholder="Buscar CTA por nome ou tag…" aria-label="Buscar CTA">
           ${tags.length ? `<div class="tags-cta">${tags.map((t) => `<button type="button" class="tag" data-filtrar-tag="${esc(t)}">${esc(t)}</button>`).join('')}</div>` : ''}</div>
         <div class="grade-ctas">${ctas.map(card).join('') || '<p class="dica">Nenhum CTA aprovado ainda (página CTAs).</p>'}</div>
+        <div class="escolhidos-saida" id="escolhidos-saida"></div>
         <div class="pe-saida">
           <button type="button" class="botao pequeno" data-escolher-cta="" title="A saída sem final: o corpo puro">Nenhum (o corpo puro)</button>
-          <label class="campo"><span class="eyebrow">Destino</span><input name="destino" placeholder="LP, VSL, Isca, BF Captura…" required maxlength="60"></label>
+          <p class="dica">Escolha um ou vários CTAs; cada um vira uma saída, com o nome do destino (LP, VSL, Isca…). Um final falado, peça ao Claude no chat.</p>
           <button class="botao pequeno botao-coral" disabled>Criar saída</button></div>
-        <p class="dica">Um final falado (gravado na mesma tomada), peça ao Claude no chat. A prévia da saída nova aparece na próxima versão.</p>
       </form>`, { classe: 'janela-ctas' })
     const form = $('form', el)
     const criar = $('.botao-coral', form)
@@ -819,24 +855,49 @@ class Revisao {
         tag = tag === ft.dataset.filtrarTag ? '' : ft.dataset.filtrarTag
         return filtrar()
       }
-      const ec = e.target.closest('[data-escolher-cta]')
-      if (!ec) return
-      escolhido = escolhido === ec.dataset.escolherCta ? null : ec.dataset.escolherCta
-      for (const x of $$('[data-escolher-cta]', el)) x.classList.toggle('escolhido', x.dataset.escolherCta === escolhido)
-      criar.disabled = escolhido == null
-      if (escolhido != null) form.destino.focus()
+      const tira = e.target.closest('[data-tirar-escolhido]')
+      const ec = tira ? null : e.target.closest('[data-escolher-cta]')
+      if (!tira && !ec) return
+      const slug = tira ? tira.dataset.tirarEscolhido : ec.dataset.escolherCta
+      if (escolhidos.has(slug)) escolhidos.delete(slug)
+      else escolhidos.set(slug, destinoPadrao(slug))
+      desenharEscolhidos()
+      if (!tira && escolhidos.has(slug)) $(`[data-destino="${CSS.escape(slug)}"]`, el)?.select()
+    })
+    // embaixo, um campo de destino por escolhido (já com um nome sugerido, a partir do nome do CTA)
+    const desenharEscolhidos = () => {
+      for (const x of $$('[data-escolher-cta]', el)) x.classList.toggle('escolhido', escolhidos.has(x.dataset.escolherCta))
+      $('#escolhidos-saida', el).innerHTML = [...escolhidos].map(([slug, destino]) => `<div class="escolhido-saida">
+          <span class="nome-escolhido" title="${esc(nomeDe(slug))}">${esc(nomeDe(slug))}</span><span class="seta-escolhido">→</span>
+          <input data-destino="${esc(slug)}" value="${esc(destino)}" placeholder="Destino (LP, VSL, Isca…)" maxlength="60" required aria-label="Destino da saída com ${esc(nomeDe(slug))}">
+          <button type="button" class="botao-icone pequeno" data-tirar-escolhido="${esc(slug)}" title="Tirar" aria-label="Tirar ${esc(nomeDe(slug))}">${ICONE.fechar}</button></div>`).join('')
+      criar.disabled = !escolhidos.size
+      criar.textContent = escolhidos.size > 1 ? `Criar ${escolhidos.size} saídas` : 'Criar saída'
+    }
+    el.addEventListener('input', (e) => {
+      const d = e.target.closest('[data-destino]')
+      if (d) escolhidos.set(d.dataset.destino, d.value)
     })
     form.addEventListener('submit', async (e) => {
       e.preventDefault()
-      if (escolhido == null) return
-      const destino = form.destino.value.trim()
-      try {
-        await enviar('POST', `/api/projetos/${encodeURIComponent(this.slug)}/saidas`, escolhido ? { destino, cta: escolhido } : { destino, nenhum: true })
-        aviso(`Saída ${destino} criada: a prévia entra na próxima versão`)
-        fechar()
-      } catch (x) {
-        aviso(x.message, 'erro')
+      const pedidos = [...escolhidos].map(([slug, destino]) => [slug, destino.trim()])
+      if (!pedidos.length) return
+      if (new Set(pedidos.map(([, d]) => d.toLowerCase())).size < pedidos.length) return aviso('Duas saídas com o mesmo destino: dê nomes diferentes.', 'erro')
+      criar.disabled = true
+      let r = null
+      const feitos = []
+      for (const [slug, destino] of pedidos) {
+        try {
+          r = await enviar('POST', `/api/projetos/${encodeURIComponent(this.slug)}/saidas`, slug ? { destino, cta: slug } : { destino, nenhum: true })
+          feitos.push(destino)
+          escolhidos.delete(slug)
+        } catch (x) {
+          aviso(`${destino}: ${x.message}`, 'erro')
+        }
       }
+      if (r) this.saidasNovas(r.saidas, feitos)
+      if (escolhidos.size) desenharEscolhidos() // o que falhou fica no modal, para corrigir
+      else fechar()
     })
   }
 

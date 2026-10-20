@@ -588,17 +588,7 @@ def render(slug: str, final: bool = False, saida: str | None = None, pasta_saida
         fase('fotos')
 
         print('[4/5] Áudio: a voz, o fundo e o −14 LUFS', flush=True)
-        nivel = edicao.get('nivel_voz') or {}
-        db_voz = nivel.get('db') if nivel.get('fonte') == fonte['id'] else sons.nivel_da_voz(p / fonte['arquivo'])
-        fator = sons.fator_da_voz(db_voz)  # os sons na mesma relação com a voz deste vídeo que nas referências
-        eventos = [{**ev, 'ganho': float(ev.get('ganho', sons.INTENSIDADES['baixo'])) * fator} for ev in r['sons'] or []]
-        eventos += sons_das_midias(edicao, r.get('planos') or [])
-        extras = falas_extras(p, edicao, transcricao, clipes, saida)
-        eventos += extras
-        a = som(p, edicao, fonte, clipes, transcricao, avisos)
-        a['falas'] = sorted([*a['falas'], *((e['t'], e['t'] + e['dur']) for e in extras)])  # o fundo abaixa também nelas
-        # a receita do áudio (sem o fundo misturado ainda): a saída de CTA mistura de novo o corpo e o CTA juntos (`mix_da_saida`)
-        receita = json.loads(json.dumps({'a': a, 'clipes': clipes, 'eventos': eventos, 'duracao': duracao, 'fator': fator}, default=str))
+        a, eventos, receita = receita_do_audio(p, edicao, fonte, clipes, transcricao, r, saida, duracao, avisos)
         a['medida'], a['pronta'] = mistura(p, a, clipes, eventos, duracao)
         print(f"      voz {a['limpeza']}, fundo {(edicao.get('audio') or {}).get('fundo') or '—'}, ganho {a['medida']['ganho']:+.1f} dB → "
               f"{a['medida']['i']:.1f} LUFS, pico {a['medida']['pico']} dBFS", flush=True)
@@ -690,6 +680,17 @@ def previas_das_saidas(slug: str, edicao: dict, pasta_versao: Path, corpo_dur: f
             previa_cta(x, pasta_versao, alvo, corpo_dur)
 
 
+def previa_da_saida(slug: str, sid: str) -> None:
+    """A prévia de uma saída de CTA criada depois do render (o + Saída do app), na versão mais nova do projeto: o app
+    mostra a saída assim que ela fica pronta, sem esperar a próxima versão."""
+    x = saida_do_projeto(ler(slug), sid)
+    v = versao_mais_nova(slug)
+    if x['final']['tipo'] != 'cta' or v is None:
+        return
+    pv = pasta(slug) / 'versoes' / f'v{v}'
+    previa_cta(x, pv, pv / 'saidas' / sid, float((ler_json(pv / 'info.json', {}) or {}).get('duracao') or 0))
+
+
 def versao_mais_nova(slug: str) -> int | None:
     vs = [int(m.group(1)) for x in (pasta(slug) / 'versoes').glob('v*') if (m := re.fullmatch(r'v(\d+)', x.name)) and (x / 'proxy.mp4').exists()]
     return max(vs, default=None)
@@ -732,12 +733,44 @@ def previa_cta(x: dict, pasta_versao: Path, alvo: Path, corpo_dur: float) -> Non
     print(f'      corpo + {cta} v{vc}', flush=True)
 
 
+def receita_do_audio(p: Path, edicao: dict, fonte: dict, clipes: list[dict], transcricao: list[dict], r: dict, saida: str | None,
+                     duracao: float, avisos: list[str]) -> tuple[dict, list[dict], dict]:
+    """O que entra no áudio: a voz e o fundo (`som`), os sons da página (no nível desta voz), os das mídias e as falas
+    gravadas à parte. Devolve (a, eventos, receita): a receita (sem o fundo misturado ainda) fica na versão
+    (`audio.json`) para a saída de CTA misturar de novo o corpo e o CTA juntos (`mix_da_saida`)."""
+    nivel = edicao.get('nivel_voz') or {}
+    db_voz = nivel.get('db') if nivel.get('fonte') == fonte['id'] else sons.nivel_da_voz(p / fonte['arquivo'])
+    fator = sons.fator_da_voz(db_voz)  # os sons na mesma relação com a voz deste vídeo que nas referências
+    eventos = [{**ev, 'ganho': float(ev.get('ganho', sons.INTENSIDADES['baixo'])) * fator} for ev in r['sons'] or []]
+    eventos += sons_das_midias(edicao, r.get('planos') or [])
+    extras = falas_extras(p, edicao, transcricao, clipes, saida)
+    eventos += extras
+    a = som(p, edicao, fonte, clipes, transcricao, avisos)
+    a['falas'] = sorted([*a['falas'], *((e['t'], e['t'] + e['dur']) for e in extras)])  # o fundo abaixa também nelas
+    receita = json.loads(json.dumps({'a': a, 'clipes': clipes, 'eventos': eventos, 'duracao': duracao, 'fator': fator}, default=str))
+    return a, eventos, receita
+
+
 def receita(arq: Path) -> dict:
-    """A receita do áudio de uma versão (`versoes/vN/audio.json`, gravada pelo render)."""
+    """A receita do áudio de uma versão (`versoes/vN/audio.json`, gravada pelo render). Numa versão de antes dela, é
+    feita agora a partir da edição do projeto (só a página e o áudio: nada é fotografado nem montado) e fica guardada."""
     r = ler_json(arq)
-    if not r:
-        raise SystemExit(f'Falta {arq} (versão de antes da mistura por saída): renderize o projeto de novo.')
-    return r
+    if r:
+        return r
+    slug = arq.parents[2].name
+    p, edicao = pasta(slug), ler(slug)
+    clipes = v1_tocada(edicao)
+    fonte = next(f for f in edicao['fontes'] if f['papel'] == 'bruto')
+    transcricao = (ler_json(p / 'transcricao.json') or {}).get('palavras', [])
+    print(f'      {slug}: a receita do áudio (a versão é de antes dela)', flush=True)
+    srv = servidor.servir(0)
+    try:
+        pg = ler_pagina(pagina(slug, srv.server_address[1]))
+    finally:
+        srv.shutdown()
+    _, _, rec = receita_do_audio(p, edicao, fonte, clipes, transcricao, pg, None, sum(dur_saida(c) for c in clipes), [])
+    gravar_json(arq, rec)
+    return rec
 
 
 def mix_da_saida(rec_corpo: Path, rec_cta: Path, dur_corpo: float, dur_cta: float, transicao: str, destino: Path) -> dict:
@@ -1068,6 +1101,9 @@ if __name__ == '__main__':
         _, _, slug, t, lut, intensidade, vinheta, *nit = sys.argv
         print(amostra_look(slug, float(t), {'lut': None if lut == '-' else lut, 'intensidade': float(intensidade), 'vinheta': vinheta,
                                             'nitidez': nit[0] if nit else 'sem'}).relative_to(RAIZ))
+        sys.exit(0)
+    if '--previa-saida' in sys.argv:  # a prévia de uma saída de CTA nova, na versão mais nova (o + Saída do app)
+        previa_da_saida(sys.argv[1], sys.argv[sys.argv.index('--previa-saida') + 1])
         sys.exit(0)
     if '--saida' in sys.argv or '--saidas' in sys.argv:  # o export das saídas: uma (--saida <id>) ou todas (--saidas)
         slug = sys.argv[1]
