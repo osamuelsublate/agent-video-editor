@@ -44,6 +44,9 @@ function quandoFoi(ts) {
   return n < 730 ? 'há 1 ano' : `há ${Math.floor(n / 365)} anos`
 }
 
+/** Quantas saídas o projeto tem (as de agora; nos antigos, as do encaixe). */
+const nSaidas = (p) => p.saidas_novas?.length || p.saidas || 0
+
 /** O play do meio do card: o vídeo com som, ali mesmo (só um por vez); de novo, pausa. */
 function tocarComSom(caixa, ligar) {
   const v = $('video', caixa)
@@ -91,9 +94,8 @@ async function inicio(tela, ctas = false) {
       ${p.tem_final ? `<button class="abrir-exports" data-abrir-final title="Abrir a pasta dos exports no Finder" aria-label="Abrir os exports de ${esc(p.nome)}">${ICONE.abrir}</button>` : ''}
       <a class="card-projeto" href="#/p/${encodeURIComponent(p.slug)}">
       <div class="mini mini-916"><video muted playsinline preload="metadata" src="${proxy}#t=1.5"></video>
-        <span class="selo ${cor}">${estado}</span>${p.saidas ? `<span class="chip-saidas" title="O corpo encaixado em ${p.saidas} CTAs (final/saidas/)">${p.saidas} ${p.saidas === 1 ? 'saída' : 'saídas'}</span>` : ''}</div>
+        <span class="selo ${cor}">${estado}</span>${nSaidas(p) ? `<span class="chip-saidas" title="${esc((p.saidas_novas || []).map((x) => x.destino + (x.aprovado ? ' ✓' : '')).join(' · ') || 'As saídas em final/saidas/')}">${nSaidas(p)} ${nSaidas(p) === 1 ? 'saída' : 'saídas'}</span>` : ''}</div>
       <div class="card-titulo"><h3 title="${esc(p.nome)}">${esc(p.nome)}</h3><button class="botao-icone pequeno renomear" data-renomear title="Renomear" aria-label="Renomear ${esc(p.nome)}">${ICONE.lapis}</button></div>
-      ${p.saidas_novas?.length ? `<div class="saidas-card" title="As saídas (corpo + final); ✓ as aprovadas">${p.saidas_novas.map((x) => `<span class="${x.aprovado ? 'ok' : ''}">${esc(x.destino)}${x.aprovado ? ' ✓' : ''}</span>`).join('')}</div>` : ''}
       <p class="sub" title="${esc(p.slug)}">${quandoFoi(p.atualizado)} · ${p.conclusao != null ? `${p.conclusao}% concluído` : `v${p.ultima}`}${p.comentarios ? ` · ${p.comentarios} ${p.comentarios === 1 ? 'comentário' : 'comentários'}` : ''}</p>
     </a><div class="centro-mini"><button class="tocar-card" data-tocar-card title="Tocar com som (clique de novo para pausar)" aria-label="Tocar ${esc(p.nome)}">${ICONE.tocar}</button></div>
     <div class="sobre-mini">${seletorCategoria(cats, p.formato || 'reels')}${p.duracao ? `<span class="duracao-mini">${mmss(p.duracao)}</span>` : ''}</div>

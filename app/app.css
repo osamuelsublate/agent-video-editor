@@ -701,10 +701,6 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 .pe-saida { display: flex; align-items: flex-end; gap: 10px; }
 .pe-saida .campo { flex: 1; }
 .pe-saida .botao.escolhido { border-color: var(--color-coral); color: var(--color-cream); }
-/* no card do projeto: as saídas (✓ as aprovadas) */
-.saidas-card { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
-.saidas-card span { padding: 1px 8px; border: 1px solid var(--color-line-dark); border-radius: var(--radius-full); font-size: 10.5px; color: var(--color-fog); }
-.saidas-card .ok { border-color: transparent; background: rgba(124, 207, 134, 0.18); color: var(--color-green); }
 .barra-versao .menu-versoes { right: auto; left: 0; }
 .resumo { font-size: 13px; color: var(--color-cream); }
 .resumo b { font-weight: 600; }
@@ -1355,7 +1351,7 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 .pe-projeto { display: flex; align-items: flex-start; gap: 8px; margin-top: 8px; min-width: 0; }
 .pe-projeto .tags-card { flex: 1; min-width: 0; margin-top: 0; }
 .pe-projeto .codigo { margin-left: auto; }
-.chip-saidas { position: absolute; left: 10px; bottom: 38px; z-index: 2; padding: 2px 8px; border-radius: var(--radius-full); background: var(--color-green); color: var(--color-ink); font-size: 10px; font-weight: 600; }
+.chip-saidas { position: absolute; left: 10px; bottom: 48px; z-index: 2; padding: 2px 8px; border-radius: var(--radius-full); background: var(--color-green); color: var(--color-ink); font-size: 10px; font-weight: 600; }
 .filtro-categorias { display: flex; align-items: center; gap: 8px; }
 
 /* os usos agrupados por projeto (um chip "PRJ-07 · 12 planos" que abre os planos) e o modal do motion */
