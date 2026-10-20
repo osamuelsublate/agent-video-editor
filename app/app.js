@@ -3,7 +3,7 @@
 // (#/presets, #/transicoes[/<de>><para>], #/banco (os inserts), #/motions, #/trilhas).
 import { $, $$, ICONE, abasAbertas, abrirAba, aviso, preferencia, chipCodigo, codigos, confirmar, copiar, enviar, esc, fecharAba, json, mmss } from './comum.js'
 import { abrirRevisao } from './revisao.js'
-import { abrirBiblioteca, PAGINAS_BIBLIOTECA } from './biblioteca.js'
+import { abrirBiblioteca, PAGINAS_BIBLIOTECA, preCarregarBanco } from './biblioteca.js'
 import { abrirCalibragem, abrirRevisaoReferencia } from './calibragem.js'
 import { abrirAprendizados, abrirHeuristica, abrirReferencias } from './referencias.js'
 import { abrirLixeira } from './lixeira.js'
@@ -396,4 +396,5 @@ document.addEventListener('click', (e) => {
 for (const ev of ['pointerdown', 'mousedown']) document.addEventListener(ev, (e) => botaoCopiar(e.target) && e.stopPropagation(), true)
 
 window.addEventListener('hashchange', rotear)
+setTimeout(preCarregarBanco, 1500) // o Banco e os Motions já lidos quando a aba abrir
 rotear()

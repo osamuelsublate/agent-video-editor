@@ -60,10 +60,10 @@ const chip = (ativo, html, attrs = '') => `<button class="pilula pequena${ativo 
 /** O Banco (as mídias dos inserts) e os Motions (os presets de motion), cada um na sua aba da barra de cima, na mesma
  *  grade e com os mesmos selos (o filtro por selo, com ícones). */
 async function banco(el) {
-  await bancoInserts(el, 'inserts')
+  await bancoInserts(el, 'inserts', 'cache')
 }
 async function motions(el) {
-  await bancoInserts(el, 'motions')
+  await bancoInserts(el, 'motions', 'cache')
 }
 
 
@@ -110,11 +110,28 @@ let selecao = null
 let ultimoMarcado = null
 const buscas = { inserts: preferencia('banco.busca', ''), motions: preferencia('motions.busca', '') } // a busca de cada página (guardada: voltar à aba devolve)
 
-async function bancoInserts(el, tipo = 'inserts') {
+// o que o Banco e os Motions leram por último (por aba): voltar à aba mostra isso na hora e confere por trás
+const cacheBanco = {}
+async function lerBanco(tipo) {
   // as mídias numa resposta só (/api/banco); os motions (um HTML cada), só na aba Motions
-  const [itensBanco, cods, est, ms, tagsMotion, previas] = await Promise.all([json('/api/banco', []), codigos(), json('/api/estados', { midias: {}, motions: {} }), tipo === 'motions' ? lerMotions() : [],
+  const d = await Promise.all([json('/api/banco', []), codigos(), json('/api/estados', { midias: {}, motions: {} }), tipo === 'motions' ? lerMotions() : [],
     fetch('/biblioteca/motions/_tags.json', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : {})).catch(() => ({})),
     lista('biblioteca/motions/previas')])
+  const mudou = JSON.stringify(d) !== JSON.stringify(cacheBanco[tipo])
+  cacheBanco[tipo] = d
+  return mudou
+}
+
+/** Lê o Banco e os Motions em segundo plano (o app chama logo depois de abrir): a 1ª ida à aba já sai do cache. */
+export const preCarregarBanco = () => lerBanco('inserts').then(() => lerBanco('motions')).catch(() => {})
+
+/** `modo`: 'cache' (ao entrar na aba: o que já foi lido, na hora, e confere com o servidor por trás, redesenhando só se
+ *  algo mudou), 'local' (filtro e seleção: só o que já foi lido) ou 'novo' (depois de uma ação: lê de novo antes). */
+async function bancoInserts(el, tipo = 'inserts', modo = 'novo') {
+  if (modo === 'novo' || !cacheBanco[tipo]) await lerBanco(tipo)
+  else if (modo === 'cache') lerBanco(tipo).then((mudou) => mudou && el.isConnected && bancoInserts(el, tipo, 'local'))
+  const [itensBanco, cods, est, ms0, tagsMotion, previas] = cacheBanco[tipo]
+  const ms = ms0.map((m) => ({ ...m })) // as tags entram na cópia (o cache fica como veio)
   // a prévia em vídeo de cada motion (render.py previas-motions): a grade toca o vídeo; a animação ao vivo, só no modal
   const comPrevia = new Set((previas || []).map((n) => n.replace(/\.mp4$/, '')))
   for (const m of ms) m.tags = tagsMotion[m.id] || []
@@ -285,11 +302,11 @@ async function bancoInserts(el, tipo = 'inserts') {
   $('[data-selecionar]', el)?.addEventListener('click', () => {
     selecao = new Set()
     ultimoMarcado = null
-    bancoInserts(el, tipo)
+    bancoInserts(el, tipo, 'local')
   })
   $('[data-sel-sair]', el)?.addEventListener('click', () => {
     selecao = null
-    bancoInserts(el, tipo)
+    bancoInserts(el, tipo, 'local')
   })
   $('[data-sel-todas]', el)?.addEventListener('click', () => {
     for (const c of $$('.card-banco[data-id], .card-banco[data-motion]', el)) {
@@ -318,7 +335,7 @@ async function bancoInserts(el, tipo = 'inserts') {
   })
   for (const b of $$('[data-filtro-banco]', el)) b.addEventListener('click', () => {
     preferencia(chaveFiltro, 'todos', b.dataset.filtroBanco)
-    bancoInserts(el, tipo)
+    bancoInserts(el, tipo, 'local')
   })
   $('[data-limpar-recusados]', el)?.addEventListener('click', async () => {
     const ok = await confirmar({ titulo: `Limpar ${nRecusados} ${nRecusados === 1 ? 'mídia recusada' : 'mídias recusadas'}?`,
