@@ -109,10 +109,10 @@ async function inicio(tela, ctas = false) {
     const l = daCategoria().filter((p) => !tagAtiva || temTag(p.tags, tagAtiva))
     // dentro de cada grupo, pela entrega da última versão (ou pelo nome)
     l.sort((a, b) => (ordem === 'nome' ? a.nome.localeCompare(b.nome, 'pt-BR') : ordem === 'antigos' ? a.atualizado - b.atualizado : b.atualizado - a.atualizado))
-    // os em edição em cima; os aprovados embaixo, os dos últimos 3 dias numa linha e os antigos em outra (pela última mexida)
+    // os em edição em cima; os aprovados embaixo, os de hoje numa linha e os antigos em outra (pela última mexida)
     const aprovados = l.filter((p) => p.estado === 'aprovado')
-    const recente = (p) => Date.now() / 1000 - (p.atualizado || 0) < 3 * 86400
-    return [['Em edição', l.filter((p) => p.estado !== 'aprovado')], ['Aprovados · últimos 3 dias', aprovados.filter(recente)],
+    const recente = (p) => diasAtras(p.atualizado || 0) <= 0
+    return [['Em edição', l.filter((p) => p.estado !== 'aprovado')], ['Aprovados · hoje', aprovados.filter(recente)],
       ['Aprovados · antigos', aprovados.filter((p) => !recente(p))]]
       .filter(([, ps]) => ps.length).map(([g, ps]) => [`${g} · ${ps.length}`, ps])
   }
