@@ -52,7 +52,7 @@ frase curta (a resposta diz o que mudou: é o registro de onde saem os aprendiza
 
 ## Fluxo 3 — Aprovado ("Aprovado · <slug> · vN")
 
-Leia `etapas/12-final.md` e exporte o final em 4K (num projeto com saídas, cada saída aprovada vira o seu arquivo em
+Leia `etapas/12-final.md` e, **quando ele pedir**, exporte o final em 4K (num projeto com saídas, cada saída aprovada vira o seu arquivo em
 `final/saidas/`); a versão aprovada vai para a Calibragem. Depois **conclua o vídeo**
 (`etapas/14-concluir.md`): junte os aprendizados das revisões por área, mostre ao criador e grave só o que ele
 confirmar; faça a faxina do banco (apague o que você baixou e não foi usado, melhore a descrição do resto).

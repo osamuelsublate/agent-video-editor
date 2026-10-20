@@ -6,6 +6,11 @@ aprovada no app, igual ao botão: `aprovado: true` em `projetos/<slug>/revisoes/
 `{"projeto", "versao", "aprovado": true, "enviado_em": null, "comentarios": []}` se não existir). Os selos "Usado em
 vídeo" do banco e dos motions saem da versão aprovada.
 
+**Aprovar não é pedir o export.** Só exporte o que o criador pedir, no destino que ele disser. Um "aprovado" sem pedido
+de export (sobretudo vários de uma vez, ou CTAs coringa, que entram nos corpos pelas saídas e exportam junto deles):
+marque, conclua (`14-concluir.md`) e pergunte o que exportar. (2026-10-19: 16 CTAs aprovados de uma vez; o export de
+todos foi parado pelo criador, que depois pediu só os dois da Black, numa pasta em Downloads.)
+
 ```bash
 uv run ferramentas/render.py <slug> --final
 ```
