@@ -178,8 +178,10 @@ def filtros(a: dict, clipes: list[dict], eventos_som: list[dict], primeira_entra
         dur = dur_saida(c)
         f.append(f"[pv{k}]atrim=start={c['inicio']:.4f}:end={c['fim']:.4f},asetpts=PTS-STARTPTS,{acelerar(c.get('vel', 1))[1]}"
                  f'afade=t=in:d={FADE},afade=t=out:st={max(dur - FADE, 0):.4f}:d={FADE}[pc{k}]')
+    # `casar`: o equalizador que casa esta voz com a de outro vídeo emendado nela (`casar_voz`)
+    casar = f"{a['casar']}," if a.get('casar') else ''
     f.append(''.join(f'[pc{k}]' for k in range(n)) + f'concat=n={n}:v=0:a=1,{cadeia_voz(a["timbre"], a["niveis"]["ator"])},'
-             f'{VOZ_ESTEREO}[pvoz]')
+             f'{casar}{VOZ_ESTEREO}[pvoz]')
     # os sons, cada grupo no seu fader
     if faixa_sons:
         entradas += ['-i', str(faixa_sons)]
@@ -190,21 +192,9 @@ def filtros(a: dict, clipes: list[dict], eventos_som: list[dict], primeira_entra
         f += f_s
     atual = 'pmix'
     if a.get('fundo') and not a.get('fundo_mudo'):
-        idx = primeira_entrada + entradas.count('-i')
-        # cada volta numa entrada própria (o mesmo arquivo), emendadas com crossfade de potência constante
-        desde = float(a.get('desde') or 0)  # onde a trilha já está (continuando o vídeo de antes)
-        voltas = voltas_do_fundo(tuple(a.get('laco') or (0.0, desde + duracao)), desde + duracao)
-        for k, (de, ate) in enumerate(voltas):
-            entradas += ['-i', str(a['fundo'])]
-            f.append(f'[{idx + k}:a]aresample=48000,aformat=channel_layouts=stereo,atrim=start={de:.3f}:end={ate:.3f},asetpts=PTS-STARTPTS[pf{k}]')
-        cruza = min(CRUZA_FUNDO, (voltas[-1][1] - voltas[-1][0]) / 2)
-        for k in range(1, len(voltas)):
-            f.append(f'[{"pf0" if k == 1 else f"pfx{k - 1}"}][pf{k}]acrossfade=d={cruza:.3f}:c1=qsin:c2=qsin[pfx{k}]')
-        ganho = ganho_fundo(a['voz_lufs'], a['niveis']['fundo'])
-        fade = f"afade=t=out:st={max(duracao - FADE_FUNDO, 0):.4f}:d={FADE_FUNDO}," if a.get('fade_fim', True) else ''
-        f.append(f"[{'pf0' if len(voltas) == 1 else f'pfx{len(voltas) - 1}'}]atrim=start={desde:.4f}:duration={duracao:.4f},asetpts=PTS-STARTPTS,"
-                 f"{fade}volume={ganho:.1f}dB,"
-                 f"volume='{expressao_ducking(a.get('falas') or [], a.get('ducking_db', DUCKING_DB))}':eval=frame[pfd]")
+        ent_f, f_f = filtros_fundo(a, duracao, primeira_entrada + entradas.count('-i'), 'pfd')
+        entradas += ent_f
+        f += f_f
         f.append(f'[{atual}][pfd]amix=inputs=2:duration=first:normalize=0[pmixf]')
         atual = 'pmixf'
     if medida and medida.get('cru'):
@@ -215,6 +205,63 @@ def filtros(a: dict, clipes: list[dict], eventos_som: list[dict], primeira_entra
         fim = f'loudnorm=I={LUFS}:TP={PICO}:LRA=11'
     f.append(f'[{atual}]{fim},aresample=48000,aformat=channel_layouts=stereo[{saida}]')
     return entradas, f
+
+
+def filtros_fundo(a: dict, duracao: float, primeira_entrada: int, saida: str) -> tuple[list[str], list[str]]:
+    """A faixa de fundo em [`saida`]: nas voltas do laço com crossfade, a partir de `a['desde']`, no nível dela em relação à
+    voz (`a['voz_lufs']`), com o ducking pelas `a['falas']` e o fade no fim (se `fade_fim`)."""
+    entradas, f = [], []
+    # cada volta numa entrada própria (o mesmo arquivo), emendadas com crossfade de potência constante
+    desde = float(a.get('desde') or 0)  # onde a trilha já está (continuando o vídeo de antes)
+    voltas = voltas_do_fundo(tuple(a.get('laco') or (0.0, desde + duracao)), desde + duracao)
+    for k, (de, ate) in enumerate(voltas):
+        entradas += ['-i', str(a['fundo'])]
+        f.append(f'[{primeira_entrada + k}:a]aresample=48000,aformat=channel_layouts=stereo,atrim=start={de:.3f}:end={ate:.3f},asetpts=PTS-STARTPTS[pf{k}]')
+    cruza = min(CRUZA_FUNDO, (voltas[-1][1] - voltas[-1][0]) / 2)
+    for k in range(1, len(voltas)):
+        f.append(f'[{"pf0" if k == 1 else f"pfx{k - 1}"}][pf{k}]acrossfade=d={cruza:.3f}:c1=qsin:c2=qsin[pfx{k}]')
+    ganho = ganho_fundo(a['voz_lufs'], a['niveis']['fundo'])
+    fade = f"afade=t=out:st={max(duracao - FADE_FUNDO, 0):.4f}:d={FADE_FUNDO}," if a.get('fade_fim', True) else ''
+    f.append(f"[{'pf0' if len(voltas) == 1 else f'pfx{len(voltas) - 1}'}]atrim=start={desde:.4f}:duration={duracao:.4f},asetpts=PTS-STARTPTS,"
+             f"{fade}volume={ganho:.1f}dB,"
+             f"volume='{expressao_ducking(a.get('falas') or [], a.get('ducking_db', DUCKING_DB))}':eval=frame[{saida}]")
+    return entradas, f
+
+
+# ---------------------------------------------------------------- a voz casada (dois vídeos emendados numa saída)
+
+# as faixas (oitavas) em que o timbre das duas vozes é comparado, e o que vira correção
+BANDAS = (125, 250, 500, 1000, 2000, 4000, 8000)
+CASAR_DB = 1.0  # diferença numa faixa que vale corrigir
+CASAR_MAX = 6.0  # a maior correção numa faixa
+
+
+def espectro_voz(arq: Path) -> list[float]:
+    """O equilíbrio da voz por faixa (dB, a média da energia nas oitavas de `BANDAS`, só nos trechos em que ela fala), sem
+    o nível: cada faixa em relação à média delas."""
+    import numpy as np
+
+    taxa, n = 32000, 4096
+    r = subprocess.run(['ffmpeg', '-v', 'error', '-i', str(arq), '-ac', '1', '-ar', str(taxa), '-f', 'f32le', '-'], capture_output=True)
+    x = np.frombuffer(r.stdout, np.float32).astype(np.float64)
+    if len(x) < n * 4:
+        return [0.0] * len(BANDAS)
+    quadros = x[: len(x) // n * n].reshape(-1, n) * np.hanning(n)
+    energia = (quadros ** 2).mean(axis=1)
+    fala = quadros[energia > np.percentile(energia, 60) * 0.1]  # sem o silêncio entre as falas
+    pot = (np.abs(np.fft.rfft(fala, axis=1)) ** 2).mean(axis=0)
+    freqs = np.fft.rfftfreq(n, 1 / taxa)
+    bandas = [10 * np.log10(pot[(freqs >= c / 2 ** 0.5) & (freqs < c * 2 ** 0.5)].mean() + 1e-20) for c in BANDAS]
+    media = sum(bandas) / len(bandas)
+    return [round(float(b - media), 2) for b in bandas]
+
+
+def casar_voz(referencia: list[float], outra: list[float]) -> tuple[str, list[float]]:
+    """O equalizador que leva o equilíbrio de uma voz (`outra`) ao da `referencia` (`espectro_voz` das duas): um pico de
+    uma oitava em cada faixa que difere mais que `CASAR_DB` (até `CASAR_MAX`). Devolve (filtro, diferenças em dB)."""
+    dif = [round(r - o, 2) for r, o in zip(referencia, outra)]
+    f = [f'equalizer=f={c}:t=o:w=1:g={max(min(d, CASAR_MAX), -CASAR_MAX):.1f}' for c, d in zip(BANDAS, dif) if abs(d) > CASAR_DB]
+    return ','.join(f), dif
 
 
 def final(ganho: float) -> str:

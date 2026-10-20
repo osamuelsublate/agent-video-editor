@@ -23,8 +23,8 @@ projetos/<slug>/
 │   └── voz/f1_<limpeza>.wav  a voz limpa (DeepFilterNet), 48 kHz mono
 ├── inserts/<plano>.json   o que cada subagente de insert achou (ver etapas/04-inserts.md)
 ├── versoes/vN/            cada versão entregue: proxy.mp4, edicao.json (cópia), palavras.json, planos.json, info.json
-├── revisoes/vN.json       os comentários do criador sobre a vN (gravado pelo app) e, nos vídeos de mais de 2 min, os
-│                          `blocos` de ~30 s ({id, palavra em que começa, aprovado = finalizado e travado}); a versão
+├── revisoes/vN.json       os comentários do criador sobre a vN (gravado pelo app), os `blocos`
+│                          de ~30 s do corpo (nenhum abaixo de 15 s; `finais`: o Finalizar do bloco Final de cada saída) ({id, palavra em que começa, aprovado = finalizado e travado}); a versão
 │                          seguinte herda os da anterior
 └── final/                 o MP4 final aprovado
 ```
@@ -81,6 +81,15 @@ projetos/<slug>/
   card do projeto (📱 💰 🎥 📺 📚).
 - **`tags`** (opcional): as tags do projeto, como no Banco (`fia/ad-vsl`, sem o #). Só o criador mexe, pelo app.
 - **`oculto`** (opcional): `true` tira o projeto da lista do app (fica na vista Ocultos). Só o criador mexe, pelo app.
+- **`saidas`** (opcional): as saídas do vídeo, cada uma o **corpo** (`cortes.mantidas`, o comum a todas) + um **final**:
+  `{"id": "manychat", "destino": "ManyChat", "final": {"tipo": "falado", "manter": [["w00215","w00225"]]} |
+  {"tipo": "cta", "cta": "<slug do CTA>", "transicao": "luz-colorida"} | {"tipo": "nenhum"}, "V1": [clipes do corpo + final,
+  só na falada: cortes.py], "aprovado": false, "exportado": {"arquivo", "em", "cta_versao"}}`. `cortes.py` cria e mantém
+  (`aplicar` com `finais`, ou `saida`/`tirar-saida`); o app aprova cada uma (e o Aprovar do projeto, todas). Linhas antigas
+  sem `final` (do `encaixar.py` antigo) são só registro.
+- **`saida`** num item de `direcao.itens`, em `audio.extras` ou num ajuste de `legenda.ajustes`: a direção do **final de
+  uma saída** (o plano, o motion, a fala gravada à parte, a palavra escondida da legenda que só aquela saída tem). Sem
+  `saida`, vale para todas; com, só entra no render dela (no corpo e nas outras, fica de fora).
 - **Tudo depois dos cortes fica preso às palavras** (`palavra_ini`/`palavra_fim` + `off_ini`/`off_fim` em s). Os tempos no
   vídeo final nunca são a fonte de verdade: são calculados (cortes + velocidade). `inicio`/`duracao` dos pedidos são cache.
 - **Ids dos planos** `p1, p2…` na ordem; elementos `e1, e2…`. Pedidos de insert usam o id do plano. Transições usam o id

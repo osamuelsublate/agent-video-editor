@@ -15,8 +15,8 @@ acrescenta `drive` e `notion`). Assim o app mostra que o projeto tem várias sa�
 
 Antes de montar, confere se os dois lados casam: a sonoridade (LUFS) dos últimos 4 s do corpo e dos primeiros 4 s do CTA
 e a luminância/saturação do último quadro do corpo e do primeiro do CTA. Uma diferença grande (o susto na troca) é avisada.
-O áudio do CTA já continua a trilha do corpo (`audio.continua` no edicao.json dele); aqui só se emendam as duas partes e
-entra o som da transição.
+Numa saída do projeto (`render.py <corpo> --saida <id>`), o áudio vem pronto de `render.mix_da_saida` (a voz do CTA casada
+com a do corpo e uma trilha só, do começo ao fim); sozinho, emenda os áudios dos dois finais com a rampa e o som da transição.
 """
 import argparse
 import json
@@ -69,8 +69,20 @@ def cor(arq: Path, t: float) -> tuple[float, float]:
     return valor('YAVG'), valor('SATAVG')
 
 
-def conferir(corpo: Path, cta: Path, dc: float) -> tuple[list[str], float]:
-    """Os avisos e o ajuste de volume do começo do CTA (dB): a diferença entre o fim do corpo e o começo do CTA."""
+def conferir(corpo: Path, cta: Path, dc: float, com_audio: bool = True) -> tuple[list[str], float]:
+    """Os avisos e o ajuste de volume do começo do CTA (dB): a diferença entre o fim do corpo e o começo do CTA. Sem
+    `com_audio` (o áudio da saída vem misturado à parte), só a cor."""
+    avisos, ajuste = [], 0.0
+    if com_audio:
+        avisos, ajuste = conferir_audio(corpo, cta, dc)
+    (ya, sa), (yb, sb) = cor(corpo, dc - 0.1), cor(cta, 0.05)
+    print(f'  cor: último quadro do corpo luma {ya:.0f} sat {sa:.0f} · primeiro do CTA luma {yb:.0f} sat {sb:.0f}')
+    if abs(ya - yb) > LIMITE_LUMA:
+        avisos.append(f'a luminância muda {abs(ya - yb):.0f} na emenda (look diferente?)')
+    return avisos, ajuste
+
+
+def conferir_audio(corpo: Path, cta: Path, dc: float) -> tuple[list[str], float]:
     avisos = []
     a, b = lufs(corpo, dc - JANELA, JANELA), lufs(cta, 0, JANELA)
     ajuste = round(a - b, 1) if abs(a - b) > 1.0 else 0.0
@@ -78,10 +90,6 @@ def conferir(corpo: Path, cta: Path, dc: float) -> tuple[list[str], float]:
           + (f' → o CTA entra com {ajuste:+.1f} dB e volta ao nível dele em {RAMPA:.0f} s' if ajuste else ''))
     if abs(a - b) > LIMITE_DB + 4:
         avisos.append(f'o volume muda {abs(a - b):.1f} dB na emenda (a rampa compensa, mas confira)')
-    (ya, sa), (yb, sb) = cor(corpo, dc - 0.1), cor(cta, 0.05)
-    print(f'  cor: último quadro do corpo luma {ya:.0f} sat {sa:.0f} · primeiro do CTA luma {yb:.0f} sat {sb:.0f}')
-    if abs(ya - yb) > LIMITE_LUMA:
-        avisos.append(f'a luminância muda {abs(ya - yb):.0f} na emenda (look diferente?)')
     return avisos, ajuste
 
 
@@ -128,13 +136,18 @@ def registrar(corpo_slug: str, cta_slug: str, tipo: str, saida: Path, transicao:
     arq = pasta(corpo_slug) / 'edicao.json'
     ed = ler_json(arq, {}) or {}
     rel = saida.relative_to(pasta(corpo_slug)) if saida.is_relative_to(pasta(corpo_slug)) else saida
+    # uma saída do modelo de agora (com `final`) com este CTA: o export é registrado por quem chamou (render.exportar_saida)
+    if any(x.get('final', {}).get('cta') == cta_slug and x.get('destino') == tipo for x in ed.get('saidas') or [] if isinstance(x, dict)):
+        return
     velhas = [x for x in ed.get('saidas') or [] if x.get('tipo') != tipo]
     ed['saidas'] = [*velhas, {'tipo': tipo, 'cta': cta_slug, 'arquivo': str(rel), 'transicao': transicao,
                               'criado_em': datetime.now().isoformat(timespec='seconds')}]
     gravar_json(arq, ed)
 
 
-def encaixar(corpo_slug: str, cta_slug: str, saida: Path, transicao: str, tipo: str) -> None:
+def encaixar(corpo_slug: str, cta_slug: str, saida: Path, transicao: str, tipo: str, audio: Path | None = None) -> None:
+    """`audio`: o áudio da saída inteira já misturado (`render.mix_da_saida`: a voz casada e uma trilha só), no lugar dos
+    áudios dos dois finais emendados com a rampa."""
     if saida.exists():
         raise SystemExit(f'{saida} já existe: escolha outro nome (nunca sobrescrevemos vídeo).')
     corpo, cta = final_de(corpo_slug), final_de(cta_slug)
@@ -142,7 +155,7 @@ def encaixar(corpo_slug: str, cta_slug: str, saida: Path, transicao: str, tipo: 
     if (a['w'], a['h']) != (b['w'], b['h']):
         raise SystemExit(f'Os finais têm tamanhos diferentes ({a["w"]}×{a["h"]} e {b["w"]}×{b["h"]}).')
     print(f'Corpo: {corpo.name} ({a["dur"]:.2f} s) · CTA: {cta.name} ({b["dur"]:.2f} s)')
-    avisos, ajuste = conferir(corpo, cta, a['dur'])
+    avisos, ajuste = conferir(corpo, cta, a['dur'], audio is None)
     tr = json.loads((BIBLIOTECA / 'transicoes' / f'{transicao}.json').read_text())
     t = a['dur']
     w, h = a['w'], a['h']
@@ -153,16 +166,20 @@ def encaixar(corpo_slug: str, cta_slug: str, saida: Path, transicao: str, tipo: 
     som = tr.get('som') or {}
     idx_som = 2 + ent_t.count('-i')
     rampa = (f"volume='if(lt(t,{RAMPA}),pow(10,({ajuste})*(1-t/{RAMPA})/20),1)':eval=frame" if ajuste else 'anull')
-    f.append(f'[1:a]{rampa}[acta]')
-    f.append('[0:a][acta]concat=n=2:v=0:a=1[acat]')
-    if som.get('som'):
+    if audio:  # o áudio da saída já misturado (com o som da transição)
+        entradas += ['-i', str(audio)]
+        f.append(f'[{idx_som}:a]anull[afim]')
+    elif som.get('som'):
+        f.append(f'[1:a]{rampa}[acta]')
+        f.append('[0:a][acta]concat=n=2:v=0:a=1[acat]')
         entradas += ['-i', str(sons.arquivo(som['som']))]
         ganho = sons.INTENSIDADES.get(som.get('intensidade', 'medio'), 0.5)
         atraso = int(max(t + float(som.get('atraso') or 0), 0) * 1000)
         f.append(f'[{idx_som}:a]aresample=48000,aformat=channel_layouts=stereo,volume={ganho},adelay={atraso}|{atraso}[asom]')
         f.append('[acat][asom]amix=inputs=2:duration=first:normalize=0[afim]')
     else:
-        f.append('[acat]anull[afim]')
+        f.append(f'[1:a]{rampa}[acta]')
+        f.append('[0:a][acta]concat=n=2:v=0:a=1[afim]')
     saida.parent.mkdir(parents=True, exist_ok=True)
     cmd = ['ffmpeg', '-loglevel', 'error', *entradas, '-filter_complex', ';'.join(f), '-map', '[vfim]', '-map', '[afim]',
            '-c:v', 'hevc_videotoolbox', '-q:v', '65', '-tag:v', 'hvc1', '-r', str(FPS), '-pix_fmt', 'yuv420p',

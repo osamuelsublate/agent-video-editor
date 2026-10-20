@@ -93,6 +93,7 @@ async function inicio(tela, ctas = false) {
       <div class="mini mini-916"><video muted playsinline preload="metadata" src="${proxy}#t=1.5"></video>
         <span class="selo ${cor}">${estado}</span>${p.saidas ? `<span class="chip-saidas" title="O corpo encaixado em ${p.saidas} CTAs (final/saidas/)">${p.saidas} ${p.saidas === 1 ? 'saída' : 'saídas'}</span>` : ''}</div>
       <div class="card-titulo"><h3 title="${esc(p.nome)}">${esc(p.nome)}</h3><button class="botao-icone pequeno renomear" data-renomear title="Renomear" aria-label="Renomear ${esc(p.nome)}">${ICONE.lapis}</button></div>
+      ${p.saidas_novas?.length ? `<div class="saidas-card" title="As saídas (corpo + final); ✓ as aprovadas">${p.saidas_novas.map((x) => `<span class="${x.aprovado ? 'ok' : ''}">${esc(x.destino)}${x.aprovado ? ' ✓' : ''}</span>`).join('')}</div>` : ''}
       <p class="sub" title="${esc(p.slug)}">${quandoFoi(p.atualizado)} · ${p.conclusao != null ? `${p.conclusao}% concluído` : `v${p.ultima}`}${p.comentarios ? ` · ${p.comentarios} ${p.comentarios === 1 ? 'comentário' : 'comentários'}` : ''}</p>
     </a><div class="centro-mini"><button class="tocar-card" data-tocar-card title="Tocar com som (clique de novo para pausar)" aria-label="Tocar ${esc(p.nome)}">${ICONE.tocar}</button></div>
     <div class="sobre-mini">${seletorCategoria(cats, p.formato || 'reels')}${p.duracao ? `<span class="duracao-mini">${mmss(p.duracao)}</span>` : ''}</div>

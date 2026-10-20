@@ -22,7 +22,8 @@ de inserts e motions no render (até ~5 min sem cache). Por isso: o motion novo 
 fotografada em segundo plano (o pré-render) enquanto a edição segue.
 
 1. **Preparar** (`etapas/01-preparar.md`): cria o projeto, transcreve, proxy, rosto, voz limpa.
-2. **Cortes** (`etapas/02-cortes.md`): você escolhe as palavras que ficam.
+2. **Cortes** (`etapas/02-cortes.md`): você escolhe as palavras que ficam: o corpo e, se o criador gravou finais
+   alternativos, uma **saída** para cada final (corpo + final: ManyChat, LP, Prompt na descrição…).
 3. **Direção** (`etapas/03-direcao.md`): você escreve o roteiro dirigido.
 4. **Em paralelo**, num só turno:
    - **Motions** (`etapas/06-motions-e-elementos.md`): na v1, só presets que já existem (ou um vídeo do banco). Se a
@@ -51,7 +52,8 @@ frase curta (a resposta diz o que mudou: é o registro de onde saem os aprendiza
 
 ## Fluxo 3 — Aprovado ("Aprovado · <slug> · vN")
 
-Leia `etapas/12-final.md` e exporte o final em 4K; a versão aprovada vai para a Calibragem. Depois **conclua o vídeo**
+Leia `etapas/12-final.md` e exporte o final em 4K (num projeto com saídas, cada saída aprovada vira o seu arquivo em
+`final/saidas/`); a versão aprovada vai para a Calibragem. Depois **conclua o vídeo**
 (`etapas/14-concluir.md`): junte os aprendizados das revisões por área, mostre ao criador e grave só o que ele
 confirmar; faça a faxina do banco (apague o que você baixou e não foi usado, melhore a descrição do resto).
 

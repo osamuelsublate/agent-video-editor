@@ -103,6 +103,21 @@ def blocos(slug: str, n: int, rev: dict) -> list[dict]:
     return [b for b in out if b['fim'] - b['ini'] > 0.05]
 
 
+def saidas_do(slug: str) -> dict:
+    """As saídas do projeto (corpo + final), por id: o comentário feito no final de uma é sobre o final dela."""
+    return {x['id']: x for x in (ler_json(pasta(slug) / 'edicao.json', {}) or {}).get('saidas') or [] if isinstance(x, dict) and x.get('final')}
+
+
+def onde_na_saida(sx: dict | None) -> str:
+    """O rótulo de um comentário feito no final de uma saída: o final falado (palavras do bruto, com a direção dele) ou o
+    CTA à parte (outro projeto: o comentário se aplica nele)."""
+    if not sx:
+        return 'Final (saída que não existe mais)'
+    f = sx['final']
+    alvo = f'CTA {f["cta"]} — aplique no projeto do CTA' if f['tipo'] == 'cta' else 'final falado' if f['tipo'] == 'falado' else 'sem final'
+    return f'Final da saída {sx["destino"]} ({alvo})'
+
+
 def bloco_em(bs: list[dict], t: float | None) -> dict | None:
     if t is None or not bs:
         return None
@@ -118,9 +133,11 @@ def texto(slug: str, v: int, rev: dict, bloco: str | None = None) -> str:
         raise SystemExit(f'Não há o bloco {bloco} na v{v} (blocos: {", ".join(x["id"] for x in bs) or "nenhum"}).')
     linhas = [f'Revisão · {slug} · v{v}' + (f' · bloco {b["id"]} ({tempo(b["ini"])}–{tempo(b["fim"])})' if b else '')]
     cs = [c for c in rev.get('comentarios', []) if tem_conteudo(c) and (not b or (not c.get('geral') and bloco_em(bs, c['t']) is b))]
+    sxs = saidas_do(slug)
     for c in sorted(cs, key=ordem):
         fala = f'"{c["fala"]}" — ' if c.get('fala') else ''
-        linhas.append(f'[{quando(c)}] {fala}{uma_linha(c.get("texto") or "") or "(ver o print)"}')
+        da_saida = f'(saída {sxs.get(c["saida"], {}).get("destino", c["saida"])}) ' if c.get('saida') else ''
+        linhas.append(f'[{quando(c)}] {da_saida}{fala}{uma_linha(c.get("texto") or "") or "(ver o print)"}')
         if c.get('anexos'):
             linhas.append(linha_anexos(slug, c['anexos']))
     if not b and ((rev.get('geral') or '').strip() or rev.get('anexos_geral')):  # revisões antigas (o app de agora grava comentários gerais)
@@ -174,8 +191,8 @@ def ler(slug: str, v: str | None, bloco: str | None = None) -> None:
     for c in sorted(rev.get('comentarios', []), key=ordem):
         if not tem_conteudo(c):
             continue
-        b = bloco_em(bs, None if c.get('geral') else c['t'])
-        if bloco and (not b or b['id'] != bloco):
+        b = None if c.get('saida') else bloco_em(bs, None if c.get('geral') else c['t'])
+        if bloco and (not b or b['id'] != bloco) and not (bloco == 'Final' and c.get('saida')):
             continue
         fim = c.get('fim')
         if c.get('geral'):
@@ -184,7 +201,7 @@ def ler(slug: str, v: str | None, bloco: str | None = None) -> None:
             w1 = palavra_em(fim) if fim is not None else None
             ancora = f'palavra {c.get("palavra")}' if w1 is None or w1['id'] == c.get('palavra') else f'palavras {c.get("palavra")}–{w1["id"]}'
             ps = ', '.join(f'{q["id"]} {q["tipo"]} ({tempo(q["ini"])}–{tempo(q["fim"])})' for q in planos_em(c['t'], fim if fim is not None else c['t']))
-            nome_bloco = f' · {b["id"]}' if b else ''
+            nome_bloco = f' · {onde_na_saida(saidas_do(slug).get(c["saida"]))}' if c.get('saida') else f' · {b["id"]}' if b else ''
             print(f'\n- {c["id"]} · {quando(c)}{nome_bloco} · {ancora} · plano {ps or "—"} · {c.get("status", "pendente")}')
         print(f'  {uma_linha(c.get("texto") or "") or "(só o print)"}')
         for a in c.get('anexos') or []:
@@ -233,9 +250,9 @@ def trabalhando(slug: str, n: int, bs: list[dict], pend: list[dict]) -> None:
     4 s; o render da versão nova o apaga)."""
     arq = pasta(slug) / 'revisoes' / 'trabalhando.json'
     antes = ler_json(arq, {}) or {}
-    blocos_pend = {b['id'] for c in pend if (b := bloco_em(bs, None if c.get('geral') else c['t']))} | set(antes.get('blocos') or [])
+    blocos_pend = {('Final' if c.get('saida') else b['id']) for c in pend if c.get('saida') or (b := bloco_em(bs, None if c.get('geral') else c['t']))} | set(antes.get('blocos') or [])
     gravar_json(arq, {
-        'versoes': sorted(set(antes.get('versoes') or []) | {n}), 'blocos': sorted(blocos_pend, key=lambda x: int(x[1:])),
+        'versoes': sorted(set(antes.get('versoes') or []) | {n}), 'blocos': sorted(blocos_pend, key=lambda x: (not x[1:].isdigit(), int(x[1:]) if x[1:].isdigit() else 0)),
         'geral': bool(antes.get('geral')) or not bs or any(c.get('geral') for c in pend),
         'fase': 'aplicando', 'desde': antes.get('desde') or datetime.now().isoformat(timespec='seconds')})
 

@@ -77,14 +77,18 @@ class Revisao {
   }
 
   async abrir() {
-    const [palavras, planos, info, rev, cods, edicao] = await Promise.all([
-      json(this.base + 'palavras.json', []),
-      json(this.base + 'planos.json', []),
-      json(this.base + 'info.json', {}),
-      json(this.urlRevisao, null),
-      codigos(),
-      json(this.base + 'edicao.json', {}),
-    ])
+    const [rev, cods, edicao, infoCorpo] = await Promise.all([json(this.urlRevisao, null), codigos(), json(this.base + 'edicao.json', {}), json(this.base + 'info.json', {})])
+    // as saídas desta versão (corpo + final): as que têm prévia aqui; a escolhida fica guardada por projeto
+    this.saidas = []
+    for (const x of (edicao.saidas || []).filter((x) => x?.final)) {
+      const info = x.final.tipo === 'nenhum' ? null : await json(`${this.base}saidas/${x.id}/info.json`, null)
+      if (info || x.final.tipo === 'nenhum') this.saidas.push({ id: x.id, destino: x.destino, tipo: x.final.tipo, cta: x.final.cta, aprovado: !!x.aprovado, info })
+    }
+    this.corpoDur = infoCorpo?.duracao || 0
+    const pedida = preferencia(`saida.${this.slug}`, null)
+    this.saidaId = this.saidas.find((x) => x.id === pedida && x.info)?.id ?? this.saidas.find((x) => x.info)?.id ?? null
+    this.dir = this.saidaId ? `${this.base}saidas/${this.saidaId}/` : this.base
+    const [palavras, planos, info] = await Promise.all([json(this.dir + 'palavras.json', []), json(this.dir + 'planos.json', []), json(this.dir + 'info.json', {})])
     this.codigo = cods.projeto?.[this.slug]
     this.cods = cods
     // o que entrou em cada plano nesta versão: as mídias do banco, o preset do enriquecimento e o motion
@@ -132,7 +136,7 @@ class Revisao {
   prepararBlocos() {
     if (!this.rev.blocos?.length) {
       const herdado = Object.keys(this.anteriores).map(Number).sort((a, b) => b - a).map((x) => this.anteriores[x]).find((r) => r?.blocos?.length)
-      const novos = herdado ? herdado.blocos.map((b) => ({ ...b })) : this.dur > 120 ? this.cortarBlocos() : null
+      const novos = herdado ? herdado.blocos.map((b) => ({ ...b })) : this.cortarBlocos()
       if (novos?.length) {
         this.rev.blocos = novos
         this.blocosNovos = true
@@ -144,12 +148,13 @@ class Revisao {
   /** Os blocos de uma versão sem blocos: a cada ~30 s, na troca de plano mais perto (até 12 s para cada lado); sem
    *  troca de plano por perto, na palavra mais perto dos 30 s. Nenhum bloco com menos de 15 s. */
   cortarBlocos() {
-    const ws = this.palavras
+    const fim = this.fimCorpo() // só o corpo: os finais das saídas são o bloco Final de cada uma
+    const ws = this.palavras.filter((w) => w.ini < fim)
     if (!ws.length) return null
     const inicios = []
     let ant = 0
-    for (let alvo = 30; alvo < this.dur - 15; alvo += 30) {
-      const perto = this.planos.map((q) => q.ini).filter((t) => t > ant + 15 && t < this.dur - 15 && Math.abs(t - alvo) <= 12)
+    for (let alvo = 30; alvo < fim - 15; alvo += 30) {
+      const perto = this.planos.map((q) => q.ini).filter((t) => t > ant + 15 && t < fim - 15 && Math.abs(t - alvo) <= 12)
       const t = perto.length ? perto.reduce((a, b) => (Math.abs(b - alvo) < Math.abs(a - alvo) ? b : a)) : alvo
       if (t <= ant + 15) continue
       inicios.push(t)
@@ -163,10 +168,34 @@ class Revisao {
   calcularBlocos() {
     const defs = this.rev.blocos || []
     if (!defs.length) return (this.blocos = null)
+    const fim = this.fimCorpo()
     const inicio = (id) => (this.palavras.find((w) => w.id === id) || this.palavras.find((w) => w.id > id))?.ini
-    const l = defs.map((def, k) => ({ id: def.id, def, ini: k === 0 ? 0 : inicio(def.palavra) ?? this.dur })).sort((a, b) => a.ini - b.ini)
-    l.forEach((b, k) => (b.fim = l[k + 1]?.ini ?? this.dur))
+    const l = defs.map((def, k) => ({ id: def.id, def, ini: k === 0 ? 0 : Math.min(inicio(def.palavra) ?? fim, fim) })).sort((a, b) => a.ini - b.ini)
+    l.forEach((b, k) => (b.fim = l[k + 1]?.ini ?? fim))
+    // o corpo encolheu (um final novo recuou o ponto comum): o último bloco, se ficou curto e ninguém finalizou, junta ao de antes
+    const ult = l.at(-1)
+    if (l.length > 1 && ult.fim - ult.ini < 15 && !ult.def.aprovado) l.at(-2).fim = l.pop().fim
     this.blocos = l.filter((b) => b.fim - b.ini > 0.05)
+    // a saída escolhida: depois do corpo, o bloco Final dela (com o Finalizar próprio, guardado por saída na revisão)
+    const sx = this.saidaAtual()
+    if (sx && this.dur - fim > 0.05) {
+      const finais = (this.rev.finais ||= {})
+      this.blocos.push({ id: 'Final', final: true, def: (finais[sx.id] ||= { aprovado: false }), ini: fim, fim: this.dur })
+    }
+  }
+
+  /** Onde o corpo termina no vídeo aberto: com uma saída, a duração do corpo; sem, o vídeo todo. */
+  fimCorpo() {
+    return this.saidaAtual() && this.corpoDur ? Math.min(this.corpoDur, this.dur) : this.dur
+  }
+
+  saidaAtual() {
+    return this.saidas?.find((x) => x.id === this.saidaId) || null
+  }
+
+  /** Um comentário aparece na saída aberta: os do corpo em todas; os do final, só na saída deles. */
+  visivel(c) {
+    return !c.saida || c.saida === this.saidaId
   }
 
   /** Escolher um bloco pela mão (faixa, cabeçalho, estrela): sempre na versão mais recente do vídeo; numa antiga, abre
@@ -194,7 +223,7 @@ class Revisao {
 
   /** Os comentários (e réplicas) que caem num bloco. */
   doBloco(b) {
-    return this.rev.comentarios.filter((c) => temConteudo(c) && !c.geral && this.blocoEm(c.t)?.id === b.id)
+    return this.rev.comentarios.filter((c) => temConteudo(c) && !c.geral && this.visivel(c) && this.blocoEm(c.t)?.id === b.id)
   }
 
   renderBlocos() {
@@ -368,7 +397,7 @@ class Revisao {
     const antigos = {}
     for (const x of Object.keys(this.anteriores).map(Number)) {
       for (const c of this.anteriores[x].comentarios || []) {
-        if (!temConteudo(c) || c.geral || this.blocoEm(this.ondeAgora(c).t)?.id !== b.id) continue
+        if (!temConteudo(c) || c.geral || !this.visivel(c) || this.blocoEm(this.ondeAgora(c).t)?.id !== b.id) continue
         const bv = this.versaoDoBloco(b.id, x)
         if (aqui != null && bv === aqui) atuais.push({ x, c })
         else (antigos[bv ?? `vídeo ${x}`] ||= []).push({ x, c })
@@ -495,7 +524,11 @@ class Revisao {
 
   montar() {
     abrirAba(this.slug, this.proj.nome) // o nome do projeto fica na aba; a versão, logo ao lado dela na barra
-    carregarCategorias().then((cats) => abrirAba(this.slug, this.proj.nome, categoriaCta(cats, this.proj.formato || 'reels'))) // o ícone: projeto ou CTA
+    carregarCategorias().then((cats) => {
+      this.ehCta = categoriaCta(cats, this.proj.formato || 'reels')
+      abrirAba(this.slug, this.proj.nome, this.ehCta) // o ícone: projeto ou CTA
+      this.renderSaidas()
+    })
     $('#barra-versao').innerHTML = '<div class="seletor-versao" id="versoes"></div><span class="aviso-versao" id="aviso-versao"></span>'
     this.tela.className = 'pagina-revisao'
     this.tela.innerHTML = `<div class="revisao">
@@ -504,7 +537,7 @@ class Revisao {
           <div class="bloco"><span class="eyebrow">Plano agora</span><div id="plano-atual" class="plano-atual"></div></div>
           <div class="bloco"><span class="eyebrow">Fala</span><p id="fala-atual" class="fala-atual"></p></div>
         </div>
-        <div class="video-caixa"><video id="video" src="${this.base}proxy.mp4" preload="auto" playsinline></video>
+        <div class="video-caixa"><video id="video" src="${this.dir}proxy.mp4" preload="auto" playsinline></video>
           <button class="video-tocar" data-acao="tocar" aria-label="Tocar">${ICONE.tocar}</button>
           <button class="botao-icone video-tela-cheia" data-acao="tela-cheia" title="Tela cheia (F)" aria-label="Tela cheia">${ICONE.expandir}</button></div>
         <div class="lado lado-dir">
@@ -545,6 +578,7 @@ class Revisao {
       <aside class="painel">
         <div class="painel-cabeca"><div class="painel-titulo"><span class="resumo" id="resumo"></span><span class="salvo" id="salvo"></span></div>
           <button class="botao botao-coral" data-acao="aprovar" id="b-aprovar" title="Aprovar o vídeo todo: o Claude exporta o final em 4K">Aprovar</button></div>
+        <div class="seletor-saida" id="saidas"></div>
         <div id="estado"></div>
         <div class="lista" id="lista"></div>
 
@@ -658,7 +692,83 @@ class Revisao {
     this.agendarSalvar()
   }
 
+  /** O seletor de saída (corpo + final): trocar troca o vídeo e o bloco Final; ao lado, aprovar a saída e o + Saída. */
+  renderSaidas() {
+    const el = $('#saidas')
+    if (!el) return
+    if (this.ehCta) return void (el.innerHTML = '') // um CTA não tem saídas: ele é o final das dos outros
+    const sx = this.saidaAtual()
+    const rotulo = (x) => `${esc(x.destino)}${x.aprovado ? ' ✓' : ''}`
+    el.innerHTML = `${this.saidas.length ? `<label class="cta-categoria escolha-saida" title="A saída: o corpo seguido do final dela">
+        <span>${sx ? `Saída · ${rotulo(sx)}` : 'Só o corpo'}</span>${ICONE.seta_baixo}
+        <select data-trocar-saida aria-label="Saída">${this.saidas.map((x) => `<option value="${esc(x.id)}"${x.id === this.saidaId ? ' selected' : ''}${x.info ? '' : ' disabled'}>${rotulo(x)}${x.tipo === 'nenhum' ? ' (o corpo)' : ''}</option>`).join('')}
+          <option value=""${this.saidaId ? '' : ' selected'}>Só o corpo</option></select></label>` : ''}
+      ${sx ? `<button class="botao pequeno${sx.aprovado ? ' feito' : ''}" data-aprovar-saida="${esc(sx.id)}" title="${sx.aprovado ? 'Saída aprovada · clique para desaprovar' : 'Aprovar só esta saída: o Claude exporta ela'}">${ICONE.check} ${sx.aprovado ? 'Saída aprovada' : 'Aprovar saída'}</button>` : ''}
+      <button class="botao pequeno" data-nova-saida title="Uma saída nova com um CTA gravado à parte (os finais falados, peça ao Claude)">${ICONE.mais} Saída</button>`
+  }
+
+  /** Trocar a saída aberta: o vídeo, as palavras e os planos dela (o tempo fica, dentro do que existe). */
+  async trocarSaida(id) {
+    preferencia(`saida.${this.slug}`, null, id || null)
+    this.saidaId = id || null
+    this.dir = this.saidaId ? `${this.base}saidas/${this.saidaId}/` : this.base
+    const t = this.video.currentTime
+    const [palavras, planos, info] = await Promise.all([json(this.dir + 'palavras.json', []), json(this.dir + 'planos.json', []), json(this.dir + 'info.json', {})])
+    this.palavras = listaDe(palavras, 'palavras').slice().sort((a, b) => a.ini - b.ini)
+    this.planos = listaDe(planos, 'planos')
+    this.info = info || {}
+    this.dur = this.info.duracao || this.palavras.at(-1)?.fim || this.dur
+    this.video.src = `${this.dir}proxy.mp4`
+    this.video.addEventListener('loadedmetadata', () => this.buscar(Math.min(t, this.dur - 0.05)), { once: true })
+    if (this.blocoSel === 'Final' && !this.saidaId) this.blocoSel = null
+    this.calcularBlocos()
+    this.renderSaidas()
+    this.renderLista()
+    this.renderLinha()
+  }
+
+  async aprovarSaida(id) {
+    const sx = this.saidas.find((x) => x.id === id)
+    const ligar = !sx.aprovado
+    if (!(await confirmar(ligar ? { titulo: `Aprovar a saída ${sx.destino}?`, texto: 'O Claude exporta só ela (o corpo e este final). O “Aprovado” vai para a área de transferência: cole no chat.', ok: 'Aprovar e copiar' }
+      : { titulo: `Desaprovar a saída ${sx.destino}?`, texto: 'O arquivo já exportado fica onde está.', ok: 'Desaprovar', perigo: true }))) return
+    try {
+      await enviar('PUT', `/api/projetos/${encodeURIComponent(this.slug)}/saidas/${encodeURIComponent(id)}`, { aprovado: ligar })
+      sx.aprovado = ligar
+      if (ligar) await copiar(`Aprovado · ${this.slug} · saída ${sx.destino}`)
+      aviso(ligar ? `Saída ${sx.destino} aprovada e copiada: cole no chat` : `Saída ${sx.destino} desaprovada`)
+    } catch (e) {
+      aviso(e.message, 'erro')
+    }
+    this.renderSaidas()
+  }
+
+  /** + Saída: um CTA gravado à parte (um projeto da página CTAs) ou o corpo puro, com o nome do destino. */
+  async novaSaida() {
+    const [projetos, cats] = await Promise.all([json('/api/projetos', []), carregarCategorias()])
+    const ctas = projetos.filter((p) => categoriaCta(cats, p.formato || 'reels'))
+    const { el, fechar } = janela(`<header class="janela-cabeca"><h2>Nova saída</h2><button class="botao-icone" data-fechar title="Fechar (Esc)">${ICONE.fechar}</button></header>
+      <form class="form-saida">
+        <label class="campo"><span class="eyebrow">Destino</span><input name="destino" placeholder="LP, VSL, Isca, BF Captura…" required maxlength="60"></label>
+        <label class="campo"><span class="eyebrow">Final</span><select name="cta"><option value="">Nenhum (o corpo puro)</option>${ctas.map((p) => `<option value="${esc(p.slug)}">${esc(p.nome)}</option>`).join('')}</select></label>
+        <p class="dica">Um final falado (gravado na mesma tomada), peça ao Claude no chat. A prévia da saída nova aparece na próxima versão.</p>
+        <div class="acoes-linha"><button class="botao pequeno" type="button" data-fechar>Cancelar</button><button class="botao pequeno botao-coral">Criar saída</button></div>
+      </form>`, { classe: 'janela-produtos' })
+    $('form', el).addEventListener('submit', async (e) => {
+      e.preventDefault()
+      const f = e.target
+      try {
+        await enviar('POST', `/api/projetos/${encodeURIComponent(this.slug)}/saidas`, { destino: f.destino.value.trim(), cta: f.cta.value || null })
+        aviso(`Saída ${f.destino.value.trim()} criada: a prévia entra na próxima versão`)
+        fechar()
+      } catch (x) {
+        aviso(x.message, 'erro')
+      }
+    })
+  }
+
   renderVersoes() {
+    this.renderSaidas()
     const s = encodeURIComponent(this.slug)
     const ultima = this.proj.ultima
     const lista = this.menuVersoes
@@ -753,7 +863,7 @@ class Revisao {
   renderLista() {
     const campo0 = $('#editor-texto')
     if (campo0 && this.editor) this.editor.texto = campo0.value // o que já foi digitado sobrevive ao redesenho
-    const comentarios = this.rev.comentarios.slice().sort((a, b) => ordem(a) - ordem(b))
+    const comentarios = this.rev.comentarios.filter((c) => this.visivel(c)).sort((a, b) => ordem(a) - ordem(b))
     this.numeros = new Map(comentarios.map((c, k) => [c.id, k + 1]))
     let html = comentarios.map((c) => this.htmlComentario(c)).join('')
     const foco = this.blocos?.find((b) => b.id === this.blocoSel)
@@ -911,7 +1021,7 @@ class Revisao {
     }
     this.renderBlocos()
     $('#f-comentarios').innerHTML = this.rev.comentarios
-      .filter((c) => !c.geral)
+      .filter((c) => !c.geral && this.visivel(c))
       .map((c) => {
         const k = chaveStatus(c.status)
         return marca(c.id, c.t, c.fim, this.numeros.get(c.id), k === 'pendente' ? '' : `marca-${STATUS[k]?.[1] || 'respondido'}`, `${quando(c)} · ${c.texto}`)
@@ -1201,9 +1311,11 @@ class Revisao {
     if (geral)
       return { id: `c${n}`, geral: true, t: null, fim: null, palavra: null, fala: '', texto, criado_em: agora(), de: 'rodrigo', status: 'pendente', resposta: null, ...(anexos?.length ? { anexos } : {}) }
     const fala = fim != null ? this.falaIntervalo(t, fim) : this.falaPonto(t)
+    // no trecho do final de uma saída, o comentário é dela (só aparece nela e é sobre o final dela)
+    const daSaida = this.saidaAtual() && t >= this.fimCorpo() - 0.01 ? { saida: this.saidaId } : {}
     return {
       id: `c${n}`, t: r3(t), fim: fim == null ? null : r3(fim), palavra: this.palavraPerto(t)?.id ?? null, fala, texto,
-      criado_em: agora(), de: 'rodrigo', status: 'pendente', resposta: null, ...(anexos?.length ? { anexos } : {}),
+      criado_em: agora(), de: 'rodrigo', status: 'pendente', resposta: null, ...(anexos?.length ? { anexos } : {}), ...daSaida,
     }
   }
 
@@ -1280,6 +1392,13 @@ class Revisao {
     return this.fila
   }
 
+  /** O Aprovar do projeto vale para todas as saídas (o Claude exporta todas). */
+  async marcarSaidas(valor) {
+    if (!this.saidas.length) return
+    await enviar('POST', `/api/projetos/${encodeURIComponent(this.slug)}/saidas-aprovadas`, { aprovado: valor }).catch(() => {})
+    for (const x of this.saidas) x.aprovado = valor
+  }
+
   async aprovar() {
     if (this.editor) this.salvarEditor()
     const texto = `Aprovado · ${this.slug} · v${this.v}`
@@ -1288,14 +1407,16 @@ class Revisao {
       if (!ok) return
       this.rev.aprovado = false
       await this.salvar()
+      await this.marcarSaidas(false)
       this.renderVersoes()
       this.renderEstado()
       return aviso('Desaprovado: o vídeo voltou para Em edição')
     }
-    const ok = await confirmar({ titulo: 'Aprovar o vídeo?', texto: 'O Claude exporta o vídeo final em 4K.', ok: 'Aprovar e copiar' })
+    const ok = await confirmar({ titulo: 'Aprovar o vídeo?', texto: this.saidas.length ? `O Claude exporta em 4K todas as saídas (${this.saidas.map((x) => x.destino).join(', ')}).` : 'O Claude exporta o vídeo final em 4K.', ok: 'Aprovar e copiar' })
     if (!ok) return
     this.rev.aprovado = true
     await this.salvar()
+    await this.marcarSaidas(true)
     this.renderVersoes()
     this.renderEstado()
     await copiar(texto)
@@ -1451,6 +1572,8 @@ class Revisao {
     this.cliques = (e) => this.clique(e)
     this.tela.addEventListener('click', this.cliques)
     $('#barra-versao').addEventListener('click', this.cliques)
+    this.trocaSaida = (e) => e.target.matches('[data-trocar-saida]') && this.trocarSaida(e.target.value)
+    $('#barra-versao').addEventListener('change', this.trocaSaida)
     this.teclas = (e) => this.tecla(e)
     window.addEventListener('keydown', this.teclas)
     this.redim = () => this.ajustar && this.renderLinha()
@@ -1594,6 +1717,8 @@ class Revisao {
     if (d.aprovarBloco) return this.aprovarBloco(d.aprovarBloco)
     if (d.loopBloco) return this.alternarLoop(d.loopBloco)
     if (d.sairBloco != null) return this.escolherBloco(null)
+    if (d.aprovarSaida) return this.aprovarSaida(d.aprovarSaida)
+    if (d.novaSaida != null) return this.novaSaida()
     if (d.irVelho != null) return this.buscar(+d.irVelho) // um comentário de uma versão anterior: só vai ao ponto
     if (d.novidade) return this.abrirBloco(d.novidade)
     if (d.bloco) return this.abrirBloco(d.bloco)
@@ -1723,6 +1848,7 @@ class Revisao {
 
   fechar() {
     $('#barra-versao').removeEventListener('click', this.cliques)
+    $('#barra-versao').removeEventListener('change', this.trocaSaida)
     this.guardarPosicao()
     this.fechado = true
     if (this.sujo) this.salvar(true)

@@ -22,8 +22,9 @@ Tudo mora em duas skills do Claude Code:
      pendentes, renderiza a versão nova e responde cada um numa frase curta.
   3. **Aprovado:** exporta o final em 4K e conclui o vídeo — analisa por que errou em cada correção e grava os
      aprendizados que você confirmar, lidos antes de cada etapa nos próximos vídeos.
-- [`publicar`](.claude/skills/publicar/SKILL.md) — do aprovado ao ar: encaixa o corpo de um Reels nos CTAs, exporta,
-  sobe no Google Drive, cria os cards no Notion, atualiza a nota da copy no Obsidian e agenda (Metricool, ManyChat).
+- [`publicar`](.claude/skills/publicar/SKILL.md) — do aprovado ao ar, a partir do que está exportado na pasta `final/`
+  do projeto: sobe no Google Drive, cria os cards no Notion, atualiza a nota da copy no Obsidian e agenda (Metricool,
+  ManyChat).
 
 As decisões editoriais são do Claude, guiadas pelos exemplos do criador; os scripts validam, calculam tempos e
 renderizam. Tudo fica preso às palavras da transcrição (IDs), nunca a segundos — o contrato está em
@@ -31,8 +32,8 @@ renderizam. Tudo fica preso às palavras da transcrição (IDs), nunca a segundo
 
 ### A revisão por blocos
 
-Nos vídeos de mais de 2 minutos, a revisão é por **blocos de ~30 s**, cortados nas trocas de plano e presos às
-palavras (o mesmo bloco continua o mesmo trecho nas versões seguintes):
+A revisão é por **blocos de ~30 s** (nenhum abaixo de 15 s; um vídeo curto é um bloco só), cortados nas trocas de plano
+e presos às palavras (o mesmo bloco continua o mesmo trecho nas versões seguintes):
 
 - escolha um bloco na linha do tempo: o painel mostra só os comentários dele e o que já foi pedido nele nas versões
   anteriores, com a resposta do Claude;
@@ -41,7 +42,18 @@ palavras (o mesmo bloco continua o mesmo trecho nas versões seguintes):
   não viu, e um loader marca os blocos em que o Claude está trabalhando;
 - dá para comentar uma versão enquanto o Claude refaz outro bloco: os pendentes de todas as versões entram na próxima.
 
-Nos vídeos curtos, a revisão é do vídeo inteiro, por versão.
+### As saídas: um vídeo, vários finais
+
+Um projeto é um **corpo** (o que é comum a todas as versões) e várias **saídas**, cada uma com o seu final e com o nome
+do destino (ManyChat, LP, VSL, Isca, BF Captura…): um final falado na mesma gravação, um CTA gravado à parte (um
+projeto da página CTAs, inclusive os coringas, usados em vários vídeos) ou nenhum (o corpo puro). O Claude detecta os
+finais falados no bruto; os de CTA entram pelo **+ Saída** do app ou pelo chat.
+
+- no painel da direita, escolha a saída: o vídeo mostra os blocos do corpo seguidos do bloco **Final** dela; um
+  comentário no Final vale só para aquela saída (e, num CTA, vai para o projeto do CTA);
+- **Aprovar saída** exporta só ela; o **Aprovar** do projeto, todas. Cada uma sai em `final/saidas/<nome> - <destino>.mp4`;
+- na saída com CTA à parte, o áudio é misturado de uma vez: a voz do CTA casada com a do corpo (timbre e volume) e uma
+  trilha só do começo ao fim, para não dar para perceber a emenda.
 
 ## O app
 
@@ -81,6 +93,8 @@ uv run ferramentas/revisao.py ler <slug>         # os comentários pendentes, co
 uv run ferramentas/revisao.py historico <slug>   # todas as revisões, para a conclusão
 uv run ferramentas/render.py <slug>              # a versão nova (o render é incremental: só refaz o que mudou)
 uv run ferramentas/render.py <slug> --final      # o final em 4K
+uv run ferramentas/render.py <slug> --saidas     # exporta todas as saídas (ou --saida <id>, só uma)
+uv run ferramentas/cortes.py saidas <slug>       # as saídas do projeto (saida / tirar-saida para mexer)
 uv run ferramentas/render.py previas-motions     # as prévias da página Motions (só as que mudaram)
 uv run ferramentas/codigo.py PRJ-12              # o que um código citado no chat é
 ```

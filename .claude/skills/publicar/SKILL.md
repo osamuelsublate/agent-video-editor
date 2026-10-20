@@ -1,6 +1,6 @@
 ---
 name: publicar
-description: Exporta e publica os vídeos aprovados no editor (Reels e anúncios de perpétuo e pico da Asimov) — encaixa o corpo de um Reels nos CTAs, exporta em 4K/24 fps, cria as pastas no Google Drive, sobe os arquivos, cria/preenche os cards no Notion ("Edição e Publicação - 2026"), atualiza a nota da copy no Obsidian e agenda os Reels (Metricool; automação "comente X" no ManyChat). Use quando o criador aprovar um Reels e pedir para exportar, subir, organizar ou publicar (VSL, aulas e YouTube longo ficam de fora).
+description: Publica os vídeos aprovados no editor (Reels e anúncios de perpétuo e pico da Asimov) a partir do que já está exportado na pasta final/ do projeto (as saídas: corpo + final, com as transcrições) — cria as pastas no Google Drive, sobe os arquivos, cria/preenche os cards no Notion ("Edição e Publicação - 2026"), atualiza a nota da copy no Obsidian e agenda os Reels (Metricool; automação "comente X" no ManyChat). Use quando o criador aprovar um Reels e pedir para exportar, subir, organizar ou publicar (VSL, aulas e YouTube longo ficam de fora).
 ---
 
 # Publicar: do aprovado ao Drive e ao Notion
@@ -11,33 +11,30 @@ o destino não existe) e a **regra de ouro**: antes de criar qualquer pasta no D
 plano completo (cada arquivo → qual pasta, o nome exato de cada pasta e cada card, os valores de cada campo) e só execute
 depois de um "sim" claro.
 
-## 1. Quais saídas
+## 1. O que publicar: a pasta `final/` do projeto
 
-Ao aprovar um Reels, o criador diz (ou você pergunta) **quais CTAs se encaixam no corpo e que tipo de vídeo cada
-encaixe vira**. Os CTAs são projetos do editor (categoria 💰 CTA), gravados para entrar depois do corpo: o áudio deles
-continua a trilha do corpo (`audio.continua: "<corpo>"` no edicao.json do CTA, `audio.fade_fim: false` no do corpo).
-Exemplo (mvi-0719, 16/10): corpo + CTA ManyChat → **Reels**; + CTA VSL → **Perpétuo VSL**; + CTA LP → **Perpétuo LP**;
-+ CTA da live da Black → **Pico · Captura**.
+A publicação trabalha **só com os arquivos já exportados** — não monta, não encaixa e não abre o app:
+
+- `projetos/<slug>/final/saidas/<nome> - <destino>.mp4` — cada **saída** do projeto (o corpo + o final dela: um final
+  falado, um CTA gravado à parte ou nenhum), com a **transcrição** ao lado (`<nome> - <destino>.md`: a fala da saída, em
+  parágrafos, com a grafia corrigida);
+- `projetos/<slug>/final/<nome> · <data>.mp4` (+ `.md`) — o corpo, quando ele mesmo é publicado.
+
+O criador diz em linguagem natural o que vai para onde ("a ManyChat no Instagram, a LP e a VSL como anúncio de perpétuo,
+a BF Captura no pico"); o destino no nome do arquivo ajuda a montar o plano. Se uma saída citada não está na pasta,
+peça para exportá-la no editor (aprovar a saída no app, ou `uv run ferramentas/render.py <slug> --saida <id>`; todas:
+`--saidas`) — não exporte nem encaixe aqui.
+
 **Reels com ManyChat ("comente X") tem duas versões**: a do Instagram, com o CTA "comente X", e a do TikTok/YouTube
-Shorts, com um CTA "acesse o link da descrição" (lá não há ManyChat). Se o CTA "link da descrição" não foi gravado,
-avise o criador antes de exportar.
+Shorts, com um CTA "acesse o link da descrição" (lá não há ManyChat). Se a saída "link da descrição" não existe na
+pasta, avise o criador antes de publicar.
 
-## 2. Exportar e encaixar
+## 2. Conferir os arquivos
 
-1. Marque as versões aprovadas (`aprovado: true` em `projetos/<slug>/revisoes/vN.json`) e confira que o edicao.json não
-   mudou desde a vN (`versoes/vN/edicao.json`).
-2. Final de cada projeto (corpo e CTAs), 4K 2160×3840, 24 fps, HEVC, −14 LUFS: `uv run ferramentas/render.py <slug> --final`.
-3. Encaixe (corpo + CTA), com a transição destacada na emenda — **TRA-04 Luz colorida** (padrão) ou **brilho branco**:
-   ```bash
-   uv run ferramentas/encaixar.py <corpo> <cta> --tipo <Reels|VSL|LP|ISCA|Captura|Carrinho> [--transicao brilho-branco]
-   ```
-   Ele confere áudio (LUFS do fim do corpo × começo do CTA: se o CTA começa mais alto ou mais baixo, entra no nível do
-   corpo e volta ao dele numa rampa de 6 s) e cor (luma/saturação dos quadros da emenda), e avisa se a troca vai
-   assustar. Com aviso de cor, corrija o look e encaixe de novo antes de subir.
-4. As saídas ficam no próprio projeto, em `projetos/<corpo>/final/saidas/<nome> - <tipo>.mp4` (nunca em `~/Movies`), e
-   registradas no `edicao.json` → `saidas` do corpo. Ao lado de cada vídeo sai a **transcrição** da saída
-   (`<nome> - <tipo>.md`: a fala do corpo e a do CTA, dos `roteiro.md`, com a grafia corrigida e o tempo da emenda); no app, o card mostra "N saídas" e o botão de pasta abre os exports
-   no Finder. Se houver saídas por plataforma (Instagram, TikTok, Shorts), uma por arquivo.
+1. Liste `final/saidas/` (e `final/`) e confira que cada vídeo tem o `.md` ao lado; mostre a lista ao criador com a
+   duração de cada um (`ffprobe`).
+2. Os arquivos são 2160×3840 (4K), 24 fps, HEVC, −14 LUFS. Para as redes, a versão 1080p H.264 sai na hora de agendar
+   (seção do Metricool).
 
 ## 3. Drive
 

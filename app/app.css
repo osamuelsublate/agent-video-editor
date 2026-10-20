@@ -669,6 +669,20 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 /* a versão do projeto aberto, logo depois das abas */
 .barra-versao { display: flex; flex: none; align-items: center; gap: 8px; }
 .barra-versao:empty { display: none; }
+/* a saída aberta (corpo + final), o aprovar dela e o + Saída, ao lado das versões */
+.seletor-saida { display: flex; align-items: center; gap: 6px; padding: 10px 20px; border-bottom: 1px solid var(--color-line-dark); }
+.seletor-saida:empty { display: none; }
+.escolha-saida { flex: 1; min-width: 0; height: 32px; padding: 0 12px; border-color: var(--color-coral); color: var(--color-cream); }
+.escolha-saida span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.seletor-saida .botao.feito { background: var(--color-green); border-color: var(--color-green); color: var(--color-ink); }
+.form-saida { display: flex; flex-direction: column; gap: 12px; padding: 16px 20px 20px; min-width: 360px; }
+.form-saida .campo { display: flex; flex-direction: column; gap: 6px; }
+.form-saida input, .form-saida select { padding: 8px 10px; border: 1px solid var(--color-line-dark); border-radius: var(--radius-lg); background: var(--color-deeper); color: var(--color-cream); font: inherit; }
+.form-saida .acoes-linha { display: flex; justify-content: flex-end; gap: 8px; }
+/* no card do projeto: as saídas (✓ as aprovadas) */
+.saidas-card { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.saidas-card span { padding: 1px 8px; border: 1px solid var(--color-line-dark); border-radius: var(--radius-full); font-size: 10.5px; color: var(--color-fog); }
+.saidas-card .ok { border-color: transparent; background: rgba(124, 207, 134, 0.18); color: var(--color-green); }
 .barra-versao .menu-versoes { right: auto; left: 0; }
 .resumo { font-size: 13px; color: var(--color-cream); }
 .resumo b { font-weight: 600; }

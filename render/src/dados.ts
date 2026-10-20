@@ -22,6 +22,8 @@ export type Edicao = {
   motions?: Record<string, MotionPlano>
   transicoes?: Record<string, unknown>
   legenda?: Partial<Legenda>
+  /** As saídas do projeto (corpo + final): a falada traz os cortes dela (o corpo e o final, já em clipes). */
+  saidas?: { id: string; final?: { tipo: string; manter?: [string, string][] }; V1?: Timeline['V1'] }[]
 }
 
 export type Dados = {
@@ -96,6 +98,17 @@ export async function itemBanco(id: string): Promise<ItemBanco | null> {
 export async function carregar(slug: string): Promise<Dados> {
   const pasta = `/projetos/${slug}`
   const edicao = await json<Edicao>(`${pasta}/edicao.json`)
+  // `&saida=<id>`: uma saída falada (o corpo + o final dela): os cortes e as palavras mantidas passam a ser os dela
+  const idSaida = new URLSearchParams(location.search).get('saida')
+  const saida = idSaida ? edicao.saidas?.find((x) => x.id === idSaida) : null
+  if (saida?.V1 && edicao.cortes) {
+    edicao.timeline = { ...(edicao.timeline ?? {}), V1: saida.V1 }
+    edicao.cortes = { ...edicao.cortes, mantidas: [...edicao.cortes.mantidas, ...(saida.final?.manter ?? [])] }
+  }
+  // a direção do final de uma saída: um item (ou ajuste de legenda) com `saida` só entra no render dela
+  const daqui = (x: unknown) => !(x as { saida?: string })?.saida || (x as { saida?: string }).saida === idSaida
+  if (edicao.direcao?.itens) edicao.direcao.itens = edicao.direcao.itens.filter(daqui)
+  if (edicao.legenda?.ajustes) edicao.legenda.ajustes = Object.fromEntries(Object.entries(edicao.legenda.ajustes).filter(([, v]) => daqui(v))) as typeof edicao.legenda.ajustes
   const bruto = edicao.fontes.find((f) => f.papel === 'bruto')
   const [transcricao, rosto, presets, transicoes, catalogo] = await Promise.all([
     json<{ palavras: Palavra[] }>(`${pasta}/transcricao.json`).catch(() => ({ palavras: [] })),

@@ -32,3 +32,20 @@ fala, em laço com crossfade e fade no fim). No final, −14 LUFS (o padrão do 
   Mexa só com motivo (ex.: o criador achou os sons altos → `presets: -3`).
 
 Nada para rodar: o render aplica tudo. Tempo esperado: segundos.
+
+## A emenda de uma saída com CTA gravado à parte
+
+Numa saída de CTA (`edicao.md` → `saidas`), não pode dar para perceber onde o corpo acaba e o CTA começa. O render faz
+o áudio da saída inteira numa mistura só (`render.mix_da_saida`, no export e na prévia), a partir da receita do áudio de
+cada versão (`versoes/vN/audio.json`):
+
+- **a voz do CTA casada com a do corpo:** o equilíbrio por oitava (125 Hz a 8 kHz) medido nas duas vozes já tratadas e
+  corrigido com um equalizador no CTA (`audio.casar_voz`, duas passadas), e a mesma sonoridade (o CTA, voz e sons, no
+  nível do corpo);
+- **uma trilha só**, a do corpo, do começo ao fim da saída: sem corte nem volta na emenda, o ducking pelas falas dos
+  dois e o fade só no fim (a trilha do CTA, a dele sozinho, não entra; `audio.continua` não precisa mais);
+- o som da transição na emenda e o −14 LUFS medido na saída inteira.
+
+O log mostra o que foi casado (`voz do CTA +x dB, timbre … → sobra …`). Sobra acima de ~2 dB numa faixa, ou um CTA
+gravado em outro lugar (outra sala, outro microfone): avise o criador na entrega — o equalizador iguala o timbre, não o
+ambiente.

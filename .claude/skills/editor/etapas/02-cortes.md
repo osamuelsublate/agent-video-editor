@@ -57,6 +57,28 @@ no `selecao.json`; o trecho são clipes inteiros e `antes_de` é a 1ª palavra d
 
 **Na dúvida com impacto no sentido:** manter e sinalizar.
 
+## As saídas: corpo + finais
+
+O criador costuma gravar **finais alternativos na mesma tomada** ("comenta 3D aqui embaixo…", "o prompt está na
+descrição", "clica no link da LP…"): cada um é um **final** de uma **saída** diferente do mesmo vídeo. Não escolha um
+deles: separe.
+
+- `manter` é o **corpo**: o que é comum a todas as saídas, até a **última palavra comum** a todas (o ponto onde os finais
+  divergem; um CTA gravado à parte também entra depois desse ponto).
+- Cada final falado vira uma saída em `finais`, com o **destino** (o nome da saída: ManyChat, LP, VSL, Isca, Prompt na
+  descrição…) e as palavras dele depois do corpo (as que ele compartilha com outro final entram em cada um):
+  ```json
+  {"manter": [[…corpo…]],
+   "finais": [{"destino": "ManyChat", "manter": [["w00215","w00225"], ["w00249","w00260"]]},
+              {"destino": "Prompt na descrição", "manter": [["w00215","w00225"]]}]}
+  ```
+- Detecte os finais sozinho (falas de fechamento que se repetem no fim, cada uma levando a um lugar); o briefing, se
+  houver, manda. Liste as saídas na entrega da v1 para o criador conferir. Um final que ele pedir depois do vídeo fechado:
+  `cortes.py saida <slug> "<Destino>" --falado w…..w…`. Um CTA gravado à parte (outro projeto, página CTAs):
+  `--cta <slug do CTA>`; o corpo puro (o vídeo que fecha sozinho), só se pedido ou se ele fecha bem: `--nenhum`.
+- Se um final novo começa **antes** do fim do corpo, o ponto comum recua: aplique de novo com o `manter` mais curto e o
+  trecho que saiu do corpo dentro de cada final que o usa (o bloco do fim do corpo reabre; avise o criador).
+
 Uma correção pontual num vídeo vale só para aquele vídeo, a menos que o criador diga que é regra geral.
 
 Tempo esperado: ~1 min.

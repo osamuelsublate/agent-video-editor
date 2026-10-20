@@ -382,6 +382,15 @@
   async function carregar(slug) {
     const pasta = `/projetos/${slug}`;
     const edicao = await json(`${pasta}/edicao.json`);
+    const idSaida = new URLSearchParams(location.search).get("saida");
+    const saida = idSaida ? edicao.saidas?.find((x) => x.id === idSaida) : null;
+    if (saida?.V1 && edicao.cortes) {
+      edicao.timeline = { ...edicao.timeline ?? {}, V1: saida.V1 };
+      edicao.cortes = { ...edicao.cortes, mantidas: [...edicao.cortes.mantidas, ...saida.final?.manter ?? []] };
+    }
+    const daqui = (x) => !x?.saida || x.saida === idSaida;
+    if (edicao.direcao?.itens) edicao.direcao.itens = edicao.direcao.itens.filter(daqui);
+    if (edicao.legenda?.ajustes) edicao.legenda.ajustes = Object.fromEntries(Object.entries(edicao.legenda.ajustes).filter(([, v]) => daqui(v)));
     const bruto = edicao.fontes.find((f) => f.papel === "bruto");
     const [transcricao, rosto, presets, transicoes, catalogo] = await Promise.all([
       json(`${pasta}/transcricao.json`).catch(() => ({ palavras: [] })),

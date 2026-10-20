@@ -111,7 +111,8 @@ def projetos() -> list[dict]:
                       'tags': ed.get('tags') or [], 'oculto': bool(ed.get('oculto')), 'versoes': vs, 'ultima': ultima, 'duracao': info.get('duracao'), 'estado': estado,
                       'comentarios': len(rev.get('comentarios', [])),
                       'conclusao': (100 if estado == 'aprovado' else round(100 * sum(1 for b in blocos if b.get('aprovado')) / len(blocos))) if blocos else None,
-                      'saidas': len(ed.get('saidas') or []), 'tem_final': any((p / 'final').rglob('*.mp4')) if (p / 'final').is_dir() else False,
+                      'saidas': len([x for x in ed.get('saidas') or [] if isinstance(x, dict) and not x.get('final')]),
+                      'saidas_novas': resumo_saidas(ed), 'tem_final': any((p / 'final').rglob('*.mp4')) if (p / 'final').is_dir() else False,
                       'atualizado': ultima_edicao(p, vs)})
     return sorted(lista, key=lambda x: -x['atualizado'])
 
@@ -460,7 +461,7 @@ def _nome_projeto(h, q, slug):
 @rota('POST', r'/api/projetos/([\w-]+)/aprovar')
 def _aprovar_projeto(h, q, slug):
     """Aprovar pelo card do projeto: a revisão da última versão ganha `aprovado` (o resto dela fica como está), como o
-    Aprovar da página de revisão. O app copia o "Aprovado · <slug> · vN" para o criador colar no chat."""
+    Aprovar da página de revisão, e todas as saídas ficam aprovadas. O app copia o "Aprovado · <slug> · vN" para o chat."""
     vs = versoes(PROJETOS / slug)
     if not vs:
         raise Erro('Projeto sem versão', 404)
@@ -468,7 +469,74 @@ def _aprovar_projeto(h, q, slug):
     rev = ler_json(arq, None) or {'projeto': slug, 'versao': vs[-1], 'comentarios': []}
     rev['aprovado'] = True
     gravar_json(arq, rev)
+    aprovar_saidas(slug, True)
     return {'versao': vs[-1]}
+
+
+# ---- as saídas (corpo + final: edicao.json → saidas; cortes.py as monta)
+
+def resumo_saidas(ed: dict) -> list[dict]:
+    """As saídas para o app: id, destino, o tipo do final (e o CTA), aprovada e exportada."""
+    return [{'id': x['id'], 'destino': x['destino'], 'tipo': x['final'].get('tipo'), 'cta': x['final'].get('cta'),
+             'aprovado': bool(x.get('aprovado')), 'exportado': (x.get('exportado') or {}).get('em')}
+            for x in ed.get('saidas') or [] if isinstance(x, dict) and x.get('final')]
+
+
+def aprovar_saidas(slug: str, valor: bool, sid: str | None = None) -> None:
+    arq = _edicao(slug)
+    ed = ler_json(arq, {})
+    for x in ed.get('saidas') or []:
+        if isinstance(x, dict) and x.get('final') and (sid is None or x.get('id') == sid):
+            x['aprovado'] = valor
+    gravar_json(arq, ed)
+
+
+@rota('POST', r'/api/projetos/([\w-]+)/saidas-aprovadas')
+def _aprovar_todas_saidas(h, q, slug):
+    """O Aprovar (ou desaprovar) do projeto inteiro, pela revisão: todas as saídas juntas."""
+    aprovar_saidas(slug, bool(h.corpo().get('aprovado')))
+    return {'saidas': resumo_saidas(ler_json(_edicao(slug), {}))}
+
+
+@rota('PUT', r'/api/projetos/([\w-]+)/saidas/([\w-]+)')
+def _aprovar_saida(h, q, slug, sid):
+    """Aprovar uma saída (dentro do projeto): o Claude exporta só ela."""
+    aprovar_saidas(slug, bool(h.corpo().get('aprovado')), sid)
+    return {'saidas': resumo_saidas(ler_json(_edicao(slug), {}))}
+
+
+@rota('POST', r'/api/projetos/([\w-]+)/saidas')
+def _nova_saida(h, q, slug):
+    """+ Saída pelo app: um CTA gravado à parte ({destino, cta}) ou o corpo puro ({destino, nenhum: true}). Os finais
+    falados (palavras do bruto) entram pelo Claude (cortes.py saida … --falado)."""
+    import cortes
+    c = h.corpo()
+    destino = str(c.get('destino') or '').strip()[:60]
+    if not destino:
+        raise Erro('Dê um nome para a saída (o destino: LP, VSL, Isca…).', 422)
+    if c.get('cta'):
+        if not (PROJETOS / c['cta'] / 'edicao.json').is_file():
+            raise Erro('Esse CTA não existe.', 404)
+        final = {'tipo': 'cta', 'cta': c['cta']}
+    else:
+        final = {'tipo': 'nenhum'}
+    arq = _edicao(slug)
+    ed = ler_json(arq, {})
+    try:
+        cortes.por_saida(ed, destino, final)
+    except SystemExit as e:
+        raise Erro(str(e), 422)
+    gravar_json(arq, ed)
+    return {'saidas': resumo_saidas(ed)}
+
+
+@rota('DELETE', r'/api/projetos/([\w-]+)/saidas/([\w-]+)')
+def _tirar_saida(h, q, slug, sid):
+    arq = _edicao(slug)
+    ed = ler_json(arq, {})
+    ed['saidas'] = [x for x in ed.get('saidas') or [] if not (isinstance(x, dict) and x.get('final') and x.get('id') == sid)]
+    gravar_json(arq, ed)
+    return {'saidas': resumo_saidas(ed)}
 
 
 @rota('POST', r'/api/projetos/([\w-]+)/desaprovar')
@@ -481,6 +549,7 @@ def _desaprovar_projeto(h, q, slug):
         if rev and rev.get('aprovado'):
             rev['aprovado'] = False
             gravar_json(arq, rev)
+            aprovar_saidas(slug, False)
             return {'versao': v}
     raise Erro('Este projeto não está aprovado.', 422)
 

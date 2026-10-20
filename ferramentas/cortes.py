@@ -7,10 +7,23 @@ e as pausas longas cortadas (do 18: backend/app/cortes.py, sem a LLM).
 
     uv run ferramentas/cortes.py texto <slug>                    a transcrição, uma palavra por linha (ID<TAB>texto) + pausas
     uv run ferramentas/cortes.py aplicar <slug> <selecao.json>   {"manter": [["w00004","w00011"], …], "duvidas": [{ini, fim, motivo}],
-                                                                  "mover": [{"trecho": [ini, fim], "antes_de": id}]}
+                                                                  "mover": [{"trecho": [ini, fim], "antes_de": id}],
+                                                                  "finais": [{"destino": "ManyChat", "manter": [[…], …]}, …]}
+
+As saídas (corpo + final; edicao.json → `saidas`): `manter` é o CORPO, o que é comum a todas, até a última palavra comum;
+cada final falado (gravado na mesma tomada: "comente X", "o prompt está na descrição") é uma faixa de palavras depois
+dele. Um CTA gravado à parte é outro projeto (categoria CTA) que entra depois do corpo; "nenhum" é o corpo puro.
+    uv run ferramentas/cortes.py saida <slug> "<Destino>" --falado w00215..w00225[,w00249..w00260]
+    uv run ferramentas/cortes.py saida <slug> "<Destino>" --cta <slug do CTA> [--transicao <id>]
+    uv run ferramentas/cortes.py saida <slug> "<Destino>" --nenhum
+    uv run ferramentas/cortes.py tirar-saida <slug> <id>
+    uv run ferramentas/cortes.py saidas <slug>                   as saídas (destino, final, aprovada, exportada)
 """
 import json
+import re
 import sys
+import unicodedata
+from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
@@ -243,6 +256,125 @@ def mover_clipes(clipes: list[dict], mover: list, palavras: list[dict]) -> None:
             c['ordem'] = round(ordem(destino) - 0.001 * (len(dentro) - k), 4)
 
 
+# ---------------------------------------------------------------- as saídas (corpo + final)
+
+def id_da_saida(destino: str) -> str:
+    """O id de uma saída pelo destino ("BF Captura" → "bf-captura")."""
+    t = unicodedata.normalize('NFKD', destino).encode('ascii', 'ignore').decode().lower()
+    return re.sub(r'[^a-z0-9]+', '-', t).strip('-') or 'saida'
+
+
+def saidas_novas(edicao: dict) -> list[dict]:
+    """As saídas do modelo de agora (com `final`); as linhas antigas do encaixar (só `tipo`/`cta`) ficam de fora."""
+    return [x for x in edicao.get('saidas') or [] if isinstance(x, dict) and x.get('final')]
+
+
+def checar_final(palavras: list[dict], mantidas: list[list[str]], manter: list[list[str]], destino: str) -> None:
+    """Um final falado vem depois do corpo: a 1ª palavra dele depois da última do corpo. Se não, o ponto comum tem de
+    recuar (o corpo termina antes, e o que sai dele vai para os finais que o usam)."""
+    pos = {p['id']: i for i, p in enumerate(palavras)}
+    fim_corpo = max((pos[f] for _, f in mantidas), default=-1)
+    ini_final = min(pos[i] for i, _ in manter)
+    if ini_final <= fim_corpo:
+        raise SystemExit(f'O final "{destino}" começa em {palavras[ini_final]["id"]}, antes do fim do corpo ({palavras[fim_corpo]["id"]}). '
+                         'O corpo é só o que é comum a todas as saídas: recue o fim dele (aplicar com o `manter` mais curto) e ponha '
+                         'o trecho que sai em cada final que o usa.')
+
+
+def montar_saidas(edicao: dict, ws: list[dict], sil: list[dict]) -> None:
+    """Refaz os cortes de cada saída falada (o corpo + o final dela, em clipes da V1): sempre que o corpo muda."""
+    cortes = edicao.get('cortes') or {}
+    mantidas = cortes.get('mantidas') or []
+    parametros = {k: float((cortes.get('parametros') or {}).get(k, v)) for k, v in PARAMETROS.items()}
+    for x in saidas_novas(edicao):
+        if x['final'].get('tipo') != 'falado':
+            x.pop('V1', None)
+            continue
+        checar_final(ws, mantidas, x['final']['manter'], x['destino'])
+        clipes = montar_clipes(ws, mantidas_por_indice(ws, mantidas + x['final']['manter']), sil, edicao['fontes'][0]['duracao'], **parametros)
+        mover_clipes(clipes, cortes.get('mover') or [], ws)
+        x['V1'] = clipes
+
+
+def e_cta(edicao: dict) -> bool:
+    """Um projeto da categoria CTA (o nome dela tem "CTA", como no app): ele não tem saídas."""
+    from calibragem import categoria_de, categorias
+    cid = categoria_de(edicao, 'formato')
+    nome = next((c.get('nome') for c in categorias() if c.get('id') == cid), cid)
+    return bool(re.search(r'\bcta\b', nome or '', re.I))
+
+
+def por_saida(edicao: dict, destino: str, final: dict) -> dict:
+    """Cria ou atualiza a saída do destino (o id sai do destino); trocar o final desfaz a aprovação dela."""
+    if e_cta(edicao):
+        raise SystemExit('Um CTA não tem saídas: ele é o final das saídas dos outros projetos.')
+    lista = edicao.setdefault('saidas', [])
+    sid = id_da_saida(destino)
+    x = next((s for s in lista if isinstance(s, dict) and s.get('id') == sid and s.get('final')), None)
+    if x is None:
+        x = {'id': sid, 'destino': destino, 'criada_em': datetime.now().isoformat(timespec='seconds')}
+        lista.append(x)
+    if x.get('final') != final:
+        x['aprovado'] = False
+    x.update(destino=destino, final=final)
+    return x
+
+
+def faixas(texto: str, palavras: list[dict]) -> list[list[str]]:
+    """"w00215..w00225,w00249..w00260" → [["w00215","w00225"], ["w00249","w00260"]] (validado)."""
+    pares = [[a.strip() for a in f.split('..')] for f in texto.split(',') if f.strip()]
+    return validar([p if len(p) == 2 else [p[0], p[0]] for p in pares], palavras)
+
+
+def comando_saida(slug: str, destino: str, args: list[str]) -> None:
+    edicao = ler(slug)
+    ws = palavras(slug)
+    if '--falado' in args:
+        manter = faixas(args[args.index('--falado') + 1], ws)
+        checar_final(ws, (edicao.get('cortes') or {}).get('mantidas') or [], manter, destino)
+        final = {'tipo': 'falado', 'manter': manter}
+    elif '--cta' in args:
+        cta = args[args.index('--cta') + 1]
+        if not (pasta(cta) / 'edicao.json').is_file():
+            raise SystemExit(f'O CTA {cta} não existe (é o slug de um projeto da página CTAs).')
+        final = {'tipo': 'cta', 'cta': cta} | ({'transicao': args[args.index('--transicao') + 1]} if '--transicao' in args else {})
+    elif '--nenhum' in args:
+        final = {'tipo': 'nenhum'}
+    else:
+        raise SystemExit('Diga o final: --falado <faixas> | --cta <slug> | --nenhum')
+    x = por_saida(edicao, destino, final)
+    montar_saidas(edicao, ws, silencios(slug))
+    gravar(slug, edicao)
+    print(f'Saída {x["id"]} ({destino}): {descrever(x)}. Ela entra no próximo render (render.py {slug}).')
+
+
+def descrever(x: dict) -> str:
+    f = x['final']
+    if f['tipo'] == 'falado':
+        return 'final falado ' + ', '.join(f'{a}..{b}' for a, b in f['manter'])
+    return f'CTA {f["cta"]}' if f['tipo'] == 'cta' else 'sem final (o corpo puro)'
+
+
+def listar_saidas(slug: str) -> None:
+    lista = saidas_novas(ler(slug))
+    if not lista:
+        print('Sem saídas: o projeto tem um final só (o corpo).')
+    for x in lista:
+        exp = x.get('exportado') or {}
+        print(f'{x["id"]} · {x["destino"]} · {descrever(x)}{" · aprovada" if x.get("aprovado") else ""}'
+              f'{" · exportada " + exp["em"][:16] if exp.get("em") else ""}')
+
+
+def tirar_saida(slug: str, sid: str) -> None:
+    edicao = ler(slug)
+    antes = len(edicao.get('saidas') or [])
+    edicao['saidas'] = [x for x in edicao.get('saidas') or [] if not (isinstance(x, dict) and x.get('id') == sid and x.get('final'))]
+    if len(edicao['saidas']) == antes:
+        raise SystemExit(f'Não há a saída {sid}.')
+    gravar(slug, edicao)
+    print(f'Saída {sid} tirada.')
+
+
 def aplicar(slug: str, arquivo: str) -> None:
     try:
         sel = json.loads(Path(arquivo).read_text(encoding='utf-8'))
@@ -267,6 +399,10 @@ def aplicar(slug: str, arquivo: str) -> None:
     mover_clipes(clipes, mover, ws)
     edicao['cortes'] = {'mantidas': mantidas, 'duvidas': duvidas, 'parametros': parametros} | ({'mover': mover} if mover else {})
     edicao.setdefault('timeline', {})['V1'] = clipes
+    # os finais falados da seleção viram saídas; as que já existem (e as de CTA) ficam, com os cortes refeitos
+    for f in sel.get('finais') or []:
+        por_saida(edicao, f['destino'], {'tipo': 'falado', 'manter': validar(f.get('manter') or [], ws)})
+    montar_saidas(edicao, ws, silencios(slug))
     gravar(slug, edicao)
     print(resumo(edicao, ws, fica))
     for d in duvidas:
@@ -278,5 +414,11 @@ if __name__ == '__main__':
         print(linhas(palavras(sys.argv[2]), silencios(sys.argv[2])))
     elif len(sys.argv) >= 4 and sys.argv[1] == 'aplicar':
         aplicar(sys.argv[2], sys.argv[3])
+    elif len(sys.argv) >= 5 and sys.argv[1] == 'saida':
+        comando_saida(sys.argv[2], sys.argv[3], sys.argv[4:])
+    elif len(sys.argv) >= 4 and sys.argv[1] == 'tirar-saida':
+        tirar_saida(sys.argv[2], sys.argv[3])
+    elif len(sys.argv) >= 3 and sys.argv[1] == 'saidas':
+        listar_saidas(sys.argv[2])
     else:
         raise SystemExit(__doc__)

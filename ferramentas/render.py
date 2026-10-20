@@ -6,7 +6,11 @@
 
     uv run ferramentas/render.py <slug>            → projetos/<slug>/versoes/vN/ (proxy.mp4 720×1280 H.264 + os JSONs da revisão)
     uv run ferramentas/render.py <slug> --final    → projetos/<slug>/final/<nome> · <AAAA-MM-DD HHhMM>.mp4 (2160×3840 HEVC) e,
-        ao lado, o .md com a transcrição (a fala que ficou no corte)
+        ao lado, o .md com a transcrição (a fala que ficou no corte): o corpo
+    uv run ferramentas/render.py <slug> --saida <id> | --saidas
+        → o export de uma saída (ou de todas): final/saidas/<nome> - <destino>.mp4 + .md (a falada renderizada com o final;
+        a de CTA, o final do corpo emendado no do CTA; a sem final, o corpo). As saídas: cortes.py saidas <slug>
+    (o proxy de um projeto com saídas traz a prévia de cada uma em versoes/vN/saidas/<id>/)
     uv run ferramentas/render.py <slug> --camadas  → só fotografa a camada dos inserts e motions para o cache (o pré-render:
         rode em segundo plano enquanto a edição segue; o render da entrega espera ele e acha tudo pronto)
     uv run ferramentas/render.py <slug> --camadas --final  → o mesmo no tamanho do 4K: o export final só monta
@@ -228,10 +232,10 @@ def camada(url: str, trechos: list[dict], w: int, h: int, cache: Path, tmp: Path
     return camadas, chaves if com_cache else None
 
 
-def limpar_camadas(cache: Path, chaves: list[str], extensao: str = '.mov') -> None:
-    """Depois de um render: guarda as chaves dele e apaga do cache os clipes que nenhum dos últimos `GUARDA` usou."""
+def limpar_camadas(cache: Path, chaves: list[str], extensao: str = '.mov', guarda: int = GUARDA) -> None:
+    """Depois de um render: guarda as chaves dele e apaga do cache os clipes que nenhum dos últimos `guarda` usou."""
     registro = cache / 'usos.json'
-    usos = ([*(ler_json(registro) or []), chaves])[-GUARDA:]
+    usos = ([*(ler_json(registro) or []), chaves])[-guarda:]
     gravar_json(registro, usos)
     vivos = {k for u in usos for k in u}
     for clipe in cache.glob(f'*{extensao}'):
@@ -267,12 +271,15 @@ def som(p: Path, edicao: dict, fonte: dict, clipes: list[dict], transcricao: lis
             'falas': audio.falas(palavras_na_saida(transcricao, clipes)), 'ducking_db': audio.DUCKING_DB, 'limpeza': limpeza}
 
 
-def falas_extras(p: Path, edicao: dict, transicao: list[dict], clipes: list[dict]) -> list[dict]:
+def falas_extras(p: Path, edicao: dict, transicao: list[dict], clipes: list[dict], id_saida: str | None = None) -> list[dict]:
     """As falas gravadas à parte (`audio.extras`: `arquivo` do projeto, presa ao fim de uma `palavra` + `depois` s, `ganho`):
-    entram por cima da voz no fader do ator, já tratadas (ex.: o fim alternativo de uma versão sem ManyChat)."""
+    entram por cima da voz no fader do ator, já tratadas (ex.: o fim alternativo de uma versão sem ManyChat). Uma com
+    `saida` é só do render daquela saída (a direção do final de uma saída)."""
     saida = {w['id']: w for w in palavras_na_saida(transicao, clipes)}
     out = []
     for x in (edicao.get('audio') or {}).get('extras') or []:
+        if x.get('saida') and x['saida'] != id_saida:
+            continue
         w, arq = saida.get(x.get('palavra')), p / x.get('arquivo', '')
         if not w or not arq.is_file():
             continue
@@ -485,10 +492,29 @@ def _nome_livre(destino: Path) -> Path:
     return alvo
 
 
-def render(slug: str, final: bool = False) -> Path:
+def saida_do_projeto(edicao: dict, sid: str) -> dict:
+    x = next((x for x in edicao.get('saidas') or [] if isinstance(x, dict) and x.get('id') == sid and x.get('final')), None)
+    if x is None:
+        raise SystemExit(f'Não há a saída {sid} (cortes.py saidas <slug>).')
+    return x
+
+
+def render(slug: str, final: bool = False, saida: str | None = None, pasta_saida: Path | None = None) -> Path:
+    """O render do projeto (o corpo) ou, com `saida`, de uma saída falada (o corpo + o final dela). No proxy, a versão
+    nova traz também a prévia de cada saída (`versoes/vN/saidas/<id>/`); com `pasta_saida`, é o render de uma delas."""
     t_ini = time.time()
     p = pasta(slug)
     edicao = ler(slug)
+    # o cache guarda o que as últimas versões usaram: cada versão é o corpo e mais um render por saída falada
+    guarda = GUARDA * (1 + sum(1 for x in edicao.get('saidas') or [] if isinstance(x, dict) and (x.get('final') or {}).get('tipo') == 'falado'))
+    sx = None
+    corpo_dur = 0.0
+    if saida:
+        sx = saida_do_projeto(edicao, saida)
+        if sx['final']['tipo'] != 'falado' or not sx.get('V1'):
+            raise SystemExit(f'A saída {saida} não é falada: as de CTA e as sem final saem do corpo (render.py {slug} --final --saida {saida}).')
+        corpo_dur = sum(dur_saida(c) for c in v1_tocada(edicao))
+        edicao = {**edicao, 'timeline': {**(edicao.get('timeline') or {}), 'V1': sx['V1']}}
     clipes = v1_tocada(edicao)
     if not clipes:
         raise SystemExit(f'O projeto {slug} ainda não tem cortes (timeline.V1 vazia).')
@@ -508,9 +534,17 @@ def render(slug: str, final: bool = False) -> Path:
 
     if final:
         nome = re.sub(r'\s+', ' ', re.sub(r'[/\\:*?"<>|\n\r\t]+', ' ', edicao.get('nome') or slug)).strip().strip('.')[:120]
-        destino = _nome_livre(p / 'final' / f'{nome} · {datetime.now():%Y-%m-%d %Hh%M}.mp4')
+        if sx:  # a saída: o arquivo dela em final/saidas/ (o mesmo nome a cada export: o novo substitui o antigo)
+            destino = p / 'final' / 'saidas' / f'{nome} - {sx["destino"]}.mp4'
+        else:
+            destino = _nome_livre(p / 'final' / f'{nome} · {datetime.now():%Y-%m-%d %Hh%M}.mp4')
         pasta_versao = None
         versao = None
+    elif pasta_saida:  # a prévia de uma saída, dentro da versão que o corpo está montando
+        pasta_versao = None
+        versao = None
+        pasta_saida.mkdir(parents=True, exist_ok=True)
+        destino = pasta_saida / 'proxy.mp4'
     else:
         versao = 1 + max([int(m.group(1)) for x in (p / 'versoes').glob('v*') if (m := re.fullmatch(r'v(\d+)', x.name))], default=0)
         pasta_versao = p / 'versoes' / f'.v{versao}.parte'  # vira vN no fim: o app nunca vê uma versão pela metade
@@ -525,7 +559,7 @@ def render(slug: str, final: bool = False) -> Path:
     destino.parent.mkdir(parents=True, exist_ok=True)
     tmp = Path(tempfile.mkdtemp(prefix='.render-', dir=p))
     srv = servidor.servir(0)
-    print(f'Render de {slug}: {"final 2160×3840 HEVC" if final else f"proxy v{versao} 720×1280 H.264"}, {duracao:.1f} s de vídeo', flush=True)
+    print(f'Render de {slug}: {"final 2160×3840 HEVC" if final else f"prévia da saída {saida}" if pasta_saida else f"proxy v{versao} 720×1280 H.264"}, {duracao:.1f} s de vídeo', flush=True)
     try:
         print('[1/5] Banco: cópias de exportação dos vídeos', flush=True)
         n = copias_do_banco(edicao)
@@ -533,7 +567,7 @@ def render(slug: str, final: bool = False) -> Path:
             print(f'      {n} feita(s)', flush=True)
         fase('banco')
 
-        url = pagina(slug, srv.server_address[1])
+        url = pagina(slug, srv.server_address[1]) + (f'&saida={saida}' if saida else '')
         print(f'[2/5] Página de render: {url}', flush=True)
         r = ler_pagina(url)
         if r.get('duracao') is not None and abs(float(r['duracao']) - duracao) > 0.05:
@@ -555,10 +589,12 @@ def render(slug: str, final: bool = False) -> Path:
         fator = sons.fator_da_voz(db_voz)  # os sons na mesma relação com a voz deste vídeo que nas referências
         eventos = [{**ev, 'ganho': float(ev.get('ganho', sons.INTENSIDADES['baixo'])) * fator} for ev in r['sons'] or []]
         eventos += sons_das_midias(edicao, r.get('planos') or [])
-        extras = falas_extras(p, edicao, transcricao, clipes)
+        extras = falas_extras(p, edicao, transcricao, clipes, saida)
         eventos += extras
         a = som(p, edicao, fonte, clipes, transcricao, avisos)
         a['falas'] = sorted([*a['falas'], *((e['t'], e['t'] + e['dur']) for e in extras)])  # o fundo abaixa também nelas
+        # a receita do áudio (sem o fundo misturado ainda): a saída de CTA mistura de novo o corpo e o CTA juntos (`mix_da_saida`)
+        receita = json.loads(json.dumps({'a': a, 'clipes': clipes, 'eventos': eventos, 'duracao': duracao, 'fator': fator}, default=str))
         a['medida'], a['pronta'] = mistura(p, a, clipes, eventos, duracao)
         print(f"      voz {a['limpeza']}, fundo {(edicao.get('audio') or {}).get('fundo') or '—'}, ganho {a['medida']['ganho']:+.1f} dB → "
               f"{a['medida']['i']:.1f} LUFS, pico {a['medida']['pico']} dBFS", flush=True)
@@ -581,9 +617,9 @@ def render(slug: str, final: bool = False) -> Path:
                                     video == p / fonte['arquivo'], montados, tmp)
         parte.replace(destino)
         fase('montagem')
-        limpar_camadas(montados, usados, '.mp4')
+        limpar_camadas(montados, usados, '.mp4', guarda)
         if chaves is not None:
-            limpar_camadas(cache, chaves)
+            limpar_camadas(cache, chaves, guarda=guarda)
     except BaseException:
         if pasta_versao:
             shutil.rmtree(pasta_versao, ignore_errors=True)
@@ -602,8 +638,19 @@ def render(slug: str, final: bool = False) -> Path:
         md.write_text(f"# {edicao.get('nome') or slug}\n\n`{destino.name}` · {int(duracao_real // 60)}:{int(duracao_real % 60):02d}\n\n"
                       f"{encaixar.paragrafos([w['texto'] for w in palavras_na_saida(transcricao, clipes)])}\n", encoding='utf-8')
         print(f'Transcrição: {md}')
+    if pasta_saida:  # a prévia de uma saída: os dados dela ao lado do vídeo (o app troca para eles); a versão é do corpo
+        for campo in ('palavras', 'planos'):
+            if r.get(campo) is not None:
+                gravar_json(pasta_saida / f'{campo}.json', r[campo])
+        gravar_json(pasta_saida / 'info.json', {'saida': saida, 'destino': sx['destino'], 'final': 'falado', 'duracao': duracao_real,
+                                                'corpo': round(corpo_dur, 3), 'criado_em': datetime.now().isoformat(timespec='seconds')})
+        print(f'Saída {saida}: {destino}')
+        return destino
+    if final and sx:
+        marcar_exportada(slug, saida, destino)
     if not final:
         gravar_json(pasta_versao / 'edicao.json', edicao)
+        gravar_json(pasta_versao / 'audio.json', receita)
         for campo in ('palavras', 'planos'):
             if r.get(campo) is None:
                 avisos.append(f'A página não entregou __render.{campo}: {campo}.json ficou de fora.')
@@ -611,6 +658,7 @@ def render(slug: str, final: bool = False) -> Path:
                 gravar_json(pasta_versao / f'{campo}.json', r[campo])
         gravar_json(pasta_versao / 'info.json', {'versao': versao, 'duracao': duracao_real, 'criado_em': datetime.now().isoformat(timespec='seconds'),
                                                  'fases': fases, 'avisos': avisos})
+        previas_das_saidas(slug, edicao, pasta_versao, duracao_real)
         final_dir = p / 'versoes' / f'v{versao}'
         pasta_versao.replace(final_dir)
         (p / 'revisoes' / 'trabalhando.json').unlink(missing_ok=True)  # a versão chegou: o app tira o aviso
@@ -619,6 +667,202 @@ def render(slug: str, final: bool = False) -> Path:
         print(f'Aviso: {x}')
     print(f'Pronto: {destino}')
     print(f'Duração {duracao_real:.2f} s · ' + ' · '.join(f'{k} {v:.1f} s' for k, v in fases.items()))
+    return destino
+
+
+# ---------------------------------------------------------------- as saídas (corpo + final)
+
+def previas_das_saidas(slug: str, edicao: dict, pasta_versao: Path, corpo_dur: float) -> None:
+    """A prévia de cada saída na versão nova: a falada é renderizada (o corpo vem todo do cache); a de CTA é o corpo
+    emendado no proxy mais novo do CTA (com as palavras e os planos dele depois dos do corpo); a sem final é o próprio
+    corpo (nada a fazer)."""
+    for x in [x for x in edicao.get('saidas') or [] if isinstance(x, dict) and x.get('final')]:
+        alvo = pasta_versao / 'saidas' / x['id']
+        tipo = x['final']['tipo']
+        print(f'\n— Saída {x["destino"]} ({tipo})', flush=True)
+        if tipo == 'falado' and x.get('V1'):
+            render(slug, saida=x['id'], pasta_saida=alvo)
+        elif tipo == 'cta':
+            previa_cta(x, pasta_versao, alvo, corpo_dur)
+
+
+def versao_mais_nova(slug: str) -> int | None:
+    vs = [int(m.group(1)) for x in (pasta(slug) / 'versoes').glob('v*') if (m := re.fullmatch(r'v(\d+)', x.name)) and (x / 'proxy.mp4').exists()]
+    return max(vs, default=None)
+
+
+def previa_cta(x: dict, pasta_versao: Path, alvo: Path, corpo_dur: float) -> None:
+    """A prévia de uma saída de CTA à parte: o proxy do corpo seguido do proxy mais novo do CTA (a emenda de verdade, com a
+    transição, é a do export). As palavras e os planos do CTA entram depois dos do corpo, com os ids marcados (cta:…)."""
+    cta = x['final']['cta']
+    vc = versao_mais_nova(cta)
+    if vc is None:
+        print(f'      o CTA {cta} ainda não tem versão: a prévia desta saída fica de fora', flush=True)
+        return
+    dc = pasta(cta) / 'versoes' / f'v{vc}'
+    alvo.mkdir(parents=True, exist_ok=True)
+    corpo = pasta_versao / 'proxy.mp4'
+    wav = alvo / '.audio.wav'
+    try:
+        mix_da_saida(pasta_versao / 'audio.json', dc / 'audio.json', inspecionar(corpo)['duracao'], inspecionar(dc / 'proxy.mp4')['duracao'],
+                     x['final'].get('transicao') or 'luz-colorida', wav)
+        ffmpeg('-i', str(corpo), '-i', str(dc / 'proxy.mp4'), '-i', str(wav), '-filter_complex',
+               '[0:v]scale=720:1280,setsar=1,fps=24[a];[1:v]scale=720:1280,setsar=1,fps=24[b];[a][b]concat=n=2:v=1:a=0[v]',
+               '-map', '[v]', '-map', '2:a', '-c:v', 'libx264', '-crf', '23', '-preset', 'veryfast', '-pix_fmt', 'yuv420p',
+               '-c:a', 'aac', '-b:a', '160k', '-movflags', '+faststart', str(alvo / 'proxy.mp4'))
+    finally:
+        wav.unlink(missing_ok=True)
+
+    def lista(arq: Path, chave: str) -> list:
+        d = ler_json(arq, []) or []
+        return d if isinstance(d, list) else d.get(chave, [])
+
+    for campo in ('palavras', 'planos'):
+        do_corpo = lista(pasta_versao / f'{campo}.json', campo)
+        do_cta = [{**w, 'id': f'cta:{w["id"]}', **{k: round(w[k] + corpo_dur, 3) for k in ('ini', 'fim') if k in w}}
+                  for w in lista(dc / f'{campo}.json', campo)]
+        gravar_json(alvo / f'{campo}.json', do_corpo + do_cta)
+    gravar_json(alvo / 'info.json', {'saida': x['id'], 'destino': x['destino'], 'final': 'cta', 'cta': cta, 'cta_versao': vc,
+                                     'duracao': inspecionar(alvo / 'proxy.mp4')['duracao'], 'corpo': round(corpo_dur, 3),
+                                     'criado_em': datetime.now().isoformat(timespec='seconds')})
+    print(f'      corpo + {cta} v{vc}', flush=True)
+
+
+def receita(arq: Path) -> dict:
+    """A receita do áudio de uma versão (`versoes/vN/audio.json`, gravada pelo render)."""
+    r = ler_json(arq)
+    if not r:
+        raise SystemExit(f'Falta {arq} (versão de antes da mistura por saída): renderize o projeto de novo.')
+    return r
+
+
+def mix_da_saida(rec_corpo: Path, rec_cta: Path, dur_corpo: float, dur_cta: float, transicao: str, destino: Path) -> dict:
+    """O áudio de uma saída de CTA à parte, numa mistura só, para não dar para perceber onde o corpo acaba e o CTA começa:
+    - a voz do CTA **casada** com a do corpo: o mesmo equilíbrio por faixa de frequência (um equalizador medido nas duas
+      vozes já tratadas, `audio.casar_voz`) e a mesma sonoridade (o CTA inteiro, voz e sons, sobe ou desce junto);
+    - **uma trilha só** (a do corpo), do começo ao fim da saída: sem corte nem volta na emenda, o ducking pelas falas dos
+      dois e o fade só no fim;
+    - o som da transição na emenda e o −14 LUFS medido na saída inteira.
+    As vozes e os sons de cada lado saem da receita do render (`versoes/vN/audio.json`). Devolve o que foi casado."""
+    rc, rk = receita(rec_corpo), receita(rec_cta)
+    tmp = Path(tempfile.mkdtemp(prefix='.mix-', dir=destino.parent))
+    try:
+        def lado(r: dict, nome: str, dur: float, eventos: bool = True, casar: str = '') -> Path:
+            a = {**r['a'], 'fundo_mudo': True, 'casar': casar}
+            ev = r['eventos'] if eventos else []
+            faixa = tmp / f'{nome}.sons.wav'
+            sons.faixa(audio.com_faders(a, ev), r['duracao'], faixa)
+            entradas, f = audio.filtros(a, r['clipes'], ev, 0, 'pfim', r['duracao'], {'cru': True}, faixa)
+            out = tmp / f'{nome}.wav'
+            # na duração do vídeo de cada lado (o mp4 pode ter uns quadros a mais ou a menos que a V1)
+            ffmpeg(*entradas, '-filter_complex', ';'.join(f) + f';[pfim]apad,atrim=end={dur:.4f}[pcorte]', '-map', '[pcorte]',
+                   '-c:a', 'pcm_f32le', str(out))
+            return out
+
+        # 1. as vozes sozinhas, já tratadas: o equilíbrio e a sonoridade de cada uma
+        vc, vk = lado(rc, 'voz-corpo', dur_corpo, False), lado(rk, 'voz-cta', dur_cta, False)
+        ref = audio.espectro_voz(vc)
+        eq, dif = audio.casar_voz(ref, audio.espectro_voz(vk))
+        if eq:  # uma segunda medida, já com o equalizador: os picos vizinhos se somam, então corrige o que sobrou
+            vk = lado(rk, 'voz-cta', dur_cta, False, eq)
+            eq2, _ = audio.casar_voz(ref, audio.espectro_voz(vk))
+            if eq2:
+                eq = f'{eq},{eq2}'
+                vk = lado(rk, 'voz-cta', dur_cta, False, eq)
+        resto = [round(x, 1) for x in audio.casar_voz(ref, audio.espectro_voz(vk))[1]]
+        nivel = round(audio.lufs(vc) - audio.lufs(vk), 2)
+        # 2. cada lado com os sons; o CTA com o equalizador e no nível do corpo
+        corpo, cta = lado(rc, 'corpo', dur_corpo), lado(rk, 'cta', dur_cta, True, eq)
+        total = dur_corpo + dur_cta
+        a = {**rc['a'], 'fade_fim': True,
+             'falas': [*rc['a']['falas'], *([i + dur_corpo, f + dur_corpo] for i, f in rk['a']['falas'])]}
+        entradas = ['-i', str(corpo), '-i', str(cta)]
+        f = [f'[1:a]volume={nivel:.2f}dB[pk]', '[0:a][pk]concat=n=2:v=0:a=1[pcat]']
+        atual = 'pcat'
+        tr = ler_json(BIBLIOTECA / 'transicoes' / f'{transicao}.json', {}) or {}
+        som_tr = tr.get('som') or {}
+        if som_tr.get('som'):  # o som da transição na emenda, como os das transições do vídeo
+            ganho = sons.INTENSIDADES.get(som_tr.get('intensidade', 'medio'), 0.5) * float(rc.get('fator') or 1) * audio.db(a['niveis']['transicoes'])
+            atraso = int(max(dur_corpo + float(som_tr.get('atraso') or 0), 0) * 1000)
+            entradas += ['-i', str(sons.arquivo(som_tr['som']))]
+            f.append(f'[2:a]aresample=48000,aformat=channel_layouts=stereo,volume={ganho:.4f},adelay={atraso}|{atraso}[ptr]')
+            f.append(f'[{atual}][ptr]amix=inputs=2:duration=first:normalize=0[pcomtr]')
+            atual = 'pcomtr'
+        if a.get('fundo') and not a.get('fundo_mudo'):
+            ent_f, f_f = audio.filtros_fundo(a, total, entradas.count('-i'), 'pfd')
+            entradas += ent_f
+            f += f_f
+            f.append(f'[{atual}][pfd]amix=inputs=2:duration=first:normalize=0[pcomf]')
+            atual = 'pcomf'
+        cru = tmp / 'cru.wav'
+        ffmpeg(*entradas, '-filter_complex', ';'.join(f) + f';[{atual}]aresample=48000,aformat=channel_layouts=stereo[pfim]',
+               '-map', '[pfim]', '-t', f'{total:.4f}', '-c:a', 'pcm_f32le', str(cru))
+        m = audio.medir(a, [], [], total, cru)
+        ffmpeg('-i', str(cru), '-af', f"{audio.final(m['ganho'])},aresample=48000,aformat=channel_layouts=stereo", '-c:a', 'pcm_f32le', str(destino))
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    casado = {'nivel_db': nivel, 'eq': eq, 'diferenca_db': dif, 'sobra_db': resto, 'lufs': m['i']}
+    print(f"      áudio da saída: voz do CTA {nivel:+.1f} dB, timbre {' '.join(f'{d:+.1f}' for d in dif)} dB por oitava → "
+          f"sobra {' '.join(f'{d:+.1f}' for d in resto)}; uma trilha só; {m['i']:.1f} LUFS", flush=True)
+    return casado
+
+
+def marcar_exportada(slug: str, sid: str, arquivo: Path, cta_versao: int | None = None) -> None:
+    edicao = ler(slug)
+    x = saida_do_projeto(edicao, sid)
+    x['exportado'] = {'arquivo': str(arquivo.relative_to(pasta(slug))), 'em': datetime.now().isoformat(timespec='seconds')} | (
+        {'cta_versao': cta_versao} if cta_versao else {})
+    gravar_json(pasta(slug) / 'edicao.json', edicao)
+
+
+def final_mais_novo(slug: str) -> Path | None:
+    finais = sorted((pasta(slug) / 'final').glob('*.mp4'), key=lambda a: a.stat().st_mtime)
+    return finais[-1] if finais else None
+
+
+def corpo_final(slug: str) -> Path:
+    """O final em 4K do corpo, refeito se a edição mudou depois dele."""
+    f = final_mais_novo(slug)
+    if f is None or f.stat().st_mtime < (pasta(slug) / 'edicao.json').stat().st_mtime:
+        f = render(slug, final=True)
+    return f
+
+
+def exportar_saida(slug: str, sid: str) -> Path:
+    """O arquivo de uma saída em final/saidas/<nome> - <destino>.mp4 (+ .md): a falada é renderizada em 4K com o final; a
+    de CTA é o final do corpo emendado no final do CTA (encaixar.py, com a transição destacada); a sem final é o corpo."""
+    import encaixar
+    edicao = ler(slug)
+    x = saida_do_projeto(edicao, sid)
+    tipo = x['final']['tipo']
+    if tipo == 'falado':
+        return render(slug, final=True, saida=sid)
+    nome = re.sub(r'\s+', ' ', re.sub(r'[/\\:*?"<>|\n\r\t]+', ' ', edicao.get('nome') or slug)).strip().strip('.')[:120]
+    destino = pasta(slug) / 'final' / 'saidas' / f'{nome} - {x["destino"]}.mp4'
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    corpo = corpo_final(slug)
+    if tipo == 'cta':
+        cta = x['final']['cta']
+        if final_mais_novo(cta) is None:
+            raise SystemExit(f'O CTA {cta} ainda não tem final em 4K: exporte ele antes (render.py {cta} --final).')
+        for velho in (destino, destino.with_suffix('.md')):
+            velho.unlink(missing_ok=True)  # o export novo substitui o anterior desta saída
+        transicao = x['final'].get('transicao') or 'luz-colorida'
+        vc, vb = versao_mais_nova(cta), versao_mais_nova(slug)
+        wav = destino.with_suffix('.audio.wav')
+        try:  # o áudio da saída inteira numa mistura só: a voz do CTA casada com a do corpo e uma trilha só, sem emenda
+            mix_da_saida(pasta(slug) / 'versoes' / f'v{vb}' / 'audio.json', pasta(cta) / 'versoes' / f'v{vc}' / 'audio.json',
+                         inspecionar(corpo)['duracao'], inspecionar(final_mais_novo(cta))['duracao'], transicao, wav)
+            encaixar.encaixar(slug, cta, destino, transicao, x['destino'], audio=wav)
+        finally:
+            wav.unlink(missing_ok=True)
+        marcar_exportada(slug, sid, destino, versao_mais_nova(cta))
+    else:  # sem final: o corpo, com o nome da saída
+        shutil.copy2(corpo, destino)
+        if corpo.with_suffix('.md').exists():
+            shutil.copy2(corpo.with_suffix('.md'), destino.with_suffix('.md'))
+        marcar_exportada(slug, sid, destino)
+    print(f'Saída {x["destino"]}: {destino}')
     return destino
 
 
@@ -809,6 +1053,13 @@ if __name__ == '__main__':
         _, _, slug, t, lut, intensidade, vinheta, *nit = sys.argv
         print(amostra_look(slug, float(t), {'lut': None if lut == '-' else lut, 'intensidade': float(intensidade), 'vinheta': vinheta,
                                             'nitidez': nit[0] if nit else 'sem'}).relative_to(RAIZ))
+        sys.exit(0)
+    if '--saida' in sys.argv or '--saidas' in sys.argv:  # o export das saídas: uma (--saida <id>) ou todas (--saidas)
+        slug = sys.argv[1]
+        ids = [sys.argv[sys.argv.index('--saida') + 1]] if '--saida' in sys.argv else [
+            x['id'] for x in ler(slug).get('saidas') or [] if isinstance(x, dict) and x.get('final')]
+        for sid in ids:
+            exportar_saida(slug, sid)
         sys.exit(0)
     args = [a for a in sys.argv[1:] if a not in ('--final', '--camadas')]
     if len(args) != 1:

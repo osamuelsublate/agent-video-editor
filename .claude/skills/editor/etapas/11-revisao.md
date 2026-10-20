@@ -19,9 +19,9 @@ o apaga sozinho. Se terminar sem render novo (só respostas), rode `revisao.py p
 Aplique só os `pendente`: os já respondidos são de rodadas anteriores. Se ele citou um bloco ("no B3"), leia com
 `--bloco B3`, mas os pendentes de outros blocos também valem (ele comentou e avisou); na dúvida, pergunte.
 
-## Blocos (vídeos de mais de 2 min)
+## Blocos
 
-O app divide o vídeo em blocos de ~30 s (B1, B2…), cada um começando numa palavra: o mesmo bloco continua o mesmo
+O app divide o corpo de todo vídeo em blocos de ~30 s (B1, B2…; nenhum abaixo de 15 s, um vídeo curto é um só), cada um começando numa palavra: o mesmo bloco continua o mesmo
 trecho nas versões seguintes. O `ler` mostra a lista e quais estão finalizados:
 
 ```text
@@ -42,8 +42,8 @@ em que algo mudou, e sai em ~1 min. Por isso:
 - **Renderize logo depois de aplicar os comentários de cada bloco**, sem juntar vários blocos num render só no fim: o
   criador revisa o bloco pronto enquanto você faz o próximo. Avisou "obs no B10"? Aplique o B10, renderize, responda,
   e só então passe ao próximo bloco que ele comentou.
-- **Vídeos sem blocos** (até 2 min: os CTAs, os Reels) seguem o mesmo ritmo **por projeto**: com comentários em vários
-  projetos, aplique e renderize um de cada vez (na ordem em que ele comentou), e não todos e só no fim.
+- **Vários projetos comentados** (os CTAs, os Reels de um bloco só): o mesmo ritmo **por projeto**, um de cada vez (na
+  ordem em que ele comentou), e não todos e só no fim.
 - **O aviso no app** ("Claude aplicando…") acende com o `revisao.py ler` e apaga sozinho quando a versão nova chega:
   rode o `ler` de cada projeto (ou bloco) no momento em que começa a trabalhar nele.
 - **Nunca apague uma versão** (`versoes/vN`): o app, os comentários e o histórico dos blocos dependem delas. Uma versão
@@ -79,6 +79,19 @@ em que algo mudou, e sai em ~1 min. Por isso:
    dividida com o site do X"), ou por que não mudou. Sem explicar o processo nem a ferramenta. Só responda os
    comentários desta revisão (as versões anteriores não pedem resposta nova).
 5. Entregue como no `10-render.md`: o link, o que mudou em 3–5 linhas.
+
+## Saídas (corpo + final)
+
+Num projeto com saídas (`cortes.py saidas <slug>`), o app abre uma saída de cada vez: os blocos do corpo e, depois, o
+bloco **Final** dela. Um comentário feito no Final tem `saida` no JSON e o `ler` diz de qual saída é:
+
+- **Final falado:** mexa só na direção daquele final — um plano, motion, fala gravada ou ajuste de legenda que só esta
+  saída tem leva `"saida": "<id>"` (`edicao.md`); sem isso, a mudança vale para todas as saídas que falam aquelas palavras.
+- **CTA à parte:** o comentário é sobre o projeto do CTA (um coringa pode estar em vários vídeos): aplique **no projeto
+  do CTA** e renderize ele; o corpo não muda.
+- Um comentário do corpo vale para todas as saídas.
+
+O render do projeto já traz a prévia de cada saída na versão nova (`versoes/vN/saidas/<id>/`).
 
 ## Aprendizados: ler sempre, gravar só na conclusão
 

@@ -1,6 +1,7 @@
 # 12 · Vídeo final
 
-O criador aprovou uma versão no app ("Aprovado · <slug> · vN") ou por mensagem. Se foi por mensagem, marque a versão como
+O criador aprovou uma versão no app ("Aprovado · <slug> · vN"), **uma saída** ("Aprovado · <slug> · saída <Destino>") ou
+por mensagem. Se foi por mensagem, marque a versão como
 aprovada no app, igual ao botão: `aprovado: true` em `projetos/<slug>/revisoes/vN.json` (crie o arquivo com
 `{"projeto", "versao", "aprovado": true, "enviado_em": null, "comentarios": []}` se não existir). Os selos "Usado em
 vídeo" do banco e dos motions saem da versão aprovada.
@@ -16,6 +17,11 @@ uv run ferramentas/render.py <slug> --final
   a grafia corrigida), que o criador usa para a legenda do post e o Obsidian. O render grava os dois; confira que o
   `.md` saiu e entregue os dois caminhos. As saídas com CTA (`encaixar.py`) também saem com o `.md` ao lado.
 - Entregue com o caminho e `open -R "<arquivo>"` (abre o Finder no arquivo).
+- **Projeto com saídas** (`cortes.py saidas <slug>`): o Aprovar do projeto aprova todas — exporte todas com
+  `uv run ferramentas/render.py <slug> --saidas`; "Aprovado · <slug> · saída <Destino>" é só uma: `--saida <id>`. Cada
+  uma sai em `final/saidas/<nome> - <destino>.mp4` + `.md`: a falada renderizada em 4K com o final; a de CTA, o final do
+  corpo emendado no final do CTA (`encaixar.py`, com a transição destacada; o CTA precisa ter o final exportado); a sem
+  final, o corpo com o nome da saída. Exportar de novo substitui o arquivo da saída. É essa pasta que a `publicar` usa.
 - Depois, a vN aprovada vira referência da Calibragem (sem Gemini; refazer substitui):
 
   ```bash
