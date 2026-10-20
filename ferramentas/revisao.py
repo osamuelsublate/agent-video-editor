@@ -181,8 +181,9 @@ def ler(slug: str, v: str | None, bloco: str | None = None) -> None:
     estado = 'APROVADA' if rev.get('aprovado') else f'enviada em {rev["enviado_em"]}' if rev.get('enviado_em') else 'ainda não enviada'
     pend = [c for c in rev.get('comentarios', []) if tem_conteudo(c) and c.get('status', 'pendente') == 'pendente']
     n_pend = len(pend)
-    # qualquer versão com pendentes (o criador comenta a que está vendo, que nem sempre é a última): os blocos se somam
-    if pend and not rev.get('aprovado'):
+    # qualquer versão com pendentes (o criador comenta a que está vendo, que nem sempre é a última): os blocos se somam.
+    # Também numa versão aprovada: comentar depois de aprovar é pedir mais uma mudança, e o app tem de mostrar o loader
+    if pend:
         trabalhando(slug, n, bs, pend)  # o app mostra o loader sobre esses blocos até a versão nova
     print(f'\nEstado: {estado} · {n_pend} pendente(s), os que você ainda não respondeu: aplique só esses. '
           f'Para cada um: revisao.py responder {slug} v{n} <id> --status … --resposta "…"')
@@ -230,11 +231,10 @@ def versoes_pendentes(slug: str) -> list[tuple[int, int]]:
 
 def pendentes() -> None:
     """Os projetos com comentários sem resposta (em qualquer versão): é por onde começar quando o criador avisa no chat
-    que comentou no app. Projetos aprovados ficam de fora."""
+    que comentou no app. Os aprovados também entram: comentar depois de aprovar é pedir mais uma mudança."""
     achou = False
     for proj in sorted((x for x in PROJETOS.iterdir() if x.is_dir() and not x.name.startswith(('_', '.'))), key=lambda x: x.name):
-        vs = versoes_com_revisao(proj.name)
-        if not vs or (ler_json(proj / 'revisoes' / f'v{vs[-1]}.json', {}) or {}).get('aprovado'):
+        if not versoes_com_revisao(proj.name):
             continue
         pend = versoes_pendentes(proj.name)
         if pend:

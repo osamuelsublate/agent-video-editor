@@ -109,6 +109,8 @@ const mediana = (xs: number[]) => {
   return o.length ? (o.length % 2 ? o[(o.length - 1) / 2] : (o[o.length / 2 - 1] + o[o.length / 2]) / 2) : 0
 }
 export type RostoEm = (ini: number, fim: number) => Rosto | null
+/** A menor janela (s) em que se mede o rosto de um plano (mvi-0718-cta-lp v2 c5). */
+const JANELA_ROSTO = 2
 
 /** O rosto típico num trecho do vídeo final (a mediana das medidas), do arquivo `midia/rosto/<bruto>.json` já lido
  *  (do 18: o miolo de `useRosto`). Devolve a função (ini, fim no tempo da saída) → rosto; `null` sem medida (o vídeo
@@ -124,6 +126,13 @@ export function rostoDoArquivo(arq: ArquivoRosto | null, seq: Sequencia | null, 
   const rw = L > A && A > 0 ? (A * 9) / 16 / L : 1
   const noRecorte = (r: Rosto): Rosto => (rw >= 1 ? r : { ...r, cx: (r.cx - (1 - rw) * ex) / rw, w: r.w / rw })
   return (ini: number, fim: number) => {
+    // num plano curto (o "do GPT," de 0,6 s entre dois divididos), poucas amostras: um movimento da cabeça mudava o
+    // enquadramento e o ator "pulava". A mediana usa no mínimo JANELA_ROSTO s em volta do meio do plano
+    if (fim - ini < JANELA_ROSTO) {
+      const meio = (ini + fim) / 2
+      ini = Math.max(0, meio - JANELA_ROSTO / 2)
+      fim = ini + JANELA_ROSTO
+    }
     const pts: Amostra[] = []
     for (let t = ini; t < fim; t += 0.2) {
       const tb = seq.saidaParaFonte(t)

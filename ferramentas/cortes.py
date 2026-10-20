@@ -177,6 +177,14 @@ def montar_clipes(palavras: list[dict], fica: list[bool], silencios: list[dict],
             a = max(pi['inicio'] - 0.04, min(lim_a, pi['inicio']))
         if (pj['inicio'] + pj['fim']) / 2 > b:
             b = min(pj['fim'] + 0.04, max(lim_b, pj['fim']))
+        # o contrário: o transcritor esticou a palavra da borda por cima do silêncio que vem depois dela ("chat." de 73,8 a
+        # 76,6 s com a voz acabando em 74,1; PRJ-34 v2 c3, v3 c2) e o clipe levava o silêncio junto. Um silêncio de pelo
+        # menos `pausa_max` dentro da palavra é sobra, não voz fraca (o "s" final ocupa bem menos): a borda vai até a voz
+        for s in silencios:
+            if pj['inicio'] + 0.08 <= s['inicio'] < b and min(s['fim'], pj['fim']) - s['inicio'] >= pausa_max:
+                b = min(b, s['inicio'] + folga_fim)
+            if a < s['fim'] <= pi['fim'] - 0.08 and s['fim'] - max(s['inicio'], pi['inicio']) >= pausa_max:
+                a = max(a, s['fim'] - folga_inicio)
         if intervalos and a <= intervalos[-1][1] + 0.02:  # nada relevante entre os dois: junta
             intervalos[-1][1] = b
         else:
@@ -185,7 +193,9 @@ def montar_clipes(palavras: list[dict], fica: list[bool], silencios: list[dict],
 
     clipes = []
     for a, b in intervalos:
-        dentro = [p for p, ok in zip(palavras, fica) if ok and a <= (p['inicio'] + p['fim']) / 2 <= b]
+        # a palavra conta se o meio dela está no clipe ou, numa palavra esticada que a borda aparou, se ela entra nele
+        dentro = [p for p, ok in zip(palavras, fica) if ok and (a <= (p['inicio'] + p['fim']) / 2 <= b
+                                                               or min(p['fim'], b) - max(p['inicio'], a) >= 0.05)]
         if not dentro:
             continue
         clipes.append({'id': f'c{len(clipes) + 1}', 'fonte': 'f1', 'inicio': round(a, 3), 'fim': round(b, 3),

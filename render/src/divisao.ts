@@ -47,6 +47,9 @@ export function divisaoDe(
   let base: TipoDivisao = forma === 'Tela toda' ? 'area' : forma === 'Card' ? 'card' : preset ? tipoDoPreset(preset) : 'card'
   // ocupar a área só quando a mídia cabe sem cortar: na tela dividida, as horizontais; no "ator embaixo", as em pé
   if (base === 'area' && !telaTodaPermitida('dividida', atras, aspectos)) base = 'card'
+  // a área toma a proporção da 1ª mídia e as outras a preenchem: com proporções diferentes no mesmo insert (uma aula
+  // 4:3 e outra 16:9), as seguintes perdiam as laterais ("bem cropado"). Aí cada mídia vai num card na proporção dela
+  if (base === 'area' && !atras && aspectos.length > 1 && Math.max(...aspectos) / Math.min(...aspectos) > 1.12) base = 'card'
   const tipo = atras ? 'atras' : base
   // ator embaixo com um preset que ocupa a área: a mídia ocupa a tela toda, atrás da janela do ator
   if (tipo === 'atras' && base === 'area') return { modo: 'atras', tipo, f: 1 }

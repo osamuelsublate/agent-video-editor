@@ -574,6 +574,7 @@
     const o = [...xs].sort((a, b) => a - b);
     return o.length ? o.length % 2 ? o[(o.length - 1) / 2] : (o[o.length / 2 - 1] + o[o.length / 2]) / 2 : 0;
   };
+  var JANELA_ROSTO = 2;
   function rostoDoArquivo(arq, seq, ex = 0.5) {
     if (!arq?.amostras?.length || !seq) return null;
     const a = arq.amostras;
@@ -582,6 +583,11 @@
     const rw = L > A && A > 0 ? A * 9 / 16 / L : 1;
     const noRecorte = (r) => rw >= 1 ? r : { ...r, cx: (r.cx - (1 - rw) * ex) / rw, w: r.w / rw };
     return (ini, fim) => {
+      if (fim - ini < JANELA_ROSTO) {
+        const meio = (ini + fim) / 2;
+        ini = Math.max(0, meio - JANELA_ROSTO / 2);
+        fim = ini + JANELA_ROSTO;
+      }
       const pts = [];
       for (let t = ini; t < fim; t += 0.2) {
         const tb = seq.saidaParaFonte(t);
@@ -781,6 +787,7 @@
     const aspectos = aspectosDe(x.midias, banco);
     let base = forma === "Tela toda" ? "area" : forma === "Card" ? "card" : preset ? tipoDoPreset(preset) : "card";
     if (base === "area" && !telaTodaPermitida("dividida", atras, aspectos)) base = "card";
+    if (base === "area" && !atras && aspectos.length > 1 && Math.max(...aspectos) / Math.min(...aspectos) > 1.12) base = "card";
     const tipo = atras ? "atras" : base;
     if (tipo === "atras" && base === "area") return { modo: "atras", tipo, f: 1 };
     const i = x.midias[0] && banco?.get(x.midias[0].banco);
