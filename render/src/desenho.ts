@@ -244,7 +244,8 @@ function cenaPreset(p: {
 
 /** As mídias do insert do momento, no lugar: com preset, a cena dele (layout, entrada e saída de cada mídia); sem
  *  preset, o estilo simples do formato (`inserts.ESTILO_SIMPLES`). `caixa`: o tamanho da área em px (ou null antes de
- *  medir), para os cards guiados pelos cantos. */
+ *  medir), para os cards guiados pelos cantos. `so` (o insert que o ffmpeg desenha, `geometriaDoInsert`): só o fundo da
+ *  área, ou só a sombra do card k parado no 1º instante dele (sem a mídia nem o fundo). */
 export function insertNoLugar(p: {
   pedido: PedidoNoTempo
   banco: Map<string, ItemBanco>
@@ -253,17 +254,26 @@ export function insertNoLugar(p: {
   receita: Receita | null
   divisao: Divisao | null
   caixa: [number, number] | null
+  so?: 'fundo' | number
 }): V[] {
   const { pedido, banco, divisao } = p
   const area = areaDoInsert(divisao)
   const n = pedido.midias.length
   const dur = Math.max(pedido.t.fim - pedido.t.inicio, 0.01)
-  const rel = Math.max(p.tempo - pedido.t.inicio, 0)
+  let rel = Math.max(p.tempo - pedido.t.inicio, 0)
   // sem mídia, a exportação mostra o ator limpo
   if (!n) return []
   // no "ator embaixo" o insert vai na tela toda: o fundo cobre também o espaço em volta da janela do ator
   const atras: V | false = divisao?.modo === 'atras' && { chave: 'atras', classe: 'pointer-events-none absolute inset-0', filhos: [fundo(p.fundo)] }
-  if (p.receita)
+  if (p.receita) {
+    let receita = p.receita
+    if (p.so === 'fundo') receita = { ...receita, cards: [] }
+    else if (p.so != null) {
+      const c = receita.cards[p.so]
+      receita = { ...receita, fundo: 'proprio', cards: [c] }
+      rel = c.inicio_frac * dur
+    }
+    const sombra = typeof p.so === 'number'
     return [
       atras,
       {
@@ -272,18 +282,19 @@ export function insertNoLugar(p: {
         estilo: area,
         filhos: [
           cenaPreset({
-            receita: p.receita,
+            receita,
             rel,
             dur,
             fundo: p.fundo,
             classe: 'inset-0',
-            semFundo: divisao?.modo === 'atras',
+            semFundo: divisao?.modo === 'atras' || sombra,
             caixa: p.caixa,
-            midia: (k, relM, topo) => midia(pedido.midias[k], banco, relM, topo),
+            midia: (k, relM, topo) => (sombra ? null : midia(pedido.midias[k], banco, relM, topo)),
           }),
         ],
       },
     ].filter(Boolean) as V[]
+  }
 
   // sem preset: o estilo simples do formato (card com fundo na tela cheia, a mídia ocupando a metade de cima na dividida),
   // cada mídia em sequência, com a entrada "Surgir"
@@ -307,6 +318,53 @@ export function insertNoLugar(p: {
       ],
     },
   ].filter(Boolean) as V[]
+}
+
+/** Um insert que o render desenha pelo ffmpeg, sem fotografar (`exportacao.camada_do_insert`): os cards só ficam
+ *  parados no lugar, no máximo com o zoom lento contínuo (a câmera), sem entrada, saída, zoom na mídia, giro, desfoque
+ *  nem cantos medidos. As medidas são as que `cenaPreset` usa: a área (fração do quadro) e cada card em % dela (`raio`
+ *  em % da largura da área), com a janela de tempo (s desde o começo do insert), o contínuo (por segundo) e a mídia
+ *  (o arquivo que a página toca). `fundo`: o id do fundo da área (null: preto, a receita sem fundo). Os cards vêm na
+ *  ordem em que são pintados. null: o insert anima de verdade e vai para a foto. */
+export type Geometria = {
+  area: { y: number; h: number }
+  fundo: string | null
+  cards: {
+    k: number
+    ini: number
+    fim: number
+    cx: number
+    cy: number
+    w: number
+    h: number
+    raio: number
+    sombra: boolean
+    topo: boolean
+    continuo: { escala: number; dx: number; dy: number } | null
+    midia: { tipo: 'video' | 'imagem'; url: string; inicio: number; fim: number | null }
+  }[]
+}
+export function geometriaDoInsert(pedido: PedidoNoTempo, banco: Map<string, ItemBanco>, receita: Receita | null, divisao: Divisao | null, fundoId: string): Geometria | null {
+  if (!receita || !pedido.midias.length || divisao?.modo === 'atras') return null
+  const dur = Math.max(pedido.t.fim - pedido.t.inicio, 0.01)
+  const r = noTempo(receita, dur)
+  const cards: Geometria['cards'] = []
+  for (const [k, c] of r.cards.entries()) {
+    const rep = c.repouso
+    if (c.quadros?.length || c.entrada || c.saida || c.zoom || rep.rot || rep.rx || rep.ry || rep.desfoque || c.continuo?.rot) return null
+    const item = banco.get(pedido.midias[c.midia ?? k]?.banco ?? '')
+    if (!item) return null
+    const z = c.continuo
+    cards.push({
+      k, ...janela(c, dur), cx: rep.cx, cy: rep.cy, w: rep.w, h: rep.h, raio: (rep.raio * rep.w) / 100, sombra: !!rep.sombra, topo: c.ajuste === 'topo',
+      continuo: z && (z.escala || z.dx || z.dy) ? { escala: z.escala, dx: z.dx, dy: z.dy } : null,
+      midia: { tipo: item.tipo, url: item.url, inicio: item.inicio ?? 0, fim: item.fim ?? null },
+    })
+  }
+  // a ordem de pintura: o z-index de cada card e, no empate, a ordem deles
+  cards.sort((a, b) => r.cards[a.k].repouso.z - r.cards[b.k].repouso.z || a.k - b.k)
+  const f = FUNDOS.find((x) => x.id === fundoId) ?? FUNDOS[4]
+  return { area: { y: 0, h: divisao ? divisao.f : 1 }, fundo: r.fundo === 'proprio' ? f.id : null, cards }
 }
 
 // ---------------------------------------------------------------- um motion tocando (do 18: motions/MotionNoLugar.tsx)

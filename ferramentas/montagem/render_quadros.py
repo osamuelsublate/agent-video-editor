@@ -28,12 +28,8 @@ def esperar_render(page) -> None:
         raise RuntimeError(f'A página de render falhou: {page.title()[5:].strip()}')
 
 
-def iniciar(url: str, w: int, h: int) -> None:
-    """Abre o navegador deste processo (uma vez; fica aberto para todos os pedaços que ele pegar)."""
+def _abrir(pw, url: str, w: int, h: int):
     global _pagina, _cdp
-    from playwright.sync_api import sync_playwright
-
-    pw = sync_playwright().start()
     browser = pw.chromium.launch(channel='chromium', args=[
         '--force-color-profile=srgb', '--hide-scrollbars', '--enable-gpu-rasterization', '--ignore-gpu-blocklist',
         f'--window-size={w},{h}'])  # a janela padrão é deitada (1280×720): a foto de um quadro em pé saía cortada
@@ -41,6 +37,33 @@ def iniciar(url: str, w: int, h: int) -> None:
     _pagina = abrir_render(browser, url, w, h)
     _cdp = _pagina.context.new_cdp_session(_pagina)
     _cdp.send('Emulation.setDefaultBackgroundColorOverride', {'color': {'r': 0, 'g': 0, 'b': 0, 'a': 0}})
+    return browser
+
+
+def iniciar(url: str, w: int, h: int) -> None:
+    """Abre o navegador deste processo (uma vez; fica aberto para todos os pedaços que ele pegar)."""
+    from playwright.sync_api import sync_playwright
+
+    _abrir(sync_playwright().start(), url, w, h)
+
+
+def fixas(url: str, w: int, h: int, pedidos: list[tuple[float, str | int, str]]) -> list[tuple[int, int, int, int] | None]:
+    """As fotos paradas dos inserts que o ffmpeg desenha (`exportacao.camada_do_insert`): cada pedido (t, so, png) leva a
+    página ao insert do instante t só com o fundo da área (so = 'fundo') ou só com a sombra do card so, e grava a foto.
+    Devolve a caixa de cada foto onde há algo (None: vazia)."""
+    from PIL import Image
+    from playwright.sync_api import sync_playwright
+
+    caixas = []
+    with sync_playwright() as pw:
+        browser = _abrir(pw, url, w, h)
+        for t, so, png in pedidos:
+            _pagina.evaluate('([t, so]) => window.__render.ir(t, so)', [t, so])
+            img = Image.frombytes('RGBA', (w, h), _foto(w, h))
+            img.save(png)
+            caixas.append(img.getchannel('A').getbbox())
+        browser.close()
+    return caixas
 
 
 def _ir(t: float) -> str | None:

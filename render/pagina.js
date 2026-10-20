@@ -1392,10 +1392,18 @@
     const area = areaDoInsert(divisao);
     const n = pedido.midias.length;
     const dur = Math.max(pedido.t.fim - pedido.t.inicio, 0.01);
-    const rel = Math.max(p.tempo - pedido.t.inicio, 0);
+    let rel = Math.max(p.tempo - pedido.t.inicio, 0);
     if (!n) return [];
     const atras = divisao?.modo === "atras" && { chave: "atras", classe: "pointer-events-none absolute inset-0", filhos: [fundo(p.fundo)] };
-    if (p.receita)
+    if (p.receita) {
+      let receita = p.receita;
+      if (p.so === "fundo") receita = { ...receita, cards: [] };
+      else if (p.so != null) {
+        const c = receita.cards[p.so];
+        receita = { ...receita, fundo: "proprio", cards: [c] };
+        rel = c.inicio_frac * dur;
+      }
+      const sombra = typeof p.so === "number";
       return [
         atras,
         {
@@ -1404,18 +1412,19 @@
           estilo: area,
           filhos: [
             cenaPreset({
-              receita: p.receita,
+              receita,
               rel,
               dur,
               fundo: p.fundo,
               classe: "inset-0",
-              semFundo: divisao?.modo === "atras",
+              semFundo: divisao?.modo === "atras" || sombra,
               caixa: p.caixa,
-              midia: (k2, relM, topo) => midia(pedido.midias[k2], banco, relM, topo)
+              midia: (k2, relM, topo) => sombra ? null : midia(pedido.midias[k2], banco, relM, topo)
             })
           ]
         }
       ].filter(Boolean);
+    }
     const emCard = ESTILO_SIMPLES[pedido.formato].layout === "card";
     const { k, ini, durM } = corteSimples(n, rel, dur);
     const anim = estiloSimples(rel - ini, durM);
@@ -1436,6 +1445,35 @@
         ]
       }
     ].filter(Boolean);
+  }
+  function geometriaDoInsert(pedido, banco, receita, divisao, fundoId) {
+    if (!receita || !pedido.midias.length || divisao?.modo === "atras") return null;
+    const dur = Math.max(pedido.t.fim - pedido.t.inicio, 0.01);
+    const r = noTempo(receita, dur);
+    const cards2 = [];
+    for (const [k, c] of r.cards.entries()) {
+      const rep = c.repouso;
+      if (c.quadros?.length || c.entrada || c.saida || c.zoom || rep.rot || rep.rx || rep.ry || rep.desfoque || c.continuo?.rot) return null;
+      const item = banco.get(pedido.midias[c.midia ?? k]?.banco ?? "");
+      if (!item) return null;
+      const z = c.continuo;
+      cards2.push({
+        k,
+        ...janela(c, dur),
+        cx: rep.cx,
+        cy: rep.cy,
+        w: rep.w,
+        h: rep.h,
+        raio: rep.raio * rep.w / 100,
+        sombra: !!rep.sombra,
+        topo: c.ajuste === "topo",
+        continuo: z && (z.escala || z.dx || z.dy) ? { escala: z.escala, dx: z.dx, dy: z.dy } : null,
+        midia: { tipo: item.tipo, url: item.url, inicio: item.inicio ?? 0, fim: item.fim ?? null }
+      });
+    }
+    cards2.sort((a, b) => r.cards[a.k].repouso.z - r.cards[b.k].repouso.z || a.k - b.k);
+    const f = FUNDOS.find((x) => x.id === fundoId) ?? FUNDOS[4];
+    return { area: { y: 0, h: divisao ? divisao.f : 1 }, fundo: r.fundo === "proprio" ? f.id : null, cards: cards2 };
   }
   var PALCO = { vertical: { w: 1080, h: 1920 }, dividida: { w: 1080, h: 960 } };
   var pinturas = 0;
@@ -1815,6 +1853,10 @@ ${b}` };
     };
     const originais = new Map((edicao.direcao?.itens ?? []).map((i) => [i.id, i]));
     const desenhaveis = [...planos.filter((p) => p.tipo === "full_ator_lettering"), ...elementos].sort((a, b) => a.inicio - b.inicio).map((e) => ({ id: e.id, tipo: e.tipo, inicio: e.inicio, fim: e.fim, texto: e.texto, descricao: e.descricao, banco: originais.get(e.id)?.banco ?? null, lugar: lugarEm(e.inicio, e.fim) }));
+    lista2.forEach((x, i) => {
+      if (x.tipo === "comentario_insert_ator" || desenhaveis.some((e) => e.inicio < x.t.fim && e.fim > x.t.inicio)) return;
+      trechos[i].geometria = geometriaDoInsert(x, banco, receitaDoInsert(x, banco, presets), divisaoDe(x, banco, presets), fundoInserts);
+    });
     trechos.push(...semSobrepor(desenhaveis.map((e) => ({ ini: e.inicio, fim: e.fim })), trechos).map((p) => ({ ...p, dividida: false, divisao: null })));
     const versoes = /* @__PURE__ */ new Map();
     const versao = (url) => {
@@ -1877,7 +1919,7 @@ ${b}` };
       });
     };
     await Promise.all(trechos.map(async (t) => void (t.assinatura = await assinatura(t))));
-    const quadro = (tempo) => {
+    const quadro = (tempo, so) => {
       definirRelogio(tempo);
       const atual = lista2.find((x) => tempo >= x.t.inicio && tempo < x.t.fim);
       const motion = comMotion.find((m) => tempo >= m.ini && tempo < m.fim);
@@ -1897,7 +1939,8 @@ ${b}` };
       const divisao = divisaoDe(atual, banco, presets);
       const receita = receitaDoInsert(atual, banco, presets);
       const camada = (caixa) => {
-        const out = insertNoLugar({ pedido: atual, banco, tempo, fundo: fundoInserts, receita, divisao, caixa });
+        const out = insertNoLugar({ pedido: atual, banco, tempo, fundo: fundoInserts, receita, divisao, caixa, so });
+        if (so != null) return out;
         if (atual.tipo === "comentario_insert_ator") {
           const c = comentarioDe(atual, lugarDoComentario(atual, divisao, geometriaDoAtor(divisao, atual.enriquecimento?.ator, null)));
           out.push(cardComentario(c, c.texto ?? atual.texto ?? ""));
@@ -1950,8 +1993,8 @@ ${b}` };
       transicoes: async () => cortes.filter((c) => c.transicao && c.transicao.efeito.tipo !== "seco").map((c) => ({ t: c.t, ...c.transicao.efeito })),
       palavras: saida.map((w) => ({ id: w.id, texto: w.texto, ini: w.saida_ini, fim: w.saida_fim })),
       planos: planos.map((p) => ({ id: p.id, tipo: p.tipo, ini: p.inicio, fim: p.fim, descricao: p.descricao, texto: p.texto })),
-      ir: async (t) => {
-        const chave = quadro(t);
+      ir: async (t, so) => {
+        const chave = quadro(t, so);
         await pronto();
         return document.querySelector("video") ? null : chave;
       }

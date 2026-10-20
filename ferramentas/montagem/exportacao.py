@@ -2,8 +2,12 @@
 (cortes, recorte 9:16, fade curto em cada emenda) e a camada dos inserts é a própria página de render, fotografada quadro
 a quadro por navegadores escondidos (`render_quadros.py`). Tudo se junta numa passada só do ffmpeg (`comando_final`),
 montada por camadas, uma função por camada. A cola (ler a página, fotografar, rodar) fica em `ferramentas/render.py`."""
+import json
 import math
+import subprocess
 from pathlib import Path
+
+from base import RAIZ, inspecionar
 
 from . import audio as audio_mod
 from . import legenda as legenda_mod
@@ -378,3 +382,169 @@ def pedacos(trechos: list[dict], fps: int, navegadores: int) -> list[list[list[f
     total = sum(map(len, por_trecho))
     tamanho = max(12, min(48, math.ceil(total / (navegadores * 3)) if total else 12))
     return [[ts[i:i + tamanho] for i in range(0, len(ts), tamanho)] for ts in por_trecho if ts]
+
+
+# ---------------------------------------------------------------- um insert parado, desenhado pelo ffmpeg
+
+CHUVA = RAIZ / 'render' / 'fundos' / 'aura' / 'chuva.mp4'
+# a cor de um vídeo sem a matriz marcada: o navegador lê como BT.709 (o swscale, sem isso, leria como BT.601)
+SEM_MARCA = 'bt709'
+FILTRO = 'bilinear'  # a escala da mídia no card (a que mais se aproxima do navegador, medida contra as fotos)
+# um vídeo dentro do card sai mais claro na foto do navegador (o Chrome do Mac trata o vídeo com a curva da Apple,
+# gama ~1,96, e entrega em sRGB): a mesma curva, medida contra as fotos (a chuva, sem card, e as imagens não mudam)
+CURVA_VIDEO = 0.9
+
+
+def _midia(arq: Path) -> tuple[dict, str]:
+    """As medidas de uma mídia como o navegador vê (a largura de exibição, num vídeo de pixel não quadrado) e a
+    conversão dela para RGBA como ele faz (a matriz marcada no arquivo, ou BT.709 sem marca). `px`: pixels gravados
+    por pixel de exibição."""
+    info = inspecionar(arq)
+    gravada = info['largura']
+    r = subprocess.run(['ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=color_space,sample_aspect_ratio',
+                        '-of', 'json', str(arq)], capture_output=True, text=True).stdout
+    st = (json.loads(r or '{}').get('streams') or [{}])[0]
+    num, _, den = (st.get('sample_aspect_ratio') or '1:1').partition(':')
+    if num.isdigit() and den.isdigit() and int(num) and int(den):
+        info['largura'] = info['largura'] * int(num) / int(den)
+    info['px'] = gravada / info['largura']
+    cor = st.get('color_space')
+    return info, f"in_color_matrix={'auto' if cor and cor != 'unknown' else SEM_MARCA}"
+
+
+def _parado(i: int, fps: int, n: int, filtros: str = '') -> str:
+    """Uma imagem (lida uma vez) repetida em `n` quadros: os filtros dela rodam uma vez só."""
+    return f'[{i}:v]{filtros}{"," if filtros else ""}loop=loop=-1:size=1,setpts=N/{fps}/TB,trim=end_frame={n}'
+
+
+def camada_do_insert(t: dict, w: int, h: int, fps: int, saida: Path, fixas: dict) -> list[str]:
+    """O clipe da camada de um insert parado (`t['geometria']`, de `desenho.geometriaDoInsert` na página): o mesmo que a
+    foto do trecho daria — ProRes 4444 com transparência, um quadro por foto (`fotos`) —, desenhado pelo ffmpeg. Na área
+    do insert: o fundo (a chuva tocando no relógio do vídeo final, ou a foto parada que a página tirou dele, ou preto) e,
+    na ordem de pintura, cada card na janela de tempo dele: a sombra (a foto da página, parada no 1º instante do card) e
+    a mídia em cover (no topo, se `topo`) com os cantos redondos. O zoom lento (`continuo`) amplia o card inteiro, sombra
+    junto, como o transform da prévia. A mídia mostra os quadros que a página mostraria (`desenho.videoNoTempo`: a grade
+    de 24/s da mídia, parada no fim dela). `fixas`: as fotos paradas, `{'fundo': png | None, 'sombras': {k: (png,
+    (x0, y0, x1, y1))}}` (a sombra com a caixa onde ela tem algo, no quadro). Devolve o comando do ffmpeg."""
+    g = t['geometria']
+    n = len(fotos(t, fps))
+    rel = [(t['ini'] + j / fps) - t['ini'] for j in range(n)]  # a mesma conta da página (`ir(t)` − início do insert)
+    aw, ah = w, round(g['area']['h'] * h)
+    entradas: list[str] = []
+    f: list[str] = []
+
+    def entrada(*args: str) -> int:
+        entradas.extend(args)
+        return entradas.count('-i') - 1
+
+    # o fundo da área
+    if g['fundo'] == 'chuva':
+        dur = inspecionar(CHUVA)
+        s0 = t['ini'] % dur['duracao']  # o relógio do vídeo final, dando a volta no laço (`desenho.chuvaNoRelogio`)
+        ss = max(0.0, s0 - 1)
+        i = entrada('-hwaccel', 'videotoolbox', '-stream_loop', '-1', '-ss', f'{ss:.6f}', '-i', str(CHUVA))
+        k = max(aw / dur['largura'], ah / dur['altura'])
+        sw, sh = max(round(dur['largura'] * k), aw), max(round(dur['altura'] * k), ah)
+        # quadro j: o último da chuva até s0 + j/fps (o vídeo parado num instante mostra o quadro daquele instante)
+        f.append(f'[{i}:v]setpts=PTS-{s0 - ss:.6f}/TB,fps={fps}:round=up:start_time=0,trim=end_frame={n},'
+                 f'scale={sw}:{sh}:{_midia(CHUVA)[1]},crop={aw}:{ah}:{(sw - aw) // 2}:{(sh - ah) // 2},format=rgba[f0]')
+    elif fixas.get('fundo'):
+        f.append(_parado(entrada('-i', str(fixas['fundo'])), fps, n, f'crop={aw}:{ah}:0:0,format=rgba') + '[f0]')
+    else:  # a receita sem fundo: a área em preto
+        f.append(f'color=c=black:s={aw}x{ah}:r={fps},format=rgba,trim=end_frame={n}[f0]')
+    atual = 'f0'
+
+    for c in g['cards']:
+        js = [j for j in range(n) if c['ini'] <= rel[j] <= c['fim']]  # `estadoCard`: na tela de ini a fim, inclusive
+        if not js:
+            continue
+        j0, j1 = js[0], js[-1]
+        q, k, cont = j1 - j0 + 1, c['k'], c['continuo']
+        cw, ch = c['w'] / 100 * aw, c['h'] / 100 * ah
+        x0, y0 = c['cx'] / 100 * aw, c['cy'] / 100 * ah
+        # o card parado: as bordas em pixels inteiros, cada uma arredondada (como a página desenha o card em repouso)
+        bx, by = round(x0 - cw / 2), round(y0 - ch / 2)
+        base = (round(x0 + cw / 2) - bx, round(y0 + ch / 2) - by)
+        visivel = f'between(n,{j0},{j1})'
+
+        def colocar(rotulo: str, caixa: tuple[int, int, int, int], saida_: str) -> None:
+            """Põe na área uma camada do card no tamanho do card parado (a mídia ou a sombra; `caixa`: x, y, largura e
+            altura dela no card parado). Com o zoom lento, ela vai junto com o card como o transform da prévia —
+            translate(dx·u cqw, dy·u cqh) scale((1 + escala)^u), u em s desde que o card apareceu, a partir do centro
+            dele —, em fração de pixel (o `perspective` leva a camada para os cantos exatos de cada instante, num
+            quadro parado no lugar: o card anda liso, como no navegador)."""
+            nonlocal atual
+            cx_, cy_, cw_, ch_ = caixa
+            if not cont:
+                f.append(f'[{rotulo}]tpad=start={j0}:start_mode=clone[{rotulo}p]')
+                f.append(f"[{atual}][{rotulo}p]overlay=x={cx_}:y={cy_}:format=rgb:enable='{visivel}'[{saida_}]")
+                atual = saida_
+                return
+            e, vx, vy = 1 + cont['escala'], cont['dx'] / 100 * aw, cont['dy'] / 100 * ah
+            # os cantos de cima à esquerda e de baixo à direita em cada quadro em que o card aparece
+            us = [j / fps - c['ini'] for j in js]
+            esq = [x0 + vx * u + (cx_ - x0) * e ** u for u in us]
+            topo = [y0 + vy * u + (cy_ - y0) * e ** u for u in us]
+            ox, oy = math.floor(min(esq)) - 2, math.floor(min(topo)) - 2
+            qw = max(math.ceil(max(x + cw_ * e ** u for x, u in zip(esq, us))) - ox + 2, cw_ + 4)
+            qh = max(math.ceil(max(y + ch_ * e ** u for y, u in zip(topo, us))) - oy + 2, ch_ + 4)
+            u = f"(in/{fps}+{j0 / fps - c['ini']:.6f})"  # o u de cada quadro no fluxo da camada (que começa em j0)
+            s = f'pow({e:.6f},{u})'
+            # a camada vai com uma margem transparente em volta: fora da imagem, o `perspective` repete a borda dela
+            lx = f'({x0 - ox:.4f}+{vx:.5f}*{u}+{cx_ - x0 - 2:.4f}*{s})'
+            ly = f'({y0 - oy:.4f}+{vy:.5f}*{u}+{cy_ - y0 - 2:.4f}*{s})'
+            f.append(f"[{rotulo}]format=gbrap,pad={qw}:{qh}:2:2:color=black@0,"
+                     f"perspective=x0='{lx}':y0='{ly}':x1='{lx}+W*{s}':y1='{ly}':x2='{lx}':y2='{ly}+H*{s}':"
+                     f"x3='{lx}+W*{s}':y3='{ly}+H*{s}':sense=destination:interpolation=linear:eval=frame,"
+                     f"format=rgba,tpad=start={j0}:start_mode=clone[{rotulo}p]")
+            f.append(f"[{atual}][{rotulo}p]overlay=x={ox}:y={oy}:format=rgb:enable='{visivel}'[{saida_}]")
+            atual = saida_
+
+        # a sombra: a foto da página com o card parado, na caixa onde ela tem algo (dentro da área)
+        sombra = (fixas.get('sombras') or {}).get(k) if c['sombra'] else None
+        if sombra:
+            png, (sx0, sy0, sx1, sy1) = sombra
+            sy1 = min(sy1, ah)
+            if sx1 > sx0 and sy1 > sy0:
+                f.append(_parado(entrada('-i', str(png)), fps, q, f'crop={sx1 - sx0}:{sy1 - sy0}:{sx0}:{sy0},format=rgba') + f'[sb{k}]')
+                caixa = (sx0, sy0, sx1 - sx0, sy1 - sy0)
+                colocar(f'sb{k}', caixa, f'so{k}')
+
+        # a mídia em cover no card parado (presa no topo, se `topo`): o pedaço do original que aparece, no tamanho do
+        # card, com os cantos redondos
+        m = c['midia']
+        arq = RAIZ / m['url'].lstrip('/')
+        info, cor = _midia(arq)
+        kc = max(cw / info['largura'], ch / info['altura'])
+        ws, hs = cw / kc, ch / kc  # o pedaço que aparece, em pixels de exibição do original
+        pedaco = (f"crop={round(ws * info['px'])}:{round(hs)}:{round((info['largura'] - ws) / 2 * info['px'])}:"
+                  f"{0 if c['topo'] else round((info['altura'] - hs) / 2)}")
+        escala = f'scale={base[0]}:{base[1]}:flags={FILTRO}:{cor},setsar=1,format=rgba'
+        # a máscara dos cantos (com a borda suavizada, como o navegador), feita uma vez no tamanho do card parado
+        r = c['raio'] / 100 * aw
+        dx = f'max(0,max({r:.3f}-(X+0.5),X+0.5-{base[0] - r:.3f}))'
+        dy = f'max(0,max({r:.3f}-(Y+0.5),Y+0.5-{base[1] - r:.3f}))'
+        f.append(f"color=c=white:s={base[0]}x{base[1]}:r={fps}:d={1 / fps:.6f},format=gray,"
+                 f"geq=lum='255*if(gt({dx},0)*gt({dy},0),clip({r:.3f}+0.5-hypot({dx},{dy}),0,1),1)',"
+                 f"loop=loop=-1:size=1,setpts=N/{fps}/TB,trim=end_frame={q}[mm{k}]")
+        if m['tipo'] == 'imagem':  # parada: escalada uma vez
+            f.append(_parado(entrada('-i', str(arq)), fps, q, f'{pedaco},{escala}') + f'[mv{k}]')
+        else:
+            # o quadro j mostra o último quadro da mídia até `destino` (a grade de 24/s dela, no meio do quadro), que anda
+            # um quadro por quadro desde o 1º visível até a mídia acabar (aí fica parado no último)
+            fim = min(m['fim'] if m['fim'] is not None else math.inf, info['duracao'])
+            destino = [min((math.floor(min(m['inicio'] + rel[j] - c['ini'], fim) * 24 + 1e-6) + 0.5) / 24, fim - 0.001) for j in js]
+            andando = next((i for i in range(1, len(destino)) if abs(destino[i] - destino[0] - i / 24) > 1e-6), len(destino))
+            ss = max(0.0, math.floor(destino[0] - 1))
+            i = entrada('-ss', f'{ss:.3f}', '-i', str(arq))
+            curva = f'255*pow(val/255,{CURVA_VIDEO})'
+            f.append(f'[{i}:v]setpts=PTS-{destino[0] - ss:.6f}/TB,fps={fps}:round=up:start_time=0,trim=end_frame={andando},'
+                     f"tpad=stop={q - andando}:stop_mode=clone,{pedaco},{escala},lutrgb=r='{curva}':g='{curva}':b='{curva}'[mv{k}]")
+        f.append(f'[mv{k}][mm{k}]alphamerge[mc{k}]')
+        colocar(f'mc{k}', (bx, by, base[0], base[1]), f'co{k}')
+
+    # fora da área, transparente; a cor sem marca, como nas fotos (o mesmo caminho até o ProRes)
+    f.append(f'[{atual}]pad={w}:{h}:0:{round(g["area"]["y"] * h)}:color=black@0,format=rgba,'
+             f'setparams=color_primaries=unknown:color_trc=unknown:colorspace=unknown:range=unknown[v]')
+    return ['ffmpeg', '-y', '-loglevel', 'error', *entradas, '-filter_complex', ';'.join(f), '-map', '[v]', '-frames:v', str(n),
+            '-r', str(fps), '-c:v', 'prores_videotoolbox', '-profile:v', '4444', str(saida)]

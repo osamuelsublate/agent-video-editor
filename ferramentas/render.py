@@ -25,7 +25,10 @@
 Como a exportação do 18 (SPEC §13; a cola de backend/app/exportacao.py `_gravar`/`_trechos`, reescrita aqui): a página
 de render (`render/`, servida por `servidor.servir`) calcula no navegador o que a prévia calcula (`window.__render`) e é
 fotografada quadro a quadro por navegadores escondidos (`montagem/render_quadros.py`); o ator e o áudio saem do bruto
-pelo ffmpeg (`montagem/exportacao.py`), em trechos de ~20 s guardados no cache e emendados sem recodificar.
+pelo ffmpeg (`montagem/exportacao.py`), em trechos de ~20 s guardados no cache e emendados sem recodificar. Os inserts
+parados (cards só no lugar, no máximo com o zoom lento: a `geometria` que a página manda) não são fotografados: o
+ffmpeg desenha o clipe deles (`exportacao.camada_do_insert`), bem mais rápido, com o fundo e a sombra tirados da página
+numa foto só.
 
 O cache (`projetos/<slug>/.cache/`): a foto de cada trecho da camada (`camadas/<chave>.mov`, pela assinatura que a
 página dá a ele) e o áudio pronto, com o −14 LUFS (`audio.json` + `audio.wav`). Numa revisão, só os trechos que mudaram
@@ -199,18 +202,53 @@ def _hash_arquivo(arq: Path) -> str:
 def chave_do_trecho(t: dict, w: int, h: int, codigo: str) -> str:
     """A chave das fotos de um trecho: a assinatura da página (o que ele desenha, nos tempos relativos ao começo dele), o
     código da camada, o HTML dos presets de motion que ele usa, o tamanho, o fps e quantas fotos. Sem a fase do 1º quadro:
-    as fotos são na grade do próprio trecho (`exportacao.fotos`), então com tudo igual servem em qualquer instante."""
+    as fotos são na grade do próprio trecho (`exportacao.fotos`), então com tudo igual servem em qualquer instante. Um
+    trecho que o ffmpeg desenha (`geometria`) leva também ela e o código que desenha."""
     presets = sorted({m['preset'] for m in json.loads(t['assinatura']).get('motions') or [] if m.get('preset')})
+    desenho = (json.dumps(t['geometria'], sort_keys=True), _hash_arquivo(Path(exportacao.__file__))) if t.get('geometria') else ()
     return _hash(t['assinatura'], codigo, *(_hash_arquivo(BIBLIOTECA / 'motions' / 'presets' / f'{x}.html') for x in presets),
-                 f'{w}x{h}', str(FPS), str(len(exportacao.fotos(t, FPS))))
+                 f'{w}x{h}', str(FPS), str(len(exportacao.fotos(t, FPS))), *desenho)
+
+
+def desenhar(url: str, trechos: dict[str, dict], w: int, h: int, cache: Path, tmp: Path) -> None:
+    """Os trechos que o ffmpeg desenha no lugar da foto (os inserts parados, com `geometria`): a página tira antes as
+    fotos paradas deles (o fundo da área, se não é a chuva, e a sombra de cada card; `render_quadros.fixas`) e cada
+    trecho vira um clipe igual ao das fotos (`exportacao.camada_do_insert`), guardado em `cache/<chave>.mov`, `JUNTOS`
+    por vez."""
+    pedidos, de_quem = [], []
+    for k, t in trechos.items():
+        g = t['geometria']
+        partes = (['fundo'] if g['fundo'] not in ('chuva', None) else []) + [c['k'] for c in g['cards'] if c['sombra']]
+        for so in partes:
+            pedidos.append((t['ini'], so, str(tmp / f'fixa_{k[:12]}_{so}.png')))
+            de_quem.append(k)
+    fixas = {k: {'fundo': None, 'sombras': {}} for k in trechos}
+    if pedidos:
+        for k, (_, so, png), caixa in zip(de_quem, pedidos, render_quadros.fixas(url, w, h, pedidos)):
+            if so == 'fundo':
+                fixas[k]['fundo'] = png
+            elif caixa:
+                fixas[k]['sombras'][so] = (png, caixa)
+
+    def um(k: str) -> None:
+        clipe = tmp / f'desenho_{k[:12]}.mov'
+        res = subprocess.run(exportacao.camada_do_insert(trechos[k], w, h, FPS, clipe, fixas[k]), capture_output=True, text=True)
+        if res.returncode != 0:
+            raise RuntimeError(f'ffmpeg (insert desenhado) falhou: {res.stderr[-600:]}')
+        clipe.replace(cache / f'{k}.mov')
+
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(JUNTOS) as pool:
+        list(pool.map(um, trechos))
 
 
 def camada(url: str, trechos: list[dict], w: int, h: int, cache: Path, tmp: Path) -> tuple[list[tuple[Path, float]], list[str] | None]:
     """A camada dos inserts com o cache: o clipe de cada trecho fica em `cache/<chave>.mov` e só os que faltam são
-    fotografados. O `_inserts` põe o clipe no 1º quadro do trecho (`q0 / FPS`, contado agora): serve onde o trecho cair.
-    O clipe tem fotos para qualquer fase; se o trecho agora pega um quadro a menos, vai uma cópia sem a última (sem
-    recodificar), senão ela cobriria o 1º quadro do que vem depois. Uma página sem `assinatura` (a do 18, por
-    `RENDER_PAGINA`) fotografa tudo, sem guardar. Devolve os clipes com o instante de cada um e as chaves usadas (None sem
+    fotografados (ou desenhados pelo ffmpeg, os inserts parados: `desenhar`, depois das fotos — ao mesmo tempo, os dois
+    disputavam a máquina e o mvi-0719 levava o dobro). O `_inserts` põe o clipe no 1º quadro do trecho (`q0 / FPS`,
+    contado agora): serve onde o trecho cair. O clipe tem fotos para qualquer fase; se o trecho agora pega um quadro a
+    menos, vai uma cópia sem a última (sem recodificar), senão ela cobriria o 1º quadro do que vem depois. Uma página
+    sem `assinatura` (a do 18, por `RENDER_PAGINA`) fotografa tudo, sem guardar. Devolve os clipes com o instante de cada um e as chaves usadas (None sem
     o cache)."""
     itens = [(t, qs) for t in trechos if (qs := exportacao.quadros(t, FPS))]
     com_cache = all(t.get('assinatura') for t in trechos)
@@ -221,9 +259,13 @@ def camada(url: str, trechos: list[dict], w: int, h: int, cache: Path, tmp: Path
         cache, chaves = tmp / 'camadas', [f'{k:03d}' for k in range(len(itens))]
     cache.mkdir(parents=True, exist_ok=True)
     faltam = {k: t for (t, _), k in zip(itens, chaves) if not (cache / f'{k}.mov').exists()}
-    print(f'      {len(itens) - len(faltam)} trechos do cache, {len(faltam)} para fotografar', flush=True)
-    for k, clipe in zip(faltam, fotografar(url, list(faltam.values()), w, h, tmp, exportacao.NAVEGADORES)):
+    desenhados = {k: t for k, t in faltam.items() if t.get('geometria') and com_cache}
+    fotografados = {k: t for k, t in faltam.items() if k not in desenhados}
+    print(f'      {len(itens) - len(faltam)} trechos do cache, {len(fotografados)} para fotografar, {len(desenhados)} para desenhar no ffmpeg', flush=True)
+    for k, clipe in zip(fotografados, fotografar(url, list(fotografados.values()), w, h, tmp, exportacao.NAVEGADORES)):
         clipe.replace(cache / f'{k}.mov')
+    if desenhados:
+        desenhar(url, desenhados, w, h, cache, tmp)
     camadas = []
     for i, ((t, qs), k) in enumerate(zip(itens, chaves)):
         clipe = cache / f'{k}.mov'

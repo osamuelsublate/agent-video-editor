@@ -14,19 +14,21 @@ import { cortesDoVideo, sonsDasTransicoes } from './transicoes'
 import { eventosDaReceita, type EventoSom } from './sons'
 import { escolhasDeSom, eventosDoMotion, falaDoPlano, fundoDoMotion, marcasDaPagina, urlPaginaMotion } from './motions'
 import { comentarioDe, cardComentario } from './comentario'
-import { definirRelogio, desenhar, insertNoLugar, motionNoLugar, type V } from './desenho'
+import { definirRelogio, desenhar, geometriaDoInsert, insertNoLugar, motionNoLugar, type Geometria, type V } from './desenho'
 import { desenharElementos, intervalosDeLettering, sonsDosElementos, zonasDosElementos, type Elemento, type Lugar } from './elementos'
 
 /** `divisao`: como a tela se divide no trecho (o ator: onde fica, e se a pessoa recortada sai por cima do insert).
- *  `assinatura`: tudo o que o trecho desenha (o render.py guarda a foto dele por ela). */
-type Trecho = { ini: number; fim: number; dividida: boolean; divisao: (Divisao & { ator: unknown }) | null; assinatura?: string }
+ *  `assinatura`: tudo o que o trecho desenha (o render.py guarda a foto dele por ela). `geometria`: o insert parado que
+ *  o ffmpeg desenha no lugar da foto (`desenho.geometriaDoInsert`). */
+type Trecho = { ini: number; fim: number; dividida: boolean; divisao: (Divisao & { ator: unknown }) | null; assinatura?: string; geometria?: Geometria | null }
 declare global {
   interface Window {
     /** O contrato com o render (o mesmo do 18, lido como em `backend/app/exportacao._trechos`):
      *  - `duracao` (s) do vídeo final; `trechos`: onde há camada para fotografar (inserts com mídia, motions e os pedaços
      *    dos elementos e dos planos Full ator com lettering que não caem em nenhum deles), cada um com a `assinatura`;
      *  - `ir(t)`: leva a página ao instante t e responde, depois de tudo pintado, com a chave do quadro quando ele fica
-     *    igual aos seguintes (insert parado: o render reaproveita a foto) ou null;
+     *    igual aos seguintes (insert parado: o render reaproveita a foto) ou null; `ir(t, so)`, num trecho com
+     *    `geometria`: só o fundo da área ('fundo') ou só a sombra do card k (as fotos paradas que o ffmpeg usa);
      *  - `sons()`: os sons de apoio (presets, motions, elementos e transições) no tempo do vídeo final, **sem** o fator de som do
      *    projeto (como no 18: o render multiplica o `ganho` por `fator_da_voz(nivel_voz.db)`, backend/app/sons.py);
      *  - `transicoes()`: as transições com efeito ({t, tipo, antes, depois, forca}); `legenda()`: {blocos} ou null (sem
@@ -37,7 +39,7 @@ declare global {
     __render?: {
       duracao: number
       trechos: Trecho[]
-      ir: (t: number) => Promise<string | null>
+      ir: (t: number, so?: 'fundo' | number) => Promise<string | null>
       sons: () => Promise<EventoSom[]>
       transicoes: () => Promise<unknown[]>
       legenda: () => Promise<unknown>
@@ -146,6 +148,11 @@ async function iniciar() {
     .sort((a, b) => a.inicio - b.inicio)
     .map((e) => ({ id: e.id, tipo: e.tipo, inicio: e.inicio, fim: e.fim, texto: e.texto, descricao: e.descricao, banco: originais.get(e.id)?.banco ?? null, lugar: lugarEm(e.inicio, e.fim) }))
   // os pedaços deles fora dos inserts e motions entram para o render fotografar (os de dentro já saem na foto do trecho)
+  // os inserts parados, sem elemento nem comentário por cima: o ffmpeg desenha (a geometria vai no lugar da foto)
+  lista.forEach((x, i) => {
+    if (x.tipo === 'comentario_insert_ator' || desenhaveis.some((e) => e.inicio < x.t.fim && e.fim > x.t.inicio)) return
+    trechos[i].geometria = geometriaDoInsert(x, banco, receitaDoInsert(x, banco, presets), divisaoDe(x, banco, presets), fundoInserts)
+  })
   trechos.push(...semSobrepor(desenhaveis.map((e) => ({ ini: e.inicio, fim: e.fim })), trechos).map((p) => ({ ...p, dividida: false, divisao: null })))
 
   // a assinatura de cada trecho: tudo o que ele desenha, com os tempos relativos ao começo dele (a foto guardada serve
@@ -197,7 +204,7 @@ async function iniciar() {
 
   // a camada no instante `tempo` e a chave do quadro (parado: sem vídeo na tela, checado depois de pintar, e sem entrada
   // nem saída andando, nem um elemento mexendo; motion nunca é parado)
-  const quadro = (tempo: number): string | null => {
+  const quadro = (tempo: number, so?: 'fundo' | number): string | null => {
     definirRelogio(tempo)
     const atual = lista.find((x) => tempo >= x.t.inicio && tempo < x.t.fim)
     const motion = comMotion.find((m) => tempo >= m.ini && tempo < m.fim)
@@ -218,7 +225,8 @@ async function iniciar() {
     const divisao = divisaoDe(atual, banco, presets)
     const receita = receitaDoInsert(atual, banco, presets)
     const camada = (caixa: [number, number] | null): V[] => {
-      const out = insertNoLugar({ pedido: atual, banco, tempo, fundo: fundoInserts, receita, divisao, caixa })
+      const out = insertNoLugar({ pedido: atual, banco, tempo, fundo: fundoInserts, receita, divisao, caixa, so })
+      if (so != null) return out
       if (atual.tipo === 'comentario_insert_ator') {
         // o card desvia do ator pela geometria dele (o rosto só muda o x: a altura é a mesma da prévia)
         const c = comentarioDe(atual, lugarDoComentario(atual, divisao, geometriaDoAtor(divisao, atual.enriquecimento?.ator, null)))
@@ -279,8 +287,8 @@ async function iniciar() {
     transicoes: async () => cortes.filter((c) => c.transicao && c.transicao.efeito.tipo !== 'seco').map((c) => ({ t: c.t, ...c.transicao!.efeito })),
     palavras: saida.map((w) => ({ id: w.id, texto: w.texto, ini: w.saida_ini, fim: w.saida_fim })),
     planos: planos.map((p) => ({ id: p.id, tipo: p.tipo, ini: p.inicio, fim: p.fim, descricao: p.descricao, texto: p.texto })),
-    ir: async (t) => {
-      const chave = quadro(t)
+    ir: async (t, so) => {
+      const chave = quadro(t, so)
       await pronto()
       return document.querySelector('video') ? null : chave
     },
