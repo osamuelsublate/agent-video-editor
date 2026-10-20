@@ -4,7 +4,9 @@
 # ///
 """O recorte do ator (do 18: backend/app/recorte_ator.py): a silhueta da pessoa quadro a quadro, para a cabeça e os ombros
 passarem por cima do insert quando o ator fica pequeno no "ator embaixo" (o modo janela, com a cabeça saindo por cima,
-e o recortado). Roda sobre o proxy do bruto (a mesma linha do tempo) com o segmentador de selfie do MediaPipe, local.
+e o recortado). Roda sobre o proxy do bruto (a mesma linha do tempo) com a segmentação de pessoa do macOS (Vision,
+qualidade alta, `recorte_vision.swift`: limpa no cabelo); sem o `swiftc`, com o segmentador de selfie do MediaPipe, local
+(o de antes, que vazava em volta da cabeça).
 
     uv run ferramentas/recorte.py <slug>
 
@@ -21,6 +23,35 @@ from base import BIBLIOTECA, ler, pasta  # noqa: E402
 
 MODELO = BIBLIOTECA / 'modelos' / 'selfie_segmenter.tflite'
 URL = 'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/latest/selfie_segmenter.tflite'
+
+
+VISION = Path(__file__).parent / 'recorte_vision.swift'
+
+
+def segmentar_vision(video: Path, destino: Path) -> bool:
+    """A máscara pelo Vision (compilado uma vez em `biblioteca/modelos/recorte_vision`), suavizada no tempo, com borda macia
+    Devolve False sem o `swiftc` (o MediaPipe entra no lugar)."""
+    import shutil
+    if not shutil.which('swiftc'):
+        return False
+    binario = BIBLIOTECA / 'modelos' / 'recorte_vision'
+    if not binario.exists() or binario.stat().st_mtime < VISION.stat().st_mtime:
+        binario.parent.mkdir(parents=True, exist_ok=True)
+        subprocess.run(['swiftc', '-O', str(VISION), '-o', str(binario)], check=True, capture_output=True)
+    import json
+    v = json.loads(subprocess.run(['ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=width,height,r_frame_rate',
+                                   '-of', 'json', str(video)], capture_output=True, text=True, check=True).stdout)['streams'][0]
+    w, h, fps = v['width'], v['height'], v['r_frame_rate']
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    gerar = subprocess.Popen([str(binario), str(video)], stdout=subprocess.PIPE)
+    filtro = "tmix=frames=2:weights='1 1',gblur=sigma=1.2"
+    r = subprocess.run(['ffmpeg', '-v', 'error', '-y', '-f', 'rawvideo', '-pix_fmt', 'gray', '-s', f'{w}x{h}', '-r', fps, '-i', '-',
+                        '-vf', filtro, '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '18', '-preset', 'veryfast', str(destino)],
+                       stdin=gerar.stdout)
+    gerar.stdout.close()
+    if gerar.wait() or r.returncode:
+        raise SystemExit('a máscara pelo Vision falhou')
+    return True
 
 
 def segmentar(video: Path, destino: Path) -> None:
@@ -75,5 +106,6 @@ if __name__ == '__main__':
     proxy = pasta(slug) / (fonte.get('proxy') or f'midia/proxy/{fonte["id"]}.mp4')
     destino = pasta(slug) / 'midia' / 'recorte' / f'{fonte["id"]}_mascara.mp4'
     print(f'Recorte do ator de {slug}: {proxy.name} → {destino.relative_to(pasta(slug))}', flush=True)
-    segmentar(proxy, destino)
+    if not segmentar_vision(proxy, destino):
+        segmentar(proxy, destino)
     print('Pronto.')

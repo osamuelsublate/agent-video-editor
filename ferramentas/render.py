@@ -525,6 +525,10 @@ def render(slug: str, final: bool = False, saida: str | None = None, pasta_saida
     transcricao = (ler_json(p / 'transcricao.json') or {}).get('palavras', [])
     fases: dict[str, float] = {}
     avisos: list[str] = []
+    # o ator embaixo (divisão `atras`) só existe na tela dividida: num insert de tela cheia ele some sem erro
+    avisos += [f"{x['plano']}: o ator embaixo (divisão atras) só vale em Tela dividida · insert; neste {x.get('tipo')} o ator não aparece."
+               for x in (edicao.get('inserts') or {}).get('pedidos') or []
+               if (x.get('enriquecimento') or {}).get('divisao') == 'atras' and x.get('tipo') != 'tela_dividida_insert']
     marca = [time.time()]
 
     def fase(nome: str) -> None:

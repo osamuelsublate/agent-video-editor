@@ -40,6 +40,9 @@ gráfico de barras), um **subagente em segundo plano** (`model: opus`) escreve u
 ```bash
 uv run ferramentas/inserts.py motion-brief <slug> <plano> --preset <id-novo> [--duracao <s>] [--pedido "<o que mais mostrar>"]
 ```
+**Pedido por uma referência** (o criador citou um `REF-…·pN` ou "como este"): o `--pedido` manda extrair e olhar os
+quadros dela (o vídeo e o trecho vêm do `codigo.py`) e copiar ritmo, tipo de troca, tamanho, vinheta, curva e o material
+real; não descreva a referência de cabeça (`aprendizados/motions.md`).
 Dispare o subagente com o prompt **só**: `Leia <caminho> e siga.` (o modelo é `06-brief-motion.md`; mude lá; ele já
 manda ler os recusados e os aprendizados). Ele leva ~7 min: **nunca espere por ele na v1**. Ligue já ao plano o preset
 mais próximo (`inserts.py motion`); se o novo ficar pronto antes do render da entrega, troque; senão, ele entra na v2 e

@@ -31,8 +31,9 @@ montados de novo, 4 por vez, e emendados sem recodificar. Um corte que muda a du
    ```
 3. Separe o que é **grave** do que é **ajuste**:
    - **grave** (o criador não deveria ver): fala cortada no meio de uma palavra, tela preta ou vazia, mídia errada ou
-     quebrada, um texto na tela errado (nome de ferramenta, número). Corrija e renderize de novo **uma vez**, apagando a
-     versão descartada (`versoes/vN/`) para a entregue ser a v1;
+     quebrada, um texto na tela errado (nome de ferramenta, número). Corrija e renderize de novo **uma vez**: a correção vira a
+     versão seguinte (a v2) e é ela que você entrega. **Nunca apague uma versão** (`versoes/vN`): o app, os comentários e o
+     histórico dos blocos dependem delas (`11-revisao.md`);
    - **ajuste** (gosto, ou uma limitação conhecida, como a legenda sobre o conteúdo de um insert em tela cheia): não
      renderize de novo; diga na entrega, no chat ("0:21 · vi isso, posso trocar por…").
    Sem nada grave, entregue a v1 como saiu do primeiro render.
