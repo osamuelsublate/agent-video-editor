@@ -1351,7 +1351,10 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 .pe-projeto { display: flex; align-items: flex-start; gap: 8px; margin-top: 8px; min-width: 0; }
 .pe-projeto .tags-card { flex: 1; min-width: 0; margin-top: 0; }
 .pe-projeto .codigo { margin-left: auto; }
-.chip-saidas { position: absolute; left: 10px; bottom: 48px; z-index: 2; padding: 2px 8px; border-radius: var(--radius-full); background: var(--color-green); color: var(--color-ink); font-size: 10px; font-weight: 600; }
+.chip-saidas { position: absolute; left: 10px; bottom: 48px; padding: 2px 8px; border-radius: var(--radius-full); background: var(--color-green); color: var(--color-ink); font-size: 10px; font-weight: 600; cursor: default; }
+.dica-saidas { position: absolute; left: 0; bottom: calc(100% + 6px); display: none; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: var(--radius-lg);
+  background: var(--color-ink-85); color: var(--color-cream); font-size: 11px; font-weight: 500; white-space: nowrap; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35); }
+.chip-saidas:hover .dica-saidas { display: flex; }
 .filtro-categorias { display: flex; align-items: center; gap: 8px; }
 
 /* os usos agrupados por projeto (um chip "PRJ-07 · 12 planos" que abre os planos) e o modal do motion */
