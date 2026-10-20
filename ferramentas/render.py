@@ -751,8 +751,12 @@ def mix_da_saida(rec_corpo: Path, rec_cta: Path, dur_corpo: float, dur_cta: floa
     rc, rk = receita(rec_corpo), receita(rec_cta)
     tmp = Path(tempfile.mkdtemp(prefix='.mix-', dir=destino.parent))
     try:
-        def lado(r: dict, nome: str, dur: float, eventos: bool = True, casar: str = '') -> Path:
-            a = {**r['a'], 'fundo_mudo': True, 'casar': casar}
+        # o corpo já veio editado (timbre `pronto`, a música dele dentro da mistura): o CTA leva a trilha dele e só o
+        # volume se iguala (a voz do corpo não dá para medir sozinha, misturada com a música)
+        pronto = rc['a'].get('timbre') == 'pronto'
+
+        def lado(r: dict, nome: str, dur: float, eventos: bool = True, casar: str = '', com_fundo: bool = False) -> Path:
+            a = {**r['a'], 'fundo_mudo': not com_fundo, 'casar': casar}
             ev = r['eventos'] if eventos else []
             faixa = tmp / f'{nome}.sons.wav'
             sons.faixa(audio.com_faders(a, ev), r['duracao'], faixa)
@@ -763,20 +767,24 @@ def mix_da_saida(rec_corpo: Path, rec_cta: Path, dur_corpo: float, dur_cta: floa
                    '-c:a', 'pcm_f32le', str(out))
             return out
 
+        if pronto:
+            corpo, cta = lado(rc, 'corpo', dur_corpo), lado(rk, 'cta', dur_cta, com_fundo=True)
+            eq, dif, resto, nivel = '', [], [], round(audio.lufs(corpo) - audio.lufs(cta), 2)
         # 1. as vozes sozinhas, já tratadas: o equilíbrio e a sonoridade de cada uma
-        vc, vk = lado(rc, 'voz-corpo', dur_corpo, False), lado(rk, 'voz-cta', dur_cta, False)
-        ref = audio.espectro_voz(vc)
-        eq, dif = audio.casar_voz(ref, audio.espectro_voz(vk))
-        if eq:  # uma segunda medida, já com o equalizador: os picos vizinhos se somam, então corrige o que sobrou
-            vk = lado(rk, 'voz-cta', dur_cta, False, eq)
-            eq2, _ = audio.casar_voz(ref, audio.espectro_voz(vk))
-            if eq2:
-                eq = f'{eq},{eq2}'
+        if not pronto:
+            vc, vk = lado(rc, 'voz-corpo', dur_corpo, False), lado(rk, 'voz-cta', dur_cta, False)
+            ref = audio.espectro_voz(vc)
+            eq, dif = audio.casar_voz(ref, audio.espectro_voz(vk))
+            if eq:  # uma segunda medida, já com o equalizador: os picos vizinhos se somam, então corrige o que sobrou
                 vk = lado(rk, 'voz-cta', dur_cta, False, eq)
-        resto = [round(x, 1) for x in audio.casar_voz(ref, audio.espectro_voz(vk))[1]]
-        nivel = round(audio.lufs(vc) - audio.lufs(vk), 2)
-        # 2. cada lado com os sons; o CTA com o equalizador e no nível do corpo
-        corpo, cta = lado(rc, 'corpo', dur_corpo), lado(rk, 'cta', dur_cta, True, eq)
+                eq2, _ = audio.casar_voz(ref, audio.espectro_voz(vk))
+                if eq2:
+                    eq = f'{eq},{eq2}'
+                    vk = lado(rk, 'voz-cta', dur_cta, False, eq)
+            resto = [round(x, 1) for x in audio.casar_voz(ref, audio.espectro_voz(vk))[1]]
+            nivel = round(audio.lufs(vc) - audio.lufs(vk), 2)
+            # 2. cada lado com os sons; o CTA com o equalizador e no nível do corpo
+            corpo, cta = lado(rc, 'corpo', dur_corpo), lado(rk, 'cta', dur_cta, True, eq)
         total = dur_corpo + dur_cta
         a = {**rc['a'], 'fade_fim': True,
              'falas': [*rc['a']['falas'], *([i + dur_corpo, f + dur_corpo] for i, f in rk['a']['falas'])]}
@@ -806,8 +814,11 @@ def mix_da_saida(rec_corpo: Path, rec_cta: Path, dur_corpo: float, dur_cta: floa
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     casado = {'nivel_db': nivel, 'eq': eq, 'diferenca_db': dif, 'sobra_db': resto, 'lufs': m['i']}
-    print(f"      áudio da saída: voz do CTA {nivel:+.1f} dB, timbre {' '.join(f'{d:+.1f}' for d in dif)} dB por oitava → "
-          f"sobra {' '.join(f'{d:+.1f}' for d in resto)}; uma trilha só; {m['i']:.1f} LUFS", flush=True)
+    if pronto:
+        print(f"      áudio da saída: corpo já editado; CTA {nivel:+.1f} dB, com a trilha dele; {m['i']:.1f} LUFS", flush=True)
+    else:
+        print(f"      áudio da saída: voz do CTA {nivel:+.1f} dB, timbre {' '.join(f'{d:+.1f}' for d in dif)} dB por oitava → "
+              f"sobra {' '.join(f'{d:+.1f}' for d in resto)}; uma trilha só; {m['i']:.1f} LUFS", flush=True)
     return casado
 
 

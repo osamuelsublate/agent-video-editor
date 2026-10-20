@@ -25,6 +25,17 @@ uv run ferramentas/preparar.py "<caminho do bruto>" --nome "<nome curto do víde
 - `edicao.json` inicial com os padrões: look sem LUT, vinheta Leve, nitidez Leve, velocidade 1×, legenda palavra a palavra,
   limpeza Leve, timbre Natural, sem trilha (você escolhe no Áudio).
 
+## Vídeo já editado (só para plugar CTAs)
+
+O criador às vezes traz um vídeo pronto (o final de outro editor, do Drive) só para servir de corpo das saídas. Prepare
+igual e, sem editar nada, deixe-o passar como veio: `cortes.parametros` com `pausa_max` 99 e folgas 0, `manter` da 1ª à
+última palavra e o clipe da V1 de 0 até a duração da fonte (o `auto` guarda o de antes); `legenda.ligada: false`;
+`audio.voz` `{"limpeza": "sem", "timbre": "pronto"}` (a mistura passa sem filtro) e `fundo: null`; `look` com vinheta e
+nitidez `sem`; um plano só (`[Full ator: —]` com a fala inteira), sem `ator_planos` nem transições. O render sai igual
+ao original, só no −14 LUFS. Numa saída com CTA, o corpo `pronto` faz o CTA levar a trilha dele (a música do corpo está
+dentro da mistura) e só o volume se iguala. Depois, as saídas: `cortes.py saida <slug> "<Destino>" --cta <slug>` ou o
+**+ Saída** do app. _strix-2 · 2026-10-20_
+
 ## Conferir
 
 - O resumo impresso: duração, medidas, nº de palavras. Uma fala de 2 min tem ~300–400 palavras; muito menos indica

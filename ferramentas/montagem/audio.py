@@ -133,7 +133,10 @@ def expressao_ducking(trechos: list[tuple[float, float]], ducking_db: float = DU
 # ---------------------------------------------------------------- a mistura no render (SPEC §13, camada A)
 
 def cadeia_voz(timbre: str, ganho_db: float) -> str:
-    """Os filtros da voz depois da limpeza: passa-altas, timbre, compressor e o fader do ator."""
+    """Os filtros da voz depois da limpeza: passa-altas, timbre, compressor e o fader do ator. `pronto`: um vídeo que já veio
+    editado (a voz, a música e os sons misturados): passa como veio, só com o fader."""
+    if timbre == 'pronto':
+        return f'volume={ganho_db:.1f}dB'
     f = [f'highpass=f={PASSA_ALTAS}']
     f += [f'{x[0]}=f={x[1]}:g={x[2]}:t=q:w={x[3]}' if len(x) == 4 else f'equalizer=f={x[0]}:t=q:w={x[2]}:g={x[1]}' for x in TIMBRES[timbre]]
     c = COMPRESSOR

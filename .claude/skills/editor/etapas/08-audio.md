@@ -26,7 +26,8 @@ fala, em laço com crossfade e fade no fim). No final, −14 LUFS (o padrão do 
 - **`voz.limpeza`**: `leve` (padrão, já feita no preparar). `media`/`forte` só se o ruído de fundo incomodar (pede
   rodar a limpeza de novo; veja o preparar). `voz.timbre`: `encorpada` (padrão: a voz do criador
   com o equilíbrio das VSLs de referência — mais grave, menos médio, mais ar; o microfone dele não pega o brilho) ·
-  `natural` (sem equalização) · `quente` · `clara`. Se o criador gravar com outro microfone ou outra pessoa falar,
+  `natural` (sem equalização) · `quente` · `clara` · `pronto` (um vídeo que já veio editado: a mistura passa sem
+  passa-altas, timbre nem compressor; `01-preparar.md`). Se o criador gravar com outro microfone ou outra pessoa falar,
   compare o espectro da voz com o de uma referência aprovada antes de manter o padrão.
 - **`niveis`** (dB em volta do nível das referências, −12 a +6): `ator`, `presets`, `transicoes`, `fundo`. Padrão 0.
   Mexa só com motivo (ex.: o criador achou os sons altos → `presets: -3`).
