@@ -1,7 +1,10 @@
 // A revisão de uma versão: o player do proxy, a linha do tempo (planos, fala e comentários) e os
 // comentários do criador, gravados sozinhos em projetos/<slug>/revisoes/vN.json (o Claude responde no mesmo arquivo).
-import { $, $$, ESTRELA_CHEIA, ICONE, ICONE_ATALHO, abrirAba, barraDaLinha, agora, aviso, chipCodigo, codigos, confirmar, copiar, dataHora, enviar, esc, fecharAba, janela, json, mmss, modalAberto, nomePlano, num, PLANOS, preferencia, tempo } from './comum.js'
+import { $, $$, ESTRELA_CHEIA, ICONE, ICONE_ATALHO, abrirAba, barraDaLinha, agora, aviso, chipCodigo, codigos, confirmar, copiar, dataHora, enviar, esc, quandoCurto, fecharAba, janela, json, mmss, modalAberto, nomePlano, num, PLANOS, preferencia, tempo } from './comum.js'
 import { carregarCategorias, categoriaCta } from './categorias.js'
+
+/** A data do comentário, curta e relativa a hoje (o dia e a hora inteiros no title). */
+const dataComentario = (c) => (c.criado_em ? `<time class="data-comentario" datetime="${esc(c.criado_em)}" title="${esc(dataHora(c.criado_em))}">${quandoCurto(c.criado_em)}</time>` : '')
 
 const QUADRO = 1 / 24
 const VELOCIDADES = [0.5, 1, 1.5, 2]
@@ -409,7 +412,7 @@ class Revisao {
 
   htmlVelho({ c }) {
     const o = this.ondeAgora(c) // o tempo de lá levado para esta versão (pela palavra)
-    return `<div class="item-velho"><div class="item-velho-cabeca"><button class="chip-tempo" data-ir-velho="${o.t}" title="Ir a este ponto">${quando(o)}</button></div>
+    return `<div class="item-velho"><div class="item-velho-cabeca"><button class="chip-tempo" data-ir-velho="${o.t}" title="Ir a este ponto">${quando(o)}</button>${dataComentario(c)}</div>
       <p class="texto">${esc(c.texto || '(só o print)')}</p>${this.htmlResposta(c)}</div>`
   }
 
@@ -970,6 +973,7 @@ class Revisao {
     return `<article class="item${this.sel === c.id ? ' item-sel' : ''}" data-id="${c.id}"${c.geral ? '' : ` data-ir="${c.t}"`}>
       <header class="item-cabeca"><span class="num">${this.numeros.get(c.id)}</span>
         ${c.geral ? '<span class="chip-tempo estatico">Geral</span>' : `<button class="chip-tempo" data-ir="${c.t}">${quando(c)}</button>`}
+        ${dataComentario(c)}
         <span class="item-acoes"><button class="botao-icone pequeno" data-editar="${c.id}" title="Editar">${ICONE.lapis}</button>
         <button class="botao-icone pequeno" data-apagar="${c.id}" title="Apagar">${ICONE.lixo}</button></span></header>
       ${c.texto ? `<p class="texto">${esc(c.texto)}</p>` : ''}${this.htmlAnexos(c.anexos, c.id)}

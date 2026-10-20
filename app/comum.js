@@ -49,6 +49,21 @@ export const mmss = (t) => `${Math.floor((t || 0) / 60)}:${String(Math.round((t 
 export const seg = (t) => `${num(t, t < 10 ? 1 : 0)} s`
 
 /** Agora, no formato dos JSONs do projeto (ISO local, sem fuso nem milissegundos). */
+/** Quando, curto e relativo a hoje: "hoje 15:20", "ontem 9:10", "seg 14:00" (até 6 dias), "12/10" (no ano), "12/10/25". */
+export function quandoCurto(iso) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (isNaN(d)) return ''
+  const h = new Date()
+  const dias = Math.round((new Date(h.getFullYear(), h.getMonth(), h.getDate()) - new Date(d.getFullYear(), d.getMonth(), d.getDate())) / 864e5)
+  const hora = `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`
+  const dm = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`
+  if (dias <= 0) return `hoje ${hora}`
+  if (dias === 1) return `ontem ${hora}`
+  if (dias < 7) return `${['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'][d.getDay()]} ${hora}`
+  return d.getFullYear() === h.getFullYear() ? dm : `${dm}/${String(d.getFullYear()).slice(2)}`
+}
+
 export function agora() {
   const d = new Date()
   const p = (n) => String(n).padStart(2, '0')
