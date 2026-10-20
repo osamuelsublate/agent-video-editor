@@ -138,7 +138,7 @@ def projetos() -> list[dict]:
                       'comentarios': len(rev.get('comentarios', [])),
                       'conclusao': (100 if estado == 'aprovado' else round(100 * sum(1 for b in blocos if b.get('aprovado')) / len(blocos))) if blocos else None,
                       'saidas': len([x for x in ed.get('saidas') or [] if isinstance(x, dict) and not x.get('final')]),
-                      'saidas_novas': resumo_saidas(ed), 'tem_final': any((p / 'final').rglob('*.mp4')) if (p / 'final').is_dir() else False,
+                      'saidas_novas': resumo_saidas(ed), 'usos_cta': usos_cta(ed), 'tem_final': any((p / 'final').rglob('*.mp4')) if (p / 'final').is_dir() else False,
                       'atualizado': ultima_edicao(p, vs)})
     return sorted(lista, key=lambda x: -x['atualizado'])
 
@@ -537,6 +537,16 @@ def _aprovar_projeto(h, q, slug):
 
 # ---- as saídas (corpo + final: edicao.json → saidas; cortes.py as monta)
 
+def usos_cta(ed: dict) -> list[list]:
+    """Os CTAs que este projeto usa nas saídas (as de agora e as antigas, do encaixe), com quando: [[slug, em], …]. O
+    + Saída do app ordena os CTAs pelos mais usados (ontem e hoje, depois no total)."""
+    out = []
+    for x in ed.get('saidas') or []:
+        if isinstance(x, dict) and (cta := x.get('cta') or (x.get('final') or {}).get('cta')):
+            out.append([cta, x.get('criada_em') or x.get('criado_em')])
+    return out
+
+
 def resumo_saidas(ed: dict) -> list[dict]:
     """As saídas para o app: id, destino, o tipo do final (e o CTA), aprovada e exportada."""
     return [{'id': x['id'], 'destino': x['destino'], 'tipo': x['final'].get('tipo'), 'cta': x['final'].get('cta'),
@@ -589,6 +599,7 @@ def _nova_saida(h, q, slug):
     except SystemExit as e:
         raise Erro(str(e), 422)
     gravar_json(arq, ed)
+    reabrir(slug)
     if final['tipo'] == 'cta':  # a prévia dela na versão mais nova, em segundo plano (o app a abre quando fica pronta)
         cache = PROJETOS / slug / '.cache'
         cache.mkdir(parents=True, exist_ok=True)
@@ -606,6 +617,19 @@ def _tirar_saida(h, q, slug, sid):
     ed['saidas'] = [x for x in ed.get('saidas') or [] if not (isinstance(x, dict) and x.get('final') and x.get('id') == sid)]
     gravar_json(arq, ed)
     return {'saidas': resumo_saidas(ed)}
+
+
+def reabrir(slug: str) -> None:
+    """Uma saída nova é edição: a data do card anda e, se o projeto estava aprovado, ele volta para Em edição (a saída
+    nova ainda não foi vista). As saídas já aprovadas continuam aprovadas."""
+    vs = versoes(PROJETOS / slug)
+    if not vs:
+        return
+    arq = PROJETOS / slug / 'revisoes' / f'v{vs[-1]}.json'
+    rev = ler_json(arq, None) or {'projeto': slug, 'versao': vs[-1], 'aprovado': False, 'enviado_em': None, 'comentarios': []}
+    rev['aprovado'] = False
+    rev['mexido_em'] = agora_iso()
+    gravar_json(arq, rev)
 
 
 @rota('POST', r'/api/projetos/([\w-]+)/desaprovar')

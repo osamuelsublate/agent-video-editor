@@ -799,8 +799,17 @@ class Revisao {
   /** + Saída: escolher um CTA aprovado (com as tags e o vídeo para tocar ali mesmo) e dar o nome do destino. */
   async novaSaida() {
     const [projetos, cats] = await Promise.all([json('/api/projetos', []), carregarCategorias()])
+    // os mais usados nas saídas de ontem e de hoje em cima; empatados (ou ninguém usou nesses dias), os mais usados no
+    // total; depois, pelo nome
+    const h = new Date()
+    const desde = new Date(h.getFullYear(), h.getMonth(), h.getDate() - 1).getTime()
+    const recentes = {}, total = {}
+    for (const [cta, em] of projetos.flatMap((p) => p.usos_cta || [])) {
+      total[cta] = (total[cta] || 0) + 1
+      if (em && new Date(em).getTime() >= desde) recentes[cta] = (recentes[cta] || 0) + 1
+    }
     const ctas = projetos.filter((p) => p.estado === 'aprovado' && !p.oculto && categoriaCta(cats, p.formato || 'reels'))
-      .sort((a, b) => (b.atualizado || 0) - (a.atualizado || 0))
+      .sort((a, b) => (recentes[b.slug] || 0) - (recentes[a.slug] || 0) || (total[b.slug] || 0) - (total[a.slug] || 0) || a.nome.localeCompare(b.nome, 'pt-BR'))
     const tags = [...new Set(ctas.flatMap((p) => p.tags || []))].sort()
     // os escolhidos, na ordem do clique: slug do CTA ('' = nenhum, o corpo puro) → o destino (o nome da saída)
     const escolhidos = new Map()
