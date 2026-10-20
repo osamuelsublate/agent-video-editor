@@ -499,7 +499,7 @@ class Revisao {
   async aplicarLook() {
     const lk = this.lk
     try {
-      const r = await enviar('PUT', `/api/projetos/${encodeURIComponent(this.slug)}/look`, lk.teste)
+      await enviar('PUT', `/api/projetos/${encodeURIComponent(this.slug)}/look`, lk.teste)
       lk.atual = { ...lk.teste }
       lk.renderizando = true
       this.renderLook()

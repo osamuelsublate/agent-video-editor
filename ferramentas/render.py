@@ -1061,7 +1061,6 @@ def previas_motions(refazer: bool = False, ids: list[str] | None = None) -> None
     o fundo (render/motion.html?tocar=1), com o tempo nas mãos daqui (window.__ir(t) e o vídeo do fundo no mesmo instante),
     fotografada em 720×1280. A duração do motion e mais 0,6 s parado no fim (o loop da galeria). Só refaz um motion se o
     .html dele é mais novo que a prévia."""
-    from playwright.sync_api import sync_playwright
     origem = BIBLIOTECA / 'motions' / 'presets'
     destino = BIBLIOTECA / 'motions' / 'previas'
     destino.mkdir(parents=True, exist_ok=True)

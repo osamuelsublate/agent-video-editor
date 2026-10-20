@@ -247,10 +247,7 @@ kbd {
   font-size: 10px; font-weight: 600; line-height: 1.5; font-variant-numeric: tabular-nums;
 }
 .card-banco .duracao { top: auto; bottom: 10px; }
-.chip-formato {
-  position: absolute; left: 10px; bottom: 10px; z-index: 2; padding: 2px 8px; border-radius: var(--radius-full); background: var(--color-ink-85);
-  font-size: 11px; font-weight: 600; line-height: 1.5;
-}
+
 /* os projetos: a ordem no topo e os grupos por data */
 .ordens { display: flex; gap: 6px; margin-left: auto; }
 .grupo-data { margin: 0 0 14px; font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--color-fog); }
@@ -326,7 +323,7 @@ kbd {
 .grade-banco { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 32px 24px; }
 .grade-transicoes { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); }
 .grade-presets { grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 32px 24px; }
-.grade-motions { grid-template-columns: repeat(auto-fill, 240px); }
+
 /* a miniatura dos cards (o 18: canto de 6px, contorno fino; no hover sobe 4px e o contorno vira coral) */
 .mini {
   position: relative; overflow: hidden; border-radius: var(--radius-xl); background: var(--color-deeper); box-shadow: 0 0 0 1px var(--color-line-dark);
@@ -390,8 +387,7 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 .sem-video .sem-clipe { display: grid; }
 
 /* biblioteca */
-.subabas { display: flex; align-items: center; gap: 6px; padding: 14px 0; border-bottom: 1px solid var(--color-line-dark); }
-.subabas .dica { margin-left: auto; }
+
 .origem { margin-top: 6px; font-size: 11px; color: var(--color-fog); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .origem a { color: var(--color-cream); text-decoration-color: var(--color-line-strong); }
 .trechos { list-style: none; margin: 8px 0 0; padding: 0; border-top: 1px solid var(--color-line-dark); }
@@ -414,20 +410,7 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 .video-tocar svg { width: 16px; height: 16px; margin-left: 2px; }
 .video-tocar.escondido, .tocando .video-tocar { opacity: 0; }
 .mini:hover .video-tocar.escondido { opacity: 0; }
-.tabela-pares { margin-bottom: 30px; padding: 16px 18px; border-radius: var(--radius-xl); background: var(--color-deeper); box-shadow: 0 0 0 1px var(--color-line-dark); max-width: 980px; }
-.tabela-pares table { width: 100%; margin-top: 10px; border-collapse: collapse; font-size: 13px; }
-.tabela-pares th { padding: 8px 10px; text-align: left; font-weight: 600; color: var(--color-fog); white-space: nowrap; }
-.tabela-pares thead th { font-size: 12px; border-bottom: 1px solid var(--color-line-dark); }
-.tabela-pares td { padding: 8px 10px; border-left: 1px solid var(--color-line-dark); vertical-align: top; }
-.tabela-pares tbody tr + tr td, .tabela-pares tbody tr + tr th { border-top: 1px solid var(--color-line-dark); }
-.tabela-pares .dica { margin-top: 10px; }
-.fav-transicao { display: flex; gap: 7px; align-items: baseline; padding: 2px 0; border: 0; background: none; text-align: left; }
-.fav-transicao:hover { color: var(--color-coral); }
-.fav-transicao b { font-size: 11px; color: var(--color-yellow); }
-.card-motion .mini iframe { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; border: 0; transform: scale(calc(240 / 1080)); transform-origin: 0 0; pointer-events: none; }
-.sem-previa { position: absolute; inset: 0; display: grid; place-content: center; gap: 6px; padding: 16px; text-align: center; }
-.sem-previa b { font-size: 17px; letter-spacing: -0.02em; }
-.sem-previa span { font-size: 11px; opacity: 0.7; }
+
 .fundo-verde_claro { background: linear-gradient(180deg, #dfe9e0, #7fa48f); color: var(--color-ink); }
 .fundo-lilas, .fundo-lavanda { background: linear-gradient(180deg, #dcd9ea, #8e98b5); color: var(--color-ink); }
 .fundo-escuro, .fundo-verde_escuro { background: radial-gradient(120% 80% at 50% 30%, #1d4a43, #050b0a); }
@@ -503,7 +486,6 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 .midia-fonte { margin-left: auto; font-size: 11px; color: var(--color-fog); text-decoration: none; white-space: nowrap; }
 .midia-fonte:hover { color: var(--color-cream); }
 .lado-dir { padding-bottom: 4px; min-height: 0; overflow-y: auto; scrollbar-width: thin; } /* o que não cabe rola aqui, sem vazar por cima dos controles e da linha do tempo */
-.resumo-versao { font-size: 13px; color: var(--color-cream); }
 
 .controles {
   grid-area: 2 / 1; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 18px;
@@ -721,7 +703,7 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 .faixa-estado { display: flex; align-items: center; gap: 8px; margin: 12px 16px 0; padding: 10px 12px; border-radius: var(--radius-2xl); font-size: 12px; font-weight: 600; }
 .faixa-estado a { color: inherit; }
 .estado-aprovado { background: rgba(220, 231, 202, 0.15); color: var(--color-mint); }
-.estado-antiga { background: var(--color-cream-5); color: var(--color-cream); font-weight: 500; }
+
 .lista { flex: 1; overflow-y: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
 .vazio-lista { margin: 30px 10px; text-align: center; font-size: 13px; color: var(--color-fog); line-height: 2; }
 /* os cards do painel (os do 18: canto de 8px, contorno fino) */
@@ -789,8 +771,7 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 .botao:disabled, .pilula:disabled { opacity: 0.45; cursor: default; }
 .botao:disabled:hover { border-color: var(--color-line-dark); }
 /* o "Refazer cortes" / "Sugerir regras com IA" do 18: contorno amarelo com um véu amarelo */
-.botao-amarelo { border-color: rgba(249, 219, 109, 0.7); background: rgba(249, 219, 109, 0.1); color: var(--color-yellow); }
-.botao-amarelo:hover { background: var(--color-yellow); border-color: var(--color-yellow); color: var(--color-ink); }
+
 .botao-perigo-contorno:hover { border-color: var(--color-error); color: var(--color-error); }
 .conta { font-size: 11px; font-weight: 400; color: var(--color-fog); font-variant-numeric: tabular-nums; }
 .espaco { flex: 1; }
@@ -824,7 +805,7 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 .chip-favoritos { margin-right: 8px; }
 .chip-favoritos:hover { border-color: rgba(249, 219, 109, 0.6); }
 .pilula.chip-favoritos.ativa { background: var(--color-yellow); border-color: var(--color-yellow); color: var(--color-ink); }
-.filtros-sep { flex: none; width: 1px; height: 20px; margin: 0 8px; background: var(--color-line-dark); }
+
 .filtros-dir { margin-left: auto; display: flex; align-items: center; gap: 12px; font-size: 12px; color: var(--color-fog); }
 .busca { width: 240px; height: 32px; padding: 0 12px; border: 1px solid var(--color-line-dark); border-radius: 999px; background: rgba(0, 0, 0, 0.2); color: var(--color-cream); font: inherit; font-size: 12px; }
 .busca:focus { outline: none; border-color: var(--color-coral); }
@@ -1157,7 +1138,6 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 .janela-cabeca .codigo { margin-left: 2px; }
 .botao-recusar:hover { color: var(--color-error) !important; border-color: var(--color-error) !important; }
 
-
 /* ---------- seletor de versões (como o do frame.io) ---------- */
 .seletor-versao { position: relative; }
 .botao-versao { height: 32px; gap: 6px; padding: 0 10px 0 13px; border-color: rgba(245, 119, 87, 0.7); font-size: 13px; }
@@ -1231,17 +1211,12 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 .io-ponto i { left: 5px; }
 
 /* o Banco: os chips Tudo · Inserts · Motions; com Tudo, os motions vêm depois das mídias */
-.partes-banco { display: flex; gap: 6px; margin-bottom: 18px; }
-.parte-banco:empty { display: none; }
-.parte-banco + .parte-banco:not(:empty) { margin-top: 40px; }
 
 /* o selo do banco e dos motions (usado · aprovado · recusado) e os chips de onde entrou nos vídeos aprovados */
 .estado-banco { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; }
 .chip-uso { padding: 2px 8px; border: 1px solid var(--color-line-dark); border-radius: var(--radius-full); color: var(--color-fog);
   font-family: var(--font-mono, ui-monospace, monospace); font-size: 10.5px; font-weight: 600; text-decoration: none; }
 .chip-uso:hover { border-color: var(--color-cream-50); color: var(--color-cream); }
-.filtros-banco { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 4px 0 18px; }
-.filtros-banco [data-limpar-recusados] { margin-left: auto; }
 
 /* subir mídia no banco: o botão e a página inteira aceitando arquivos arrastados */
 .botao-subir { cursor: pointer; }
@@ -1302,27 +1277,11 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 
 /* a página dos CTAs */
 .cabeca-secao .botao-subir { margin-left: auto; }
-.card-cta.tocando .mini video { opacity: 1; }
-.card-cta .estrela { position: absolute; right: 8px; top: 8px; z-index: 2; }
-.cta-info { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-.cta-info .select-cta { flex: 1; min-width: 0; margin: 0; }
-.select-cta { width: 100%; margin: 8px 0 6px; padding: 6px 8px; border: 1px solid var(--color-line-dark); border-radius: var(--radius-lg);
-  background: var(--color-deep); color: var(--color-cream); font: inherit; font-size: 12px; }
-.card-cta .acoes-pe { display: flex; justify-content: space-between; align-items: center; }
-.card-cta > .dica { margin-top: 6px; }
 
 /* o CTA tocando com som: o ▶ no meio, a barra do trecho embaixo */
-.card-cta .video-tocar { z-index: 3; }
-.card-cta.com-som .video-tocar { opacity: 0; }
-.card-cta.com-som .mini:hover .video-tocar { opacity: 1; }
-.card-cta.tocando .cta-barra { opacity: 1; }
-
-.cta-expandir { position: absolute; right: 8px; bottom: 10px; z-index: 3; background: rgba(0, 0, 0, 0.6); color: var(--color-cream); opacity: 0; transition: opacity 0.2s; }
-.card-cta .mini:hover .cta-expandir { opacity: 1; }
-.card-cta .mini .duracao { top: auto; bottom: 10px; left: 8px; right: auto; height: auto; }
 
 /* o card do CTA: as ferramentas sobre a miniatura (aparecem no hover); embaixo, o nome editável e uma linha de meta */
-.cta-rodape { display: flex; justify-content: flex-start; }
+
 .cta-categoria { position: relative; display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%; padding: 3px 9px 3px 8px;
   border: 1px solid var(--color-line-dark); border-radius: var(--radius-full); color: var(--color-fog); font-size: 11.5px; font-weight: 500; cursor: pointer;
   transition: border-color 0.15s, color 0.15s; }
@@ -1351,8 +1310,6 @@ article h3, a h3 { margin-top: 12px; font-size: 15px; font-weight: 600; letter-s
 .produto-linha input:focus { outline: none; border-color: var(--color-cream-50); }
 .produto-emoji { text-align: center; font-size: 16px !important; }
 .produtos-acoes { display: flex; justify-content: space-between; align-items: center; padding: 4px 20px 20px; }
-
-
 
 /* a categoria de vídeo (Reels, Ad…) de um projeto ou de uma referência, embaixo do card (app/categorias.js) */
 /* sobre a miniatura do projeto (fora do link, para o seletor e o copiar não abrirem o projeto): a categoria e o código */

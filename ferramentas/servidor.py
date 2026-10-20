@@ -1025,6 +1025,12 @@ def _midia(h, q, id_):
     return {'item': item, 'usos': usos.get(id_, []), 'trechos': [{**t, 'usos': usos.get(t['id'], [])} for t in trechos]}
 
 
+@rota('GET', '/api/banco')
+def _banco_todos(h, q):
+    """Todas as mídias do banco (o item.json de cada uma) numa resposta só: a página do Banco lia um item.json por mídia."""
+    return _banco().todos()
+
+
 @rota('POST', '/api/banco')
 def _subir_midia(h, q):
     """O criador sobe uma mídia pelo app: o arquivo cru no corpo (o nome em X-Nome). Nasce Aprovada (`do_criador`) e o

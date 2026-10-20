@@ -2,7 +2,7 @@
 // a lista. Arrastar no vazio cria um trecho; arrastar o trecho o move; as alças ajustam as pontas. I / O marcam entrada e
 // saída, espaço toca (com um trecho escolhido e o vídeo parado, toca só ele), ← → um quadro (Shift: 1 s), Delete apaga.
 // Nada vai para o disco até "Salvar trechos"; cada trecho salvo vira um item do banco, com o código próprio.
-import { $, $$, ICONE, aviso, confirmar, enviar, esc, janela, json, num, tempo } from './comum.js'
+import { $, ICONE, aviso, confirmar, enviar, esc, janela, json, num, tempo } from './comum.js'
 
 const QUADRO = 1 / 30
 const MIN = 0.2 // como o MIN_TRECHO do banco.py

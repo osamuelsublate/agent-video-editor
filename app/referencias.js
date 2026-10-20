@@ -1,7 +1,7 @@
 // As páginas do que o Claude lê para editar: a galeria de Referências (todos os planos, para ver como cada tipo foi usado
 // e favoritar os melhores), a Heurística da direção (as regras e os roteiros de exemplo) e os Aprendizados (um .md por
 // área, com as correções do criador vídeo a vídeo).
-import { $, $$, ESTRELA_CHEIA, ICONE, PLANOS, achaBusca, ajuda, aviso, chipCodigo, codigos, enviar, esc, janela, markdown, nomePlano, num, preferencia, seg, semAcento, tempo, tocarTrecho, urlRef } from './comum.js'
+import { $, $$, ESTRELA_CHEIA, ICONE, achaBusca, ajuda, aviso, chipCodigo, codigos, enviar, esc, janela, markdown, nomePlano, preferencia, seg, semAcento, tempo, tocarTrecho, urlRef } from './comum.js'
 import { jsons } from './biblioteca.js'
 import { barraDeTags, datalistTags, htmlTagsCard, ligarTags, tagEscolhida, temTag } from './tags.js'
 import { botaoCategorias, carregarCategorias, editarCategorias, pilulasCategoria, rotuloCategoria } from './categorias.js'
@@ -248,7 +248,7 @@ export async function abrirReferencias(tela) {
     let k = k0
     let modo = 'trecho'
     let pararTrecho = null
-    const { el, fechar } = janela('', {
+    const { el } = janela('', {
       classe: 'janela-clipe',
       aoFechar: () => {
         pararTrecho?.()

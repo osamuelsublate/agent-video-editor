@@ -111,7 +111,8 @@ let ultimoMarcado = null
 const buscas = { inserts: preferencia('banco.busca', ''), motions: preferencia('motions.busca', '') } // a busca de cada página (guardada: voltar à aba devolve)
 
 async function bancoInserts(el, tipo = 'inserts') {
-  const [nomes, cods, est, ms, tagsMotion, previas] = await Promise.all([lista('biblioteca/banco'), codigos(), json('/api/estados', { midias: {}, motions: {} }), lerMotions(),
+  // as mídias numa resposta só (/api/banco); os motions (um HTML cada), só na aba Motions
+  const [itensBanco, cods, est, ms, tagsMotion, previas] = await Promise.all([json('/api/banco', []), codigos(), json('/api/estados', { midias: {}, motions: {} }), tipo === 'motions' ? lerMotions() : [],
     fetch('/biblioteca/motions/_tags.json', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : {})).catch(() => ({})),
     lista('biblioteca/motions/previas')])
   // a prévia em vídeo de cada motion (render.py previas-motions): a grade toca o vídeo; a animação ao vivo, só no modal
@@ -127,8 +128,7 @@ async function bancoInserts(el, tipo = 'inserts') {
   const chaveFiltro = tipo === 'motions' ? 'motions.filtro' : 'banco.filtro'
   let filtro = FILTROS_BANCO[preferencia(chaveFiltro, 'todos')] ? preferencia(chaveFiltro, 'todos') : 'todos'
   const cod = cods.midia || {}
-  const ids = nomes.filter((n) => n.endsWith('/') && !n.startsWith('_')).map((n) => n.slice(0, -1)) // _lixeira etc. não são mídias
-  const itens = (await Promise.all(ids.map((id) => json(`/biblioteca/banco/${id}/item.json`).then((it) => it && { ...it, id: it.id || id })))).filter(Boolean)
+  const itens = itensBanco || []
   const recente = (it) => (estados[it.id]?.usos || []).reduce((m, u) => (u.quando > m ? u.quando : m), '') || it.criado_em || ''
   const originais = itens.filter((i) => !i.pai).sort((a, b) => recente(b).localeCompare(recente(a)))
   const trechos = {}

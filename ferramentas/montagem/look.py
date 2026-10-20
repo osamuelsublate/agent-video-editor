@@ -1,7 +1,6 @@
 """O look do ator (do 18: backend/app/look.py; docs/preprocessamento.md, "Look"): um LUT 3D (em `biblioteca/luts/`) com
 intensidade e a vinheta (bordas escurecidas), só no ator. Vale para o projeto inteiro; a prévia (WebGL) e o render
 (ffmpeg) usam a mesma tabela e a mesma fórmula da vinheta, para ficarem iguais."""
-import math
 from pathlib import Path
 
 from base import BIBLIOTECA
@@ -31,14 +30,6 @@ def do_projeto(p: dict) -> dict:
 def ativo(look: dict | None) -> bool:
     return bool(look) and ((look.get('lut') and look.get('intensidade', 1) > 0) or VINHETAS.get(look.get('vinheta'), 0) > 0
                            or NITIDEZ.get(look.get('nitidez') or 'sem', 0) > 0)
-
-
-def fator_vinheta(x: float, y: float, forca: float) -> float:
-    """O multiplicador da vinheta num ponto (x, y em 0–1 do quadro do ator): 1 no centro, 1 − forca nas bordas, com uma
-    transição suave (smoothstep) entre `ini` e `fim` da distância elíptica."""
-    d = math.hypot((x - 0.5) / FORMA['rx'], (y - FORMA['cy']) / FORMA['ry'])
-    t = min(max((d - FORMA['ini']) / (FORMA['fim'] - FORMA['ini']), 0), 1)
-    return 1 - forca * t * t * (3 - 2 * t)
 
 
 def mascara_vinheta(w: int, h: int, forca: float, destino: Path) -> Path:

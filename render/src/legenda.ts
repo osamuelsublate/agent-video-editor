@@ -243,8 +243,5 @@ export function semOsLetterings(bs: Bloco[], saida: PalavraSaida[], letterings: 
   })
 }
 
-/** O bloco que aparece no instante `t` (escondidos não contam). */
-export const blocoNoTempo = (bs: Bloco[], t: number) => bs.find((b) => !b.oculto && b.ini <= t && t < b.fim) ?? null
-
 /** Para a página de render: os blocos visíveis no formato do ASS (`legenda.py`). */
 export const paraExportar = (bs: Bloco[]) => bs.filter((b) => !b.oculto).map((b) => ({ ini: b.ini, fim: b.fim, texto: b.texto, y: b.y }))

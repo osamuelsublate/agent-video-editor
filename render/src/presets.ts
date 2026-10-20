@@ -150,20 +150,6 @@ export function janela(c: CardReceita, dur: number) {
   return { ini, fim }
 }
 
-/** Quando cada mídia está na tela num insert de `dur` s (s desde o começo; do 1º card dela que entra ao último que sai):
- *  a linha do tempo desenha os blocos das mídias por aqui quando o insert tem preset (é ele que manda nos tempos). */
-export function vidasDasMidias(r0: Receita, dur: number, n: number): ({ ini: number; fim: number } | null)[] {
-  const r = noTempo(r0, dur)
-  const v: ({ ini: number; fim: number } | null)[] = Array.from({ length: n }, () => null)
-  r.cards.forEach((c, k) => {
-    const m = c.midia ?? k
-    if (m >= n) return
-    const j = janela(c, dur)
-    v[m] = v[m] ? { ini: Math.min(v[m]!.ini, j.ini), fim: Math.max(v[m]!.fim, j.fim) } : j
-  })
-  return v
-}
-
 // o progresso (0 → 1, a curva pode passar do ponto) de uma propriedade num movimento, `t` s depois de ele começar
 function progresso(m: Movimento, k: Propriedade, t: number) {
   const atraso = m.atraso?.[k] ?? 0
@@ -318,16 +304,6 @@ export const PROPORCOES_USO: { id: Proporcao; nome: string }[] = [
 const chaveProporcao = (a: number): Proporcao => (a < 0.8 ? 'pe' : a <= 1.2 ? 'quadrada' : 'deitada')
 /** A chave do número de mídias: 1, 2 ou 2+ (3 ou mais). */
 const chaveMidias = (n: number) => (n <= 1 ? '1' : n === 2 ? '2' : '2+') as Usos['midias'][number]
-/** O nome de um número de mídias do "Vale em" para a receita: "3 ou mais" só vale para quem repete; numa que não repete, o
- *  "2+" vai até as mídias que ela pede (com mais, alguma ficaria de fora e o preset não aparece: `serve`). */
-export function nomeMidias(m: Usos['midias'][number], r: Receita): string {
-  if (m === '1') return '1 mídia'
-  if (m === '2') return '2 mídias'
-  const n = nMidias(r)
-  return r.repete || n < 3 ? '3 ou mais' : n === 3 ? '3 mídias' : `3 a ${n} mídias`
-}
-/** A receita dá conta desse número de mídias? (uma que não repete, só até as que pede) */
-export const cabeMidias = (m: Usos['midias'][number], r: Receita) => r.repete || nMidias(r) >= (m === '1' ? 1 : m === '2' ? 2 : 3)
 /** Onde o preset vale: o marcado, ou o que a receita suporta (as telas de `formatos`, e "ator embaixo" se vale na
  *  dividida; as mídias pela receita: as que repetem servem a 2 e 2+). */
 export function usosDe(p: Preset): Usos {

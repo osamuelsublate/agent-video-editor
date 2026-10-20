@@ -73,7 +73,7 @@ def _foto(w: int, h: int) -> bytes:
         cru = _rgba(png, w, h)
         if cru is not None:
             return cru
-        print(f'      foto da camada em tamanho errado, de novo', flush=True)
+        print('      foto da camada em tamanho errado, de novo', flush=True)
         _pagina.set_viewport_size({'width': w, 'height': h})
         _pagina.wait_for_timeout(200)
     raise RuntimeError(f'A foto da camada não saiu em {w}×{h} (o navegador encolheu a janela).')

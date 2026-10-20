@@ -8,7 +8,7 @@ import { abrirCalibragem, abrirRevisaoReferencia } from './calibragem.js'
 import { abrirAprendizados, abrirHeuristica, abrirReferencias } from './referencias.js'
 import { abrirLixeira } from './lixeira.js'
 import { barraDeTags, datalistTags, htmlTagsCard, ligarTags, tagEscolhida, temTag } from './tags.js'
-import { botaoCategorias, carregarCategorias, categoriaCta, editarCategorias, pilulasCategoria, rotuloCategoria, seletorCategoria } from './categorias.js'
+import { botaoCategorias, carregarCategorias, categoriaCta, editarCategorias, pilulasCategoria, seletorCategoria } from './categorias.js'
 
 const ESTADOS = {
   em_revisao: ['Em revisão', 'selo-coral'],
