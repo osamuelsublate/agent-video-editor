@@ -139,6 +139,12 @@ kbd {
 /* Calibragem, Heurística e Aprendizados: só o ícone (o nome na dica); na própria aba, o nome inteiro */
 .abas .so-icone:not(.ativa) { width: var(--alto-pilula); padding: 0; justify-content: center; }
 .abas .so-icone:not(.ativa) span { display: none; }
+/* sem espaço (abas de projeto abertas, janela estreita): as do dia também viram só ícone, menos a aberta, para os ícones da
+   direita (Calibragem, Heurística, Aprendizados, Lixeira) nunca saírem da tela */
+@container links (max-width: 780px) {
+  .abas-dia .pilula:not(.ativa) { width: var(--alto-pilula); padding: 0; justify-content: center; }
+  .abas-dia .pilula:not(.ativa) span { display: none; }
+}
 
 /* os projetos abertos como abas (o AbaDeProjeto do 18): até 40% da barra; primeiro encolhem, depois rolam */
 .abas-projetos { display: flex; flex: 0 1 auto; align-items: center; gap: 6px; max-width: 40%; min-width: 0; overflow-x: auto; scrollbar-width: none; }
@@ -1491,3 +1497,16 @@ button.tag:hover { background: rgba(185, 166, 242, 0.26); }
 /* a Calibragem: 8 cards por linha nas telas largas */
 .pagina-calibragem .grade-projetos { grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 16px; }
 @media (max-width: 1700px) { .pagina-calibragem .grade-projetos { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); } }
+
+/* a Lixeira: o que foi apagado no app (projetos, banco, referências) */
+.pagina-lixeira .cabeca-secao { flex-wrap: wrap; gap: 12px; }
+.pagina-lixeira .filtro-produtos { margin: 0; }
+.pagina-lixeira [data-esvaziar] { margin-left: auto; }
+.grade-lixo { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 24px 14px; }
+.card-lixo { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.card-lixo h3 { margin: 4px 0 0; font-size: 14px; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
+.card-lixo .sub { margin: 0; }
+.mini-lixo { aspect-ratio: 4 / 5; }
+.mini-lixo > img, .mini-lixo > video { filter: grayscale(0.6) brightness(0.8); }
+.selo-tipo { position: absolute; left: 8px; top: 8px; z-index: 2; padding: 2px 8px; border-radius: var(--radius-full); background: var(--color-ink-85); color: var(--color-cream); font-size: 10.5px; font-weight: 600; }
+.acoes-lixo { display: flex; align-items: center; gap: 6px; }

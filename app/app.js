@@ -6,6 +6,7 @@ import { abrirRevisao } from './revisao.js'
 import { abrirBiblioteca, PAGINAS_BIBLIOTECA } from './biblioteca.js'
 import { abrirCalibragem, abrirRevisaoReferencia } from './calibragem.js'
 import { abrirAprendizados, abrirHeuristica, abrirReferencias } from './referencias.js'
+import { abrirLixeira } from './lixeira.js'
 import { barraDeTags, datalistTags, htmlTagsCard, ligarTags, tagEscolhida, temTag } from './tags.js'
 import { botaoCategorias, carregarCategorias, categoriaCta, editarCategorias, pilulasCategoria, rotuloCategoria, seletorCategoria } from './categorias.js'
 
@@ -211,7 +212,7 @@ async function inicio(tela, ctas = false) {
     campo.addEventListener('blur', () => concluir(true))
     for (const t of ['click', 'mousedown']) campo.addEventListener(t, (k) => { k.preventDefault(); k.stopPropagation() })
   }
-  // apagar (como no 18): a pasta vai para a lixeira (projetos/_lixeira/), de onde dá para recuperar
+  // apagar: a pasta vai para a Lixeira (biblioteca/lixeira/), de onde dá para restaurar
   tela.addEventListener('click', async (e) => {
     const o = e.target.closest('[data-ordem]')
     if (o) {
@@ -284,7 +285,7 @@ async function inicio(tela, ctas = false) {
     const p = projetos.find((x) => x.slug === caixa.dataset.slug)
     const ok = await confirmar({
       titulo: `Apagar o projeto “${p.nome}”?`,
-      texto: 'O projeto sai da lista e vai para a lixeira (projetos/_lixeira/), de onde dá para recuperar.',
+      texto: 'O projeto sai da lista e vai para a Lixeira, de onde dá para restaurar.',
       ok: 'Apagar',
       perigo: true,
     })
@@ -294,7 +295,7 @@ async function inicio(tela, ctas = false) {
       fecharAba(p.slug)
       todos.splice(todos.indexOf(p), 1)
       desenhar()
-      aviso(`“${p.nome}” foi para a lixeira`)
+      aviso(`“${p.nome}” foi para a Lixeira`)
     } catch (err) {
       aviso(err.message, 'erro')
     }
@@ -364,6 +365,7 @@ async function rotear() {
   else if (partes[0] === 'referencias') s = await abrirReferencias(tela)
   else if (partes[0] === 'heuristica') s = await abrirHeuristica(tela)
   else if (partes[0] === 'aprendizados') s = await abrirAprendizados(tela, partes[1])
+  else if (partes[0] === 'lixeira') s = await abrirLixeira(tela)
   else if (PAGINAS_BIBLIOTECA.includes(partes[0])) s = await abrirBiblioteca(tela, partes[0], partes.slice(1))
   else s = await inicio(tela, partes[0] === 'ctas')
   if (minha !== vez) s?.() // já mudou de tela enquanto carregava

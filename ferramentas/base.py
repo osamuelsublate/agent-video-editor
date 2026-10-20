@@ -19,6 +19,8 @@ EXEMPLOS = BIBLIOTECA / 'exemplos'
 APRENDIZADOS = BIBLIOTECA / 'aprendizados'
 # no git: o que uma biblioteca nova recebe (os aprendizados técnicos e motions de exemplo)
 INICIAL = Path(__file__).resolve().parent / 'inicial'
+# a lixeira única (o que se apaga no app: projetos, mídias do banco, referências), de onde dá para restaurar ou apagar de vez
+LIXEIRA = BIBLIOTECA / 'lixeira'
 
 
 def preparar_biblioteca() -> None:
@@ -37,6 +39,122 @@ def preparar_biblioteca() -> None:
             shutil.copytree(x, alvo)
         else:
             shutil.copy2(x, alvo)
+
+
+# ---------------------------------------------------------------- a lixeira
+
+def _tamanho(p: Path) -> int:
+    return sum(f.stat().st_size for f in p.rglob('*') if f.is_file() and not f.is_symlink()) if p.is_dir() else p.stat().st_size
+
+
+def para_lixeira(pastas: list[Path], tipo: str, id_: str, nome: str, miniatura: str | None = None, video: str | None = None,
+                 de: list[str] | None = None, apagado_em: str | None = None) -> dict:
+    """Manda pastas para a lixeira única: `biblioteca/lixeira/<AAAAMMDD-HHMMSS>-<tipo>-<id>/`, cada uma inteira (nada
+    muda dentro), com um `lixeira.json` dizendo de onde veio cada uma (`de`, relativo à raiz: para restaurar), o nome, o
+    tamanho e a miniatura (`miniatura`/`video`: o caminho dentro da 1ª pasta). `de`: as origens, quando as pastas já não
+    estão nelas (as das lixeiras antigas). Devolve o `lixeira.json`."""
+    import shutil
+    from datetime import datetime
+
+    agora = datetime.now()
+    carimbo = (datetime.fromisoformat(apagado_em) if apagado_em else agora).strftime('%Y%m%d-%H%M%S')
+    base = re.sub(r'[^\w.-]+', '-', f'{carimbo}-{tipo}-{id_}')[:120]
+    entrada, n = LIXEIRA / base, 2
+    while entrada.exists():
+        entrada, n = LIXEIRA / f'{base}-{n}', n + 1
+    entrada.mkdir(parents=True)
+    itens = []
+    for k, p in enumerate(pastas):
+        if not p.exists():
+            continue
+        em = p.name if all(i['em'] != p.name for i in itens) else f'{p.name}-{k}'
+        origem = de[k] if de else str(p.resolve().relative_to(RAIZ))
+        shutil.move(str(p), str(entrada / em))
+        itens.append({'de': origem, 'em': em})
+    if not itens:
+        entrada.rmdir()
+        raise SystemExit(f'Nada para mandar para a lixeira ({tipo} {id_}).')
+    primeira = itens[0]['em']
+    meta = {'tipo': tipo, 'id': id_, 'nome': nome, 'apagado_em': apagado_em or agora.isoformat(timespec='seconds'),
+            'itens': itens, 'bytes': sum(_tamanho(entrada / i['em']) for i in itens),
+            **({'miniatura': f'{primeira}/{miniatura}'} if miniatura and (entrada / primeira / miniatura).is_file() else {}),
+            **({'video': f'{primeira}/{video}'} if video and (entrada / primeira / video).is_file() else {})}
+    gravar_json(entrada / 'lixeira.json', meta)
+    return {'entrada': entrada.name, **meta}
+
+
+def entrada_da_lixeira(nome: str) -> Path:
+    e = LIXEIRA / nome
+    if not re.fullmatch(r'[\w.-]+', nome) or not (e / 'lixeira.json').is_file():
+        raise SystemExit(f'Não está na lixeira: {nome}')
+    return e
+
+
+def listar_lixeira() -> list[dict]:
+    """O que está na lixeira, do apagado mais recente ao mais antigo."""
+    out = []
+    for e in LIXEIRA.glob('*/lixeira.json') if LIXEIRA.is_dir() else ():
+        try:
+            out.append({'entrada': e.parent.name, **json.loads(e.read_text(encoding='utf-8'))})
+        except ValueError:
+            continue
+    return sorted(out, key=lambda x: x.get('apagado_em') or '', reverse=True)
+
+
+def restaurar_da_lixeira(nome: str) -> dict:
+    """Devolve cada pasta para onde estava. Recusa se já existe outra no lugar (nada é sobrescrito)."""
+    import shutil
+
+    e = entrada_da_lixeira(nome)
+    meta = json.loads((e / 'lixeira.json').read_text(encoding='utf-8'))
+    for i in meta['itens']:
+        if (RAIZ / i['de']).exists():
+            raise SystemExit(f'Já existe {i["de"]}: renomeie ou apague essa antes de restaurar.')
+    for i in meta['itens']:
+        (RAIZ / i['de']).parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(e / i['em']), str(RAIZ / i['de']))
+    shutil.rmtree(e)
+    return meta
+
+
+def apagar_de_vez(nome: str | None = None, tipo: str | None = None) -> int:
+    """Apaga de vez uma entrada da lixeira (`nome`) ou todas (de um `tipo`, ou tudo). Devolve quantas saíram."""
+    import shutil
+
+    alvos = [entrada_da_lixeira(nome)] if nome else [LIXEIRA / x['entrada'] for x in listar_lixeira() if not tipo or x['tipo'] == tipo]
+    for e in alvos:
+        shutil.rmtree(e, ignore_errors=True)
+    return len(alvos)
+
+
+def migrar_lixeiras_antigas() -> int:
+    """Leva as lixeiras de antes (`projetos/_lixeira/`, `biblioteca/banco/_lixeira/`, `biblioteca/referencias/_lixeira/`,
+    cada pasta `<id>-<AAAAMMDD-HHMMSS>`) para a lixeira única. Roda ao subir o servidor; sem nada antigo, não faz nada."""
+    from datetime import datetime
+
+    n = 0
+    fontes = [(PROJETOS / '_lixeira', 'projeto', 'projetos', 'edicao.json', None, None),
+              (BIBLIOTECA / 'banco' / '_lixeira', 'banco', 'biblioteca/banco', 'item.json', 'miniatura.jpg', 'proxy.mp4'),
+              (BIBLIOTECA / 'referencias' / '_lixeira', 'referencia', 'biblioteca/referencias', 'referencia.json', 'miniatura.jpg', 'proxy.mp4')]
+    for velha, tipo, onde, arq_nome, mini, video in fontes:
+        if not velha.is_dir():
+            continue
+        for p in sorted(velha.iterdir()):
+            if not p.is_dir():
+                continue
+            m = re.fullmatch(r'(.+?)-(\d{8}-\d{6})', p.name)
+            id_ = m.group(1) if m else p.name
+            quando = datetime.strptime(m.group(2), '%Y%m%d-%H%M%S').isoformat() if m else None
+            dados = ler_json(p / arq_nome, {}) or {}
+            if tipo == 'projeto':
+                vs = sorted((int(v.name[1:]) for v in (p / 'versoes').glob('v*') if v.name[1:].isdigit()), reverse=True)
+                video = f'versoes/v{vs[0]}/proxy.mp4' if vs else None
+            para_lixeira([p], tipo, id_, dados.get('nome') or id_, mini, video, de=[f'{onde}/{id_}'], apagado_em=quando)
+            n += 1
+        (velha / '.DS_Store').unlink(missing_ok=True)
+        if not any(velha.iterdir()):
+            velha.rmdir()
+    return n
 
 
 def pasta(slug: str) -> Path:

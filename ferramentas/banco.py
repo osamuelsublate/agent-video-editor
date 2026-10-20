@@ -30,7 +30,7 @@ from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from base import BIBLIOTECA, PROJETOS, ffmpeg, gravar_json, inspecionar, ler_json, renomear_tags  # noqa: E402
+from base import BIBLIOTECA, PROJETOS, ffmpeg, gravar_json, inspecionar, ler_json, para_lixeira, renomear_tags  # noqa: E402
 
 RAIZ = BIBLIOTECA / 'banco'
 EXT_VIDEO = ('.mp4', '.mov', '.m4v', '.webm')
@@ -214,9 +214,16 @@ def renomear_tag(de: str, para: str) -> int:
     return n
 
 
+def para_a_lixeira(bid: str) -> dict:
+    """Uma mídia (com os trechos dela) vai para a lixeira única (`base.para_lixeira`), de onde dá para restaurar."""
+    item = ler_json(pasta_item(bid) / 'item.json', {}) or {}
+    ids = [bid] + [i['id'] for i in todos() if i.get('pai') == bid]
+    return para_lixeira([pasta_item(x) for x in ids], 'banco', bid, item.get('nome') or bid, 'miniatura.jpg', 'proxy.mp4')
+
+
 def limpar_recusados() -> list[str]:
-    """Apaga de vez (decisão do criador: nada de lixeira) os originais recusados, com os trechos: nunca o que o criador
-    subiu, nem o que algum projeto ainda usa. Devolve os ids apagados."""
+    """Manda para a lixeira os originais recusados, com os trechos: nunca o que o criador subiu, nem o que algum projeto
+    ainda usa. Devolve os ids que saíram."""
     est, em_uso = estados(), usos()
     levados = []
     for i in todos():
@@ -225,35 +232,18 @@ def limpar_recusados() -> list[str]:
         ids = [i['id']] + [t['id'] for t in todos() if t.get('pai') == i['id']]
         if any(em_uso.get(x) for x in ids):
             continue
-        for x in ids:
-            shutil.rmtree(pasta_item(x), ignore_errors=True)
+        para_a_lixeira(i['id'])
         levados += ids
     return levados
 
 
-def lixeira() -> dict:
-    """O que sobrou na lixeira antiga do banco (`banco/_lixeira/`, de quando o Limpar recusados não apagava): quantos
-    itens e quanto ocupam."""
-    pasta_lixo = RAIZ / '_lixeira'
-    itens = [p for p in pasta_lixo.iterdir() if p.is_dir()] if pasta_lixo.is_dir() else []
-    return {'itens': len(itens), 'bytes': sum(f.stat().st_size for p in itens for f in p.rglob('*') if f.is_file())}
-
-
-def esvaziar_lixeira() -> int:
-    """Apaga de vez a lixeira do banco. Devolve quantos itens saíram."""
-    n = lixeira()['itens']
-    shutil.rmtree(RAIZ / '_lixeira', ignore_errors=True)
-    return n
-
-
 def apagar(bid: str) -> list[str]:
-    """Apaga uma mídia que não serviu (e os trechos dela). Recusa se algum projeto a usa. Devolve os ids apagados."""
+    """Manda para a lixeira uma mídia que não serviu (e os trechos dela). Recusa se algum projeto a usa. Devolve os ids."""
     ids = [bid] + [i['id'] for i in todos() if i.get('pai') == bid]
     em_uso = {u for i in ids for u in usos().get(i, [])}
     if em_uso:
         raise SystemExit(f'{bid} está em uso ({", ".join(sorted(em_uso))}): tire dos inserts antes de apagar.')
-    for i in ids:
-        shutil.rmtree(pasta_item(i), ignore_errors=True)
+    para_a_lixeira(bid)
     return ids
 
 

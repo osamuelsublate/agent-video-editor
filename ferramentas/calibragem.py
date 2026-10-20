@@ -56,10 +56,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 import gemini  # noqa: E402
-from base import BIBLIOTECA, EXEMPLOS, PROJETOS, RAIZ, env, ffmpeg, gravar_json, inspecionar, ler_json, renomear_tags, tags_limpas  # noqa: E402
+from base import BIBLIOTECA, EXEMPLOS, PROJETOS, RAIZ, env, ffmpeg, gravar_json, inspecionar, ler_json, para_lixeira, renomear_tags, tags_limpas  # noqa: E402
 
 REFS = BIBLIOTECA / 'referencias'
-LIXEIRA = REFS / '_lixeira'
 FAVORITOS = REFS / '_favoritos.json'
 TAGS = REFS / '_tags.json'  # as tags dos planos da galeria: [{ref, inicio, fim, tags}]
 CATEGORIAS_ARQ = BIBLIOTECA / 'categorias-video.json'
@@ -436,7 +435,7 @@ def renomear(id: str, nome: str) -> dict:
 
 
 def apagar(id: str) -> None:
-    """Manda para `biblioteca/referencias/_lixeira/` (e para a análise, se estiver rodando)."""
+    """Manda para a lixeira única (`base.para_lixeira`; e para a análise, se estiver rodando)."""
     base = pasta(id)
     r = ler(id)
     pid = (r.get('analise') or {}).get('pid')
@@ -445,12 +444,8 @@ def apagar(id: str) -> None:
             os.kill(int(pid), signal.SIGTERM)
         except OSError:
             pass
-    LIXEIRA.mkdir(parents=True, exist_ok=True)
-    destino = LIXEIRA / id
-    if destino.exists():
-        destino = LIXEIRA / f'{id}-{datetime.now():%Y%m%d-%H%M%S}'
     with _trava():
-        base.rename(destino)
+        para_lixeira([base], 'referencia', id, r.get('nome') or id, 'miniatura.jpg', 'proxy.mp4')
     regenerar_exemplos()
 
 

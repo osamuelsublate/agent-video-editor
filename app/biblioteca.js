@@ -111,9 +111,8 @@ let ultimoMarcado = null
 const buscas = { inserts: preferencia('banco.busca', ''), motions: preferencia('motions.busca', '') } // a busca de cada página (guardada: voltar à aba devolve)
 
 async function bancoInserts(el, tipo = 'inserts') {
-  const [nomes, cods, est, ms, tagsMotion, lixo, previas] = await Promise.all([lista('biblioteca/banco'), codigos(), json('/api/estados', { midias: {}, motions: {} }), lerMotions(),
+  const [nomes, cods, est, ms, tagsMotion, previas] = await Promise.all([lista('biblioteca/banco'), codigos(), json('/api/estados', { midias: {}, motions: {} }), lerMotions(),
     fetch('/biblioteca/motions/_tags.json', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : {})).catch(() => ({})),
-    tipo === 'motions' ? null : json('/api/banco-lixeira', { itens: 0, bytes: 0 }),
     lista('biblioteca/motions/previas')])
   // a prévia em vídeo de cada motion (render.py previas-motions): a grade toca o vídeo; a animação ao vivo, só no modal
   const comPrevia = new Set((previas || []).map((n) => n.replace(/\.mp4$/, '')))
@@ -201,10 +200,9 @@ async function bancoInserts(el, tipo = 'inserts') {
         <button class="botao pequeno" data-sel-aplicar="recusado" title="Recusar as selecionadas">${ICONE.fechar} Recusar</button>
         <button class="botao pequeno" data-sel-sair>Cancelar</button></span>`
     : `<button class="botao pequeno" data-selecionar title="Marque vários ${tipo === 'motions' ? 'motions' : 'itens'} (clique; shift-clique marca um intervalo) e aprove ou recuse todos de uma vez">Selecionar</button>`}
-        ${nRecusados && tipo !== 'motions' ? `<button class="botao pequeno botao-perigo-contorno" data-limpar-recusados title="Apaga de vez os recusados (não dá para recuperar)">${ICONE.lixo} Limpar recusados (${nRecusados})</button>` : ''}
+        ${nRecusados && tipo !== 'motions' ? `<button class="botao pequeno botao-perigo-contorno" data-limpar-recusados title="Manda os recusados para a Lixeira (de onde dá para restaurar)">${ICONE.lixo} Limpar recusados (${nRecusados})</button>` : ''}
         ${nRecusados && tipo === 'motions' ? `<button class="botao pequeno botao-perigo-contorno" data-limpar-motions title="Tira da biblioteca os motions recusados (vão para o registro que o Claude lê para não repetir)">${ICONE.lixo} Limpar recusados (${nRecusados})</button>` : ''}
-        ${lixo?.itens ? `<button class="botao pequeno botao-perigo-contorno" data-esvaziar-lixeira title="A lixeira antiga do banco (biblioteca/banco/_lixeira/): apaga de vez">${ICONE.lixo} Esvaziar lixeira (${lixo.itens} · ${(lixo.bytes / 1e9).toFixed(1).replace('.', ',')} GB)</button>` : ''}
-        ${ajuda(tipo === 'motions' ? 'Os presets de motion. Usado em vídeo: entrou num vídeo aprovado (o chip abre o plano). A revisar: o Claude escreveu e você ainda não aprovou. Aprovado: bom, mesmo sem uso. Recusado: você recusou, ou foi escrito para um vídeo já aprovado e ficou de fora (o Limpar recusados tira da biblioteca). Passe o mouse para tocar; Selecionar aprova ou recusa vários de uma vez.' : 'Os inserts (vídeos e imagens). Usado em vídeo: entrou num vídeo aprovado (o chip abre o plano). Aprovado: bom, mesmo sem uso. Recusado: ficou de fora de um vídeo aprovado (o Limpar recusados apaga de vez). Passe o mouse para tocar; clique num insert para editar, marcar trechos ou mudar o selo.')}</span></div>` +
+        ${ajuda(tipo === 'motions' ? 'Os presets de motion. Usado em vídeo: entrou num vídeo aprovado (o chip abre o plano). A revisar: o Claude escreveu e você ainda não aprovou. Aprovado: bom, mesmo sem uso. Recusado: você recusou, ou foi escrito para um vídeo já aprovado e ficou de fora (o Limpar recusados tira da biblioteca). Passe o mouse para tocar; Selecionar aprova ou recusa vários de uma vez.' : 'Os inserts (vídeos e imagens). Usado em vídeo: entrou num vídeo aprovado (o chip abre o plano). Aprovado: bom, mesmo sem uso. Recusado: ficou de fora de um vídeo aprovado (o Limpar recusados manda para a Lixeira). Passe o mouse para tocar; clique num insert para editar, marcar trechos ou mudar o selo.')}</span></div>` +
     `${datalistTags('tags-conhecidas-card', conhecidas)}<div class="banco-com-tags">${barraDeTags(doTipo.map((it) => ({ chave: it.id, tags: it.tags })), tagAtiva, pref)}<div class="banco-grade">` +
     (cards.length ? `<div class="grade grade-banco">${cards.join('')}</div><p class="vazio" data-sem-busca hidden>Nada com essa busca.</p>` : '<p class="vazio">Nada com esses filtros.</p>') +
     '</div></div>'
@@ -324,11 +322,11 @@ async function bancoInserts(el, tipo = 'inserts') {
   })
   $('[data-limpar-recusados]', el)?.addEventListener('click', async () => {
     const ok = await confirmar({ titulo: `Limpar ${nRecusados} ${nRecusados === 1 ? 'mídia recusada' : 'mídias recusadas'}?`,
-      texto: 'Elas são apagadas de vez, com os trechos: não dá para recuperar. O que você subiu e o que um projeto ainda usa ficam. Para guardar alguma, aprove antes (Selecionar → Aprovar).', ok: 'Apagar de vez', perigo: true })
+      texto: 'Elas vão para a Lixeira, com os trechos (de lá dá para restaurar ou apagar de vez). O que você subiu e o que um projeto ainda usa ficam. Para guardar alguma, aprove antes (Selecionar → Aprovar).', ok: 'Mandar para a Lixeira', perigo: true })
     if (!ok) return
     try {
       const r = await enviar('POST', '/api/limpar-recusados')
-      aviso(`${r.levados.length} ${r.levados.length === 1 ? 'mídia apagada' : 'mídias apagadas'}`)
+      aviso(`${r.levados.length} ${r.levados.length === 1 ? 'mídia foi' : 'mídias foram'} para a Lixeira`)
       bancoInserts(el, tipo)
     } catch (x) {
       aviso(x.message, 'erro')
@@ -347,19 +345,6 @@ async function bancoInserts(el, tipo = 'inserts') {
       aviso(x.message, 'erro')
     }
   })
-  $('[data-esvaziar-lixeira]', el)?.addEventListener('click', async () => {
-    const ok = await confirmar({ titulo: `Esvaziar a lixeira do banco (${lixo.itens} ${lixo.itens === 1 ? 'item' : 'itens'})?`,
-      texto: 'O que foi para a lixeira antes (biblioteca/banco/_lixeira/) é apagado de vez: não dá para recuperar.', ok: 'Apagar de vez', perigo: true })
-    if (!ok) return
-    try {
-      const r = await enviar('POST', '/api/banco-lixeira/esvaziar')
-      aviso(`Lixeira esvaziada · ${r.apagados} ${r.apagados === 1 ? 'item' : 'itens'}`)
-      bancoInserts(el, tipo)
-    } catch (x) {
-      aviso(x.message, 'erro')
-    }
-  })
-
   const chave = (c) => (c.dataset.motion ? `m:${c.dataset.motion}` : c.dataset.id)
   /** No modo Selecionar, o clique marca ou desmarca; com shift, o intervalo desde o último marcado (só os visíveis). */
   const marcar = (card, e) => {
@@ -550,11 +535,11 @@ async function detalheBanco(id, recarregar, cod = {}, est = null, cods = {}) {
     }
   })
   $('[data-apagar]', el).addEventListener('click', async () => {
-    const ok = await confirmar({ titulo: `Apagar “${it.nome}” do banco?`, texto: d.trechos.length ? `Os ${d.trechos.length} trechos dela vão junto.` : 'Não dá para desfazer.', ok: 'Apagar', perigo: true })
+    const ok = await confirmar({ titulo: `Apagar “${it.nome}” do banco?`, texto: `Vai para a Lixeira${d.trechos.length ? `, com os ${d.trechos.length} trechos dela` : ''} (de lá dá para restaurar).`, ok: 'Apagar', perigo: true })
     if (!ok) return
     try {
       await enviar('DELETE', `/api/banco/${id}`)
-      aviso('Apagada do banco')
+      aviso('Foi para a Lixeira')
       fechar()
       recarregar()
     } catch (x) {

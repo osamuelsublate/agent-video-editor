@@ -172,7 +172,7 @@ export async function abrirCalibragem(tela) {
     if (e.target.closest('[data-apagar]')) {
       e.preventDefault()
       const r = refs.find((x) => x.id === id)
-      const ok = await confirmar({ titulo: `Apagar “${r.nome}”?`, texto: 'A referência sai da calibragem, das Referências e dos roteiros de exemplo (vai para a lixeira da biblioteca).', ok: 'Apagar', perigo: true })
+      const ok = await confirmar({ titulo: `Apagar “${r.nome}”?`, texto: 'A referência sai da calibragem, das Referências e dos roteiros de exemplo (vai para a Lixeira, de onde dá para restaurar).', ok: 'Apagar', perigo: true })
       if (!ok) return
       try {
         await enviar('DELETE', `/api/referencias/${encodeURIComponent(id)}`)

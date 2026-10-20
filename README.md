@@ -69,6 +69,7 @@ finais falados no bruto; os de CTA entram pelo **+ Saída** do app ou pelo chat.
 | **Presets** e **Transições** | as receitas de enriquecimento e de corte, cada uma com a referência e a recriação lado a lado |
 | **Áudio** | trilhas e sons |
 | **Calibragem**, **Heurística** e **Aprendizados** | os vídeos de referência analisados (que ensinam a direção), as regras do criador por categoria e as correções que viraram regra |
+| **Lixeira** | tudo o que se apaga no app (projetos, mídias do banco, referências), inteiro, em `biblioteca/lixeira/`: restaurar volta para onde estava; apagar de vez (um item, um tipo ou tudo) libera o espaço |
 
 Cada vídeo tem uma **categoria** (📱 Reels, 📺 VSL, 💰 CTA… no painel Categorias), e cada categoria tem a sua
 Calibragem, a sua Heurística e os seus aprendizados: a direção de um vídeo aprende com os vídeos da categoria dele.
@@ -82,7 +83,7 @@ Calibragem, a sua Heurística e os seus aprendizados: a direção de um vídeo a
 | `render/` | a página que desenha inserts, motions e legenda para o render, com o runtime dos motions, fontes e fundos |
 | `app/` | o app de revisão (HTML + JS puro, sem build) |
 | `docs/` | o demo e o print do README |
-| `biblioteca/` | o que é do criador (fora do git): exemplos da direção por categoria, aprendizados, presets, transições, sons, trilhas, LUTs, motions (e as prévias), banco de mídias, referências |
+| `biblioteca/` | o que é do criador (fora do git): exemplos da direção por categoria, aprendizados, presets, transições, sons, trilhas, LUTs, motions (e as prévias), banco de mídias, referências e a lixeira |
 | `projetos/` | um vídeo por pasta (fora do git): o bruto, as versões, as revisões e o final |
 
 Alguns comandos do dia a dia:

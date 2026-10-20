@@ -24,15 +24,17 @@ Rotas (JSON; um erro volta como {"erro": "…"}, com 422 numa validação):
 - GET /api/presets/amostras (o ator e as mídias do banco da simulação dos presets, render/preset.html)
   · PUT /api/presets/<id> {aprovado} · PUT /api/presets/ordem {chave, ids, favoritos} · PUT /api/transicoes/<id> {aprovado}
   · PUT /api/transicoes/ordem {chave, ids, favoritas} · GET|PUT|DELETE /api/banco/<id> ({estado} marca o selo à mão; {tags} as tags, aninhadas com /) · PUT /api/motions/<id>/tags {tags} · PUT /api/referencias/<id>/tags {inicio, fim, tags} · POST /api/tags/<banco|motions|referencias> {de, para} (renomeia ou tira em todos) · GET /api/estados (selos do banco e usos dos motions nos
-  vídeos aprovados) · POST /api/limpar-recusados (apaga de vez) · GET /api/banco-lixeira · POST
-  /api/banco-lixeira/esvaziar (a lixeira antiga do banco) · POST /api/banco (subir: o arquivo cru, nome em X-Nome) ·
+  vídeos aprovados) · POST /api/limpar-recusados (vão para a lixeira) · POST /api/banco (subir: o arquivo cru, nome em X-Nome) ·
   POST /api/banco/<id>/trechos {inicio, fim, nome} · POST /api/banco/<id>/recorte {x, y, w, h} (px do original: um
   item novo com o quadro recortado; banco.py recortar) · GET /api/banco/<id>/tira · PUT /api/motions/<id>/aprovar.
 - Recusar: GET /api/presets/<id>/usos e /api/motions/<id>/usos (os projetos que usam) · POST /api/presets/<id>/recusar
   e /api/motions/<id>/recusar {motivo}: o arquivo vai para _recusados/ (com recusado_em e motivo), o preset sai do
   ordem.json e os inserts que o usavam voltam ao 1º favorito da situação (presets.py escolher).
 - GET /api/projetos/<slug>/versoes: cada versão com a data do render, a duração e o estado da revisão dela. · DELETE
-  /api/projetos/<slug>: a pasta vai para projetos/_lixeira/<slug>-AAAAMMDD-HHMMSS (nada sai do disco).
+  /api/projetos/<slug>: a pasta vai para a lixeira (nada sai do disco).
+- A lixeira única (biblioteca/lixeira/, base.para_lixeira: projetos, mídias do banco e referências apagados): GET
+  /api/lixeira · POST /api/lixeira/<entrada>/restaurar · DELETE /api/lixeira/<entrada> (apaga de vez) · POST
+  /api/lixeira/esvaziar {tipo?} (apaga de vez tudo, ou só um tipo).
 - Anexos da revisão: POST /api/revisao/<slug>/v<N>/anexo?comentario=<c3|geral> (a imagem ou o vídeo cru no corpo) →
   {caminho: "revisoes/anexos/c3-1.png"} · DELETE /api/revisao/<slug>/v<N>/anexo?caminho=revisoes/anexos/c3-1.png.
 - GET /api/codigos: {tipo: {id: código}} (ferramentas/codigo.py; dá o próximo número aos itens novos).
@@ -55,7 +57,8 @@ from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
 sys.path.insert(0, str(Path(__file__).parent))
-from base import APRENDIZADOS, BIBLIOTECA, EXEMPLOS, PROJETOS, RAIZ, gravar_json, ler_json, preparar_biblioteca, renomear_tags, tag_limpa, tags_limpas  # noqa: E402
+from base import (APRENDIZADOS, BIBLIOTECA, EXEMPLOS, PROJETOS, RAIZ, apagar_de_vez, gravar_json, ler_json, listar_lixeira, migrar_lixeiras_antigas,  # noqa: E402
+                  para_lixeira, preparar_biblioteca, renomear_tags, restaurar_da_lixeira, tag_limpa, tags_limpas)
 
 PORTA = 8719
 PUBLICOS = ('app', 'render', 'projetos', 'biblioteca')
@@ -94,7 +97,7 @@ def projetos() -> list[dict]:
     """Os projetos com ao menos uma versão, do mais recente para o mais antigo, com o estado da revisão da última."""
     lista = []
     for p in PROJETOS.iterdir() if PROJETOS.is_dir() else []:
-        if p.name.startswith(('_', '.')):  # a _lixeira (os apagados) e o que não é projeto
+        if p.name.startswith(('_', '.')):  # o que não é projeto (pastas internas)
             continue
         vs = versoes(p)
         if not vs:
@@ -289,16 +292,45 @@ def _aplicar_look(h, q, slug):
 
 @rota('DELETE', r'/api/projetos/([\w-]+)')
 def _apagar_projeto(h, q, slug):
-    """Apagar um projeto não apaga nada do disco: a pasta vai para projetos/_lixeira/<slug>-AAAAMMDD-HHMMSS (como no 18),
-    de onde dá para recuperar movendo de volta."""
+    """Apagar um projeto não apaga nada do disco: a pasta vai para a lixeira (biblioteca/lixeira/), de onde a página
+    Lixeira restaura."""
     origem = PROJETOS / slug
     if slug.startswith('_') or not origem.is_dir():
         raise Erro('Projeto não encontrado', 404)
-    from datetime import datetime
-    destino = PROJETOS / '_lixeira' / f'{slug}-{datetime.now():%Y%m%d-%H%M%S}'
-    destino.parent.mkdir(parents=True, exist_ok=True)
-    shutil.move(str(origem), str(destino))
-    return {'ok': True, 'lixeira': str(destino.relative_to(RAIZ))}
+    vs = versoes(origem)
+    nome = (ler_json(origem / 'edicao.json', {}) or {}).get('nome') or slug
+    return {'ok': True, 'lixeira': para_lixeira([origem], 'projeto', slug, nome, video=f'versoes/v{vs[-1]}/proxy.mp4' if vs else None)['entrada']}
+
+
+# ---- a lixeira única: o que se apaga no app (projetos, mídias do banco, referências)
+
+@rota('GET', '/api/lixeira')
+def _lixeira(h, q):
+    return listar_lixeira()
+
+
+@rota('POST', r'/api/lixeira/([\w.-]+)/restaurar')
+def _restaurar(h, q, nome):
+    try:
+        meta = restaurar_da_lixeira(nome)
+    except SystemExit as e:
+        raise Erro(str(e), 409) from e
+    if meta['tipo'] == 'referencia':
+        calibragem().regenerar_exemplos()  # a referência volta para os roteiros de exemplo
+    return meta
+
+
+@rota('DELETE', r'/api/lixeira/([\w.-]+)')
+def _apagar_de_vez(h, q, nome):
+    try:
+        return {'apagados': apagar_de_vez(nome)}
+    except SystemExit as e:
+        raise Erro(str(e), 404) from e
+
+
+@rota('POST', '/api/lixeira/esvaziar')
+def _esvaziar(h, q):
+    return {'apagados': apagar_de_vez(tipo=h.corpo().get('tipo') or None)}
 
 
 TIPOS_ANEXO = {'image/png': '.png', 'image/jpeg': '.jpg', 'image/webp': '.webp', 'image/gif': '.gif',
@@ -1058,16 +1090,6 @@ def _limpar_recusados(h, q):
     return {'levados': _banco().limpar_recusados()}
 
 
-@rota('GET', '/api/banco-lixeira')
-def _lixeira_banco(h, q):
-    return _banco().lixeira()
-
-
-@rota('POST', '/api/banco-lixeira/esvaziar')
-def _esvaziar_lixeira_banco(h, q):
-    return {'apagados': _banco().esvaziar_lixeira()}
-
-
 @rota('PUT', r'/api/banco/(\w+)')
 def _editar_midia(h, q, id_):
     b = _banco()
@@ -1434,6 +1456,7 @@ def servir(porta: int = 0) -> ThreadingHTTPServer:
 
 if __name__ == '__main__':
     preparar_biblioteca()  # uma instalação nova: a biblioteca inicial e a pasta dos projetos
+    migrar_lixeiras_antigas()  # as lixeiras de antes (projetos/_lixeira, banco/_lixeira, referencias/_lixeira) vão para a única
     porta = int(sys.argv[1]) if len(sys.argv) > 1 else int(os.environ.get('PORTA', PORTA))
     print(f'Editor: http://localhost:{porta}/app/')
     ThreadingHTTPServer(('127.0.0.1', porta), Handler).serve_forever()
