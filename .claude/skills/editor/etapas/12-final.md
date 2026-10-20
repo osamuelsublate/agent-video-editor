@@ -23,16 +23,20 @@ uv run ferramentas/render.py <slug> --final
 
 - Usa o `edicao.json` atual. Se ele mudou depois da vN aprovada (confira com `versoes/vN/edicao.json`), avise e pergunte
   antes: o aprovado é a vN.
-- Sai em `projetos/<slug>/final/<nome> · <data>.mp4`: 2160×3840 (4K), HEVC, 24 fps, AAC 320 kbps, −14 LUFS. **Sempre
-  junto, na mesma pasta, `<nome> · <data>.md`: a transcrição do vídeo** (a fala que ficou no corte, em parágrafos, com
+- Sai em `projetos/<slug>/final/<nome>.mp4`: 2160×3840 (4K), HEVC, 24 fps, AAC 320 kbps, −14 LUFS. **Sempre
+  junto, na mesma pasta, `<nome>.md`: a transcrição do vídeo** (a fala que ficou no corte, em parágrafos, com
   a grafia corrigida), que o criador usa para a legenda do post e o Obsidian. O render grava os dois; confira que o
   `.md` saiu e entregue os dois caminhos. As saídas com CTA (`encaixar.py`) também saem com o `.md` ao lado.
 - Entregue com o caminho e `open -R "<arquivo>"` (abre o Finder no arquivo).
 - **Projeto com saídas** (`cortes.py saidas <slug>`): o Aprovar do projeto aprova todas — exporte todas com
   `uv run ferramentas/render.py <slug> --saidas`; "Aprovado · <slug> · saída <Destino>" é só uma: `--saida <id>`. Cada
-  uma sai em `final/saidas/<nome> - <destino>.mp4` + `.md`: a falada renderizada em 4K com o final; a de CTA, o final do
+  uma sai em `final/<nome> - <destino>.mp4` + `.md`: a falada renderizada em 4K com o final; a de CTA, o final do
   corpo emendado no final **pré-exportado** do CTA (`encaixar.py`, com a transição destacada: só a emenda e o áudio, o CTA não é renderizado; sem o final do CTA, exporte-o antes); a sem
   final, o corpo com o nome da saída. Exportar de novo substitui o arquivo da saída. É essa pasta que a `publicar` usa.
+- **Em `final/` só ficam as entregas**, cada vídeo com o seu `.md`, sem subpasta e sem data no nome (exportar de novo
+  substitui). O corpo em 4K que as saídas usam fica no cache (`.cache/final/corpo.mp4`): feito uma vez e reaproveitado
+  enquanto o que ele mostra não muda (exportar, renomear ou mexer nas saídas não o refaz). (2026-10-20: o criador achou
+  "uma bagunça" a pasta `saidas/` dentro de `final/` e uma cópia datada do corpo a cada saída exportada.)
 - Depois, a vN aprovada vira referência da Calibragem (sem Gemini; refazer substitui):
 
   ```bash

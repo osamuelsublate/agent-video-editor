@@ -17,7 +17,7 @@ Rotas (JSON; um erro volta como {"erro": "…"}, com 422 numa validação):
   roteiros de exemplo dela, com os tempos dos planos. · GET|PUT /api/categorias {categorias} (as categorias de vídeo:
   Reels, Ad…; uma em uso não sai) · PUT /api/referencias/<id>/categoria {categoria} · PUT /api/projetos/<slug>/categoria
   {categoria} · o POST /api/referencias aceita a categoria no cabeçalho X-Categoria.
-- POST /api/projetos/<slug>/abrir-final: abre no Finder a pasta dos exports (final/, com as saídas em final/saidas/).
+- POST /api/projetos/<slug>/abrir-final: abre no Finder a pasta dos exports (final/: as saídas, cada uma com o .md).
 - GET /api/aprendizados (as áreas, com os bullets "Do criador", do geral e das categorias) · GET|PUT
   /api/aprendizados/<área>[?categoria=…] {texto} (o aprendizados/<área>.md, ou o exemplos/<categoria>/aprendizados/<área>.md)
   · GET /api/aprendizados/imagens/<nome> (as imagens que os .md mostram).
@@ -500,7 +500,7 @@ def _categoria_referencia(h, q, id_):
 
 @rota('POST', r'/api/projetos/([\w-]+)/abrir-final')
 def _abrir_final(h, q, slug):
-    """Abre no Finder a pasta dos exports do projeto (final/, com as saídas encaixadas em final/saidas/)."""
+    """Abre no Finder a pasta dos exports do projeto (final/: só as entregas, cada uma com o .md)."""
     alvo = PROJETOS / slug / 'final'
     if not alvo.is_dir():
         raise Erro('Este projeto ainda não tem export final.', 404)

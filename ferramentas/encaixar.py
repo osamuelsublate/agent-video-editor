@@ -8,7 +8,7 @@ cada um (`render.py <slug> --final`) e não mexe neles.
 
     uv run ferramentas/encaixar.py <corpo> <cta> --tipo <Reels|VSL|LP|ISCA|Captura|Carrinho> [--transicao brilho-branco]
 
-Sai em `projetos/<corpo>/final/saidas/<nome do corpo> - <tipo>.mp4` (a pasta que o app abre pelo botão dos exports) e
+Sai em `projetos/<corpo>/final/<nome do corpo> - <tipo>.mp4` (a pasta que o app abre pelo botão dos exports) e
 ao lado sai `<nome do corpo> - <tipo>.md`, a transcrição da saída (a fala do corpo e a do CTA, dos `roteiro.md`, com a
 grafia corrigida). Fica registrada em `edicao.json` → `saidas` do corpo: `[{tipo, cta, arquivo, transicao, criado_em}]` (a publicação
 acrescenta `drive` e `notion`). Assim o app mostra que o projeto tem várias saídas.
@@ -145,12 +145,13 @@ def registrar(corpo_slug: str, cta_slug: str, tipo: str, saida: Path, transicao:
     gravar_json(arq, ed)
 
 
-def encaixar(corpo_slug: str, cta_slug: str, saida: Path, transicao: str, tipo: str, audio: Path | None = None) -> None:
+def encaixar(corpo_slug: str, cta_slug: str, saida: Path, transicao: str, tipo: str, audio: Path | None = None,
+             corpo: Path | None = None) -> None:
     """`audio`: o áudio da saída inteira já misturado (`render.mix_da_saida`: a voz casada e uma trilha só), no lugar dos
-    áudios dos dois finais emendados com a rampa."""
+    áudios dos dois finais emendados com a rampa. `corpo`: o final do corpo (padrão: o mais novo em final/)."""
     if saida.exists():
         raise SystemExit(f'{saida} já existe: escolha outro nome (nunca sobrescrevemos vídeo).')
-    corpo, cta = final_de(corpo_slug), final_de(cta_slug)
+    corpo, cta = corpo or final_de(corpo_slug), final_de(cta_slug)
     a, b = sonda(corpo), sonda(cta)
     if (a['w'], a['h']) != (b['w'], b['h']):
         raise SystemExit(f'Os finais têm tamanhos diferentes ({a["w"]}×{a["h"]} e {b["w"]}×{b["h"]}).')
@@ -198,11 +199,11 @@ def main() -> None:
     ap.add_argument('corpo')
     ap.add_argument('cta')
     ap.add_argument('--tipo', required=True, help='o tipo da saída: Reels, VSL, LP, ISCA, Captura, Carrinho…')
-    ap.add_argument('--saida', type=Path, help='outro destino (padrão: projetos/<corpo>/final/saidas/)')
+    ap.add_argument('--saida', type=Path, help='outro destino (padrão: projetos/<corpo>/final/)')
     ap.add_argument('--transicao', default='luz-colorida', choices=['luz-colorida', 'brilho-branco'])
     x = ap.parse_args()
     nome = (ler_json(pasta(x.corpo) / 'edicao.json', {}) or {}).get('nome') or x.corpo
-    saida = x.saida.expanduser() if x.saida else pasta(x.corpo) / 'final' / 'saidas' / f'{nome} - {x.tipo}.mp4'
+    saida = x.saida.expanduser() if x.saida else pasta(x.corpo) / 'final' / f'{nome} - {x.tipo}.mp4'
     encaixar(x.corpo, x.cta, saida, x.transicao, x.tipo)
 
 

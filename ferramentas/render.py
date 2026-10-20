@@ -5,11 +5,13 @@
 """O render: o vídeo do projeto com tudo queimado (cortes, 9:16, look, inserts, motions, transições, legenda e áudio).
 
     uv run ferramentas/render.py <slug>            → projetos/<slug>/versoes/vN/ (proxy.mp4 720×1280 H.264 + os JSONs da revisão)
-    uv run ferramentas/render.py <slug> --final    → projetos/<slug>/final/<nome> · <AAAA-MM-DD HHhMM>.mp4 (2160×3840 HEVC) e,
-        ao lado, o .md com a transcrição (a fala que ficou no corte): o corpo
+    uv run ferramentas/render.py <slug> --final    → projetos/<slug>/final/<nome>.mp4 (2160×3840 HEVC) e, ao lado, o .md
+        com a transcrição (a fala que ficou no corte): o vídeo sem saídas (um CTA, um Reels sem outro final)
     uv run ferramentas/render.py <slug> --saida <id> | --saidas
-        → o export de uma saída (ou de todas): final/saidas/<nome> - <destino>.mp4 + .md (a falada renderizada com o final;
-        a de CTA, o final do corpo emendado no do CTA; a sem final, o corpo). As saídas: cortes.py saidas <slug>
+        → o export de uma saída (ou de todas): final/<nome> - <destino>.mp4 + .md (a falada renderizada com o final; a de
+        CTA, o final do corpo emendado no do CTA; a sem final, o corpo). As saídas: cortes.py saidas <slug>. O corpo em 4K
+        que elas usam fica no cache (`.cache/final/`), feito uma vez e reaproveitado enquanto a edição dele não muda.
+    Em final/ só ficam as entregas: cada export substitui o anterior do mesmo nome.
     (o proxy de um projeto com saídas traz a prévia de cada uma em versoes/vN/saidas/<id>/)
     uv run ferramentas/render.py <slug> --camadas  → só fotografa a camada dos inserts e motions para o cache (o pré-render:
         rode em segundo plano enquanto a edição segue; o render da entrega espera ele e acha tudo pronto)
@@ -483,13 +485,8 @@ def montar_por_trechos(video: Path, clipes: list[dict], horizontal: bool, enq_x:
 
 # ---------------------------------------------------------------- o render
 
-def _nome_livre(destino: Path) -> Path:
-    k = 2
-    alvo = destino
-    while alvo.exists():
-        alvo = destino.with_name(f'{destino.stem} ({k}){destino.suffix}')
-        k += 1
-    return alvo
+def nome_de_arquivo(edicao: dict, slug: str) -> str:
+    return re.sub(r'\s+', ' ', re.sub(r'[/\\:*?"<>|\n\r\t]+', ' ', edicao.get('nome') or slug)).strip().strip('.')[:120]
 
 
 def saida_do_projeto(edicao: dict, sid: str) -> dict:
@@ -499,9 +496,11 @@ def saida_do_projeto(edicao: dict, sid: str) -> dict:
     return x
 
 
-def render(slug: str, final: bool = False, saida: str | None = None, pasta_saida: Path | None = None) -> Path:
+def render(slug: str, final: bool = False, saida: str | None = None, pasta_saida: Path | None = None,
+           arquivo: Path | None = None) -> Path:
     """O render do projeto (o corpo) ou, com `saida`, de uma saída falada (o corpo + o final dela). No proxy, a versão
-    nova traz também a prévia de cada saída (`versoes/vN/saidas/<id>/`); com `pasta_saida`, é o render de uma delas."""
+    nova traz também a prévia de cada saída (`versoes/vN/saidas/<id>/`); com `pasta_saida`, é o render de uma delas.
+    `arquivo`: o destino do final (o corpo das saídas, no cache)."""
     t_ini = time.time()
     p = pasta(slug)
     edicao = ler(slug)
@@ -537,11 +536,9 @@ def render(slug: str, final: bool = False, saida: str | None = None, pasta_saida
         marca[0] = time.time()
 
     if final:
-        nome = re.sub(r'\s+', ' ', re.sub(r'[/\\:*?"<>|\n\r\t]+', ' ', edicao.get('nome') or slug)).strip().strip('.')[:120]
-        if sx:  # a saída: o arquivo dela em final/saidas/ (o mesmo nome a cada export: o novo substitui o antigo)
-            destino = p / 'final' / 'saidas' / f'{nome} - {sx["destino"]}.mp4'
-        else:
-            destino = _nome_livre(p / 'final' / f'{nome} · {datetime.now():%Y-%m-%d %Hh%M}.mp4')
+        # em final/ só as entregas, com o mesmo nome a cada export (o novo substitui o antigo)
+        nome = nome_de_arquivo(edicao, slug)
+        destino = arquivo or p / 'final' / (f'{nome} - {sx["destino"]}.mp4' if sx else f'{nome}.mp4')
         pasta_versao = None
         versao = None
     elif pasta_saida:  # a prévia de uma saída, dentro da versão que o corpo está montando
@@ -868,16 +865,27 @@ def final_mais_novo(slug: str) -> Path | None:
     return finais[-1] if finais else None
 
 
+def estado_do_corpo(edicao: dict) -> str:
+    """A assinatura do que o corpo mostra: a edição sem o que não entra no vídeo (o nome, as saídas, a lixeira, as notas)."""
+    resto = {k: v for k, v in edicao.items() if k not in ('nome', 'criado_em', 'saidas', 'oculto', 'notas', 'tags')}
+    return hashlib.sha1(json.dumps(resto, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+
+
 def corpo_final(slug: str) -> Path:
-    """O final em 4K do corpo, refeito se a edição mudou depois dele."""
-    f = final_mais_novo(slug)
-    if f is None or f.stat().st_mtime < (pasta(slug) / 'edicao.json').stat().st_mtime:
-        f = render(slug, final=True)
+    """O corpo em 4K que as saídas usam (`.cache/final/corpo.mp4`), feito de novo só se o que ele mostra mudou (exportar
+    uma saída, renomear ou mexer nas saídas não refaz o corpo)."""
+    f = pasta(slug) / '.cache' / 'final' / 'corpo.mp4'
+    marca = f.with_suffix('.json')
+    estado = estado_do_corpo(ler(slug))
+    if not f.exists() or (ler_json(marca, {}) or {}).get('estado') != estado:
+        f.parent.mkdir(parents=True, exist_ok=True)
+        render(slug, final=True, arquivo=f)
+        gravar_json(marca, {'estado': estado, 'em': datetime.now().isoformat(timespec='seconds')})
     return f
 
 
 def exportar_saida(slug: str, sid: str) -> Path:
-    """O arquivo de uma saída em final/saidas/<nome> - <destino>.mp4 (+ .md): a falada é renderizada em 4K com o final; a
+    """O arquivo de uma saída em final/<nome> - <destino>.mp4 (+ .md): a falada é renderizada em 4K com o final; a
     de CTA é o final do corpo emendado no final do CTA (encaixar.py, com a transição destacada); a sem final é o corpo."""
     import encaixar
     edicao = ler(slug)
@@ -885,8 +893,7 @@ def exportar_saida(slug: str, sid: str) -> Path:
     tipo = x['final']['tipo']
     if tipo == 'falado':
         return render(slug, final=True, saida=sid)
-    nome = re.sub(r'\s+', ' ', re.sub(r'[/\\:*?"<>|\n\r\t]+', ' ', edicao.get('nome') or slug)).strip().strip('.')[:120]
-    destino = pasta(slug) / 'final' / 'saidas' / f'{nome} - {x["destino"]}.mp4'
+    destino = pasta(slug) / 'final' / f'{nome_de_arquivo(edicao, slug)} - {x["destino"]}.mp4'
     destino.parent.mkdir(parents=True, exist_ok=True)
     corpo = corpo_final(slug)
     if tipo == 'cta':
@@ -901,14 +908,15 @@ def exportar_saida(slug: str, sid: str) -> Path:
         try:  # o áudio da saída inteira numa mistura só: a voz do CTA casada com a do corpo e uma trilha só, sem emenda
             mix_da_saida(pasta(slug) / 'versoes' / f'v{vb}' / 'audio.json', pasta(cta) / 'versoes' / f'v{vc}' / 'audio.json',
                          inspecionar(corpo)['duracao'], inspecionar(final_mais_novo(cta))['duracao'], transicao, wav)
-            encaixar.encaixar(slug, cta, destino, transicao, x['destino'], audio=wav)
+            encaixar.encaixar(slug, cta, destino, transicao, x['destino'], audio=wav, corpo=corpo)
         finally:
             wav.unlink(missing_ok=True)
         marcar_exportada(slug, sid, destino, versao_mais_nova(cta))
     else:  # sem final: o corpo, com o nome da saída
         shutil.copy2(corpo, destino)
         if corpo.with_suffix('.md').exists():
-            shutil.copy2(corpo.with_suffix('.md'), destino.with_suffix('.md'))
+            destino.with_suffix('.md').write_text(corpo.with_suffix('.md').read_text(encoding='utf-8').replace(
+                f'`{corpo.name}`', f'`{destino.name}`', 1), encoding='utf-8')
         marcar_exportada(slug, sid, destino)
     print(f'Saída {x["destino"]}: {destino}')
     return destino

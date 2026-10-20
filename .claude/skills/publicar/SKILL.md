@@ -15,10 +15,10 @@ depois de um "sim" claro.
 
 A publicação trabalha **só com os arquivos já exportados** — não monta, não encaixa e não abre o app:
 
-- `projetos/<slug>/final/saidas/<nome> - <destino>.mp4` — cada **saída** do projeto (o corpo + o final dela: um final
+- `projetos/<slug>/final/<nome> - <destino>.mp4` — cada **saída** do projeto (o corpo + o final dela: um final
   falado, um CTA gravado à parte ou nenhum), com a **transcrição** ao lado (`<nome> - <destino>.md`: a fala da saída, em
   parágrafos, com a grafia corrigida);
-- `projetos/<slug>/final/<nome> · <data>.mp4` (+ `.md`) — o corpo, quando ele mesmo é publicado.
+- `projetos/<slug>/final/<nome>.mp4` (+ `.md`) — o vídeo de um projeto sem saídas (um CTA, um Reels só com o corpo).
 
 O criador diz em linguagem natural o que vai para onde ("a ManyChat no Instagram, a LP e a VSL como anúncio de perpétuo,
 a BF Captura no pico"); o destino no nome do arquivo ajuda a montar o plano. Se uma saída citada não está na pasta,
@@ -31,7 +31,7 @@ pasta, avise o criador antes de publicar.
 
 ## 2. Conferir os arquivos
 
-1. Liste `final/saidas/` (e `final/`) e confira que cada vídeo tem o `.md` ao lado; mostre a lista ao criador com a
+1. Liste `final/` e confira que cada vídeo tem o `.md` ao lado; mostre a lista ao criador com a
    duração de cada um (`ffprobe`).
 2. Os arquivos são 2160×3840 (4K), 24 fps, HEVC, −14 LUFS. Para as redes, a versão 4K em H.264 sai na hora de agendar
    (seção do Metricool).
