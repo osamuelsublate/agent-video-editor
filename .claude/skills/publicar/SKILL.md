@@ -44,9 +44,12 @@ e a primeira página não basta). Crie a pasta pelo MCP do Drive (`create_file` 
 pelo rclone** (o remote `asimov:`, autorizado pelo criador na conta com acesso às pastas; o token fica em
 `~/.config/rclone/rclone.conf`, nunca mostre):
 ```bash
-rclone copy "<arquivo>" asimov: --drive-root-folder-id <id da pasta> --drive-chunk-size 64M
+rclone copy "<arquivo>" asimov: --drive-root-folder-id <id da pasta> --drive-chunk-size 64M \
+  --contimeout 30s --timeout 60s --low-level-retries 3 -v --stats 15s --stats-one-line
 rclone lsl asimov: --drive-root-folder-id <id da pasta>     # confira nome e tamanho
 ```
+Sem os timeouts, um upload pode travar em silêncio (em 20/10 ficou 9 min num arquivo de 92 MB, com a rede livre): com
+eles, o rclone refaz o pedaço e termina. Um vídeo por vez, com o progresso à vista.
 Nem o MCP do Drive nem o navegador sobem arquivos grandes (o upload do Claude in Chrome tem limite de 10 MB), e o Drive
 Desktop está fora: ele dá conflito com o app da câmera (EOS Canon). Sem o remote (`rclone listremotes` vazio), rode
 `rclone config create asimov drive scope=drive` e peça ao criador para autorizar no navegador. O rclone avisa que o
@@ -83,8 +86,14 @@ o card pelo nome: se o criador já criou, preencha esse.
   existe ou deixe vazio e escreva o valor proposto (e o link de destino, ex. a isca no GitHub) no topo do corpo do card.
 - **Pico · Black** (template Criativo): título **`P2🟡BF26_Nome_do_ad`** (ex.: `P2🟡BF26_3_niveis_de_IA`), com
   **Nível prioridade = P2🟡 Importante mas não urgente** (o prefixo do título é a prioridade); Fase Black Friday (Captura ou
-  Carrinho), Produto Black Friday, Público Black Friday (Público geral), Mídia 💰 Criativo. A pasta do Drive segue
-  `XX Nome do Ad` (ex.: `21 Rodrigo 3 níveis de IA`).
+  Carrinho), Produto Black Friday, Público Black Friday (Público geral), Campanha `[PICO_BF26]_Geral_Rodrigo`, Mídia 💰
+  Criativo. A pasta do Drive segue `XX Nome do Ad` (ex.: `21 Rodrigo 3 níveis de IA`), em dois dígitos.
+  **Carrinho é idêntico à Captura**, com **Fase Black Friday = Carrinho** e a pasta raiz do Carrinho; a copy termina
+  na compra (garantir o vitalício com desconto agora), não no cadastro da live. Com captura e carrinho do mesmo vídeo,
+  o título leva o sufixo: `P2🟡BF26_Strix_2_Captura`, `P2🟡BF26_Strix_2_Carrinho`.
+
+**Prazo (temporário, pedido em 20/10):** LP e VSL → **20/11**; Pico · Carrinho → **05/11**; Pico · Captura → **hoje**.
+O `scheduled` da nota no Obsidian acompanha.
 
 **Copy de tráfego (todo anúncio: perpétuo LP, VSL, ISCA e pico):** no corpo do card, um **toggle H2 "COPY DE TRÁFEGO"**
 com **3 títulos** diferentes (`### Títulos`, uma lista; curtos, até ~40 caracteres) e **2 textos principais**
