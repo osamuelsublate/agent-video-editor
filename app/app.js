@@ -96,7 +96,7 @@ async function inicio(tela, ctas = false) {
       <a class="card-projeto" href="#/p/${encodeURIComponent(p.slug)}">
       <div class="mini mini-916"><video muted playsinline preload="metadata" src="${proxy}#t=1.5"></video>
         <span class="selo ${cor}">${estado}</span></div>
-      <div class="card-titulo"><h3 title="${esc(p.nome)}">${esc(p.nome)}</h3><button class="botao-icone pequeno renomear" data-renomear title="Renomear" aria-label="Renomear ${esc(p.nome)}">${ICONE.lapis}</button></div>
+      <div class="card-titulo"><h3 data-renomear title="${esc(p.nome)} · clique para renomear">${esc(p.nome)}</h3><button class="botao-icone pequeno renomear" data-renomear title="Renomear" aria-label="Renomear ${esc(p.nome)}">${ICONE.lapis}</button></div>
       <p class="sub" title="${esc(p.slug)}">${quandoFoi(p.atualizado)} · ${p.conclusao != null ? `${p.conclusao}% concluído` : `v${p.ultima}`}${p.comentarios ? ` · ${p.comentarios} ${p.comentarios === 1 ? 'comentário' : 'comentários'}` : ''}</p>
     </a><div class="centro-mini"><button class="tocar-card" data-tocar-card title="Tocar com som (clique de novo para pausar)" aria-label="Tocar ${esc(p.nome)}">${ICONE.tocar}</button></div>
     <div class="sobre-mini">${nSaidas(p) ? `<span class="chip-saidas">${nSaidas(p)} ${nSaidas(p) === 1 ? 'saída' : 'saídas'}${p.saidas_novas?.length

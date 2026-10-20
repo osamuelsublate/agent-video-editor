@@ -86,11 +86,34 @@ def versoes(projeto: Path) -> list[int]:
     return sorted(int(v.name[1:]) for v in projeto.glob('versoes/v*') if v.name[1:].isdigit() and (v / 'proxy.mp4').is_file())
 
 
+def _ts(iso) -> float:
+    from datetime import datetime
+    try:
+        return datetime.fromisoformat(str(iso)).timestamp()
+    except ValueError:
+        return 0.0
+
+
 def ultima_edicao(p: Path, vs: list[int]) -> float:
-    """Quando o projeto foi mexido pela última vez: a versão mais nova, um comentário ou bloco finalizado nas revisões
-    (o app grava sozinho) ou a edição (edicao.json). É a ordem "Recentes" e a data do card."""
-    arqs = [p / 'versoes' / f'v{vs[-1]}' / 'proxy.mp4', p / 'edicao.json', *(p / 'revisoes').glob('v*.json')]
-    return max(a.stat().st_mtime for a in arqs if a.is_file())
+    """Quando o projeto foi mexido de verdade pela última vez: a versão mais nova (o render do Claude) ou a revisão —
+    nesta, a `mexido_em` (muda só quando um comentário, uma resposta ou uma aprovação muda, `_revisao`), nunca a data do
+    arquivo: só abrir o projeto regrava a revisão. O edicao.json não conta (tags, categoria e nome também o gravam). É a
+    ordem "Recentes" e a data do card."""
+    proxy = p / 'versoes' / f'v{vs[-1]}' / 'proxy.mp4'
+    marcas = [proxy.stat().st_mtime if proxy.is_file() else 0.0]
+    for arq in (p / 'revisoes').glob('v*.json'):
+        rev = ler_json(arq, {}) or {}
+        # as de antes da `mexido_em`: o comentário mais novo
+        marcas.append(_ts(rev.get('mexido_em')) or max((_ts(c.get('criado_em')) for c in rev.get('comentarios') or []), default=0.0))
+    return max(marcas)
+
+
+def assinatura_revisao(rev: dict) -> str:
+    """O que conta como mexer numa revisão: os comentários (texto, anexos, status, resposta), a aprovação e os blocos e
+    finais finalizados. Os blocos criados ao abrir, a posição e o resto não contam."""
+    return json.dumps([rev.get('comentarios') or [], bool(rev.get('aprovado')), rev.get('resposta_geral'),
+                       sorted(b.get('id') for b in rev.get('blocos') or [] if b.get('aprovado')),
+                       sorted(k for k, f in (rev.get('finais') or {}).items() if (f or {}).get('aprovado'))], sort_keys=True, ensure_ascii=False)
 
 
 def projetos() -> list[dict]:
@@ -178,7 +201,13 @@ def _revisao(h, q, slug, v):  # o app grava a revisão inteira
     if not (PROJETOS / slug).is_dir():
         raise Erro('rota inválida', 404)
     destino = PROJETOS / slug / 'revisoes' / f'v{v}.json'
-    gravar_json(destino, juntar_respostas(h.corpo(), ler_json(destino, {}) or {}))
+    antes = ler_json(destino, {}) or {}
+    rev = juntar_respostas(h.corpo(), antes)
+    # a data do card só anda quando algo mudou de verdade (comentário, aprovação, bloco finalizado), não ao abrir
+    rev['mexido_em'] = agora_iso() if assinatura_revisao(rev) != assinatura_revisao(antes) else antes.get('mexido_em')
+    if not rev['mexido_em']:
+        rev.pop('mexido_em')
+    gravar_json(destino, rev)
     return {'ok': True}
 
 
@@ -500,6 +529,7 @@ def _aprovar_projeto(h, q, slug):
     arq = PROJETOS / slug / 'revisoes' / f'v{vs[-1]}.json'
     rev = ler_json(arq, None) or {'projeto': slug, 'versao': vs[-1], 'comentarios': []}
     rev['aprovado'] = True
+    rev['mexido_em'] = agora_iso()
     gravar_json(arq, rev)
     aprovar_saidas(slug, True)
     return {'versao': vs[-1]}
@@ -580,6 +610,7 @@ def _desaprovar_projeto(h, q, slug):
         rev = ler_json(arq, None)
         if rev and rev.get('aprovado'):
             rev['aprovado'] = False
+            rev['mexido_em'] = agora_iso()
             gravar_json(arq, rev)
             aprovar_saidas(slug, False)
             return {'versao': v}

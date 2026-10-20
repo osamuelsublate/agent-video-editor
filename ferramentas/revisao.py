@@ -307,6 +307,7 @@ def responder(slug: str, v: str, cid: str, status: str, resposta: str) -> None:
         if c is None:
             raise SystemExit(f'Comentário {cid} não existe na v{n} (ids: {", ".join(x["id"] for x in rev.get("comentarios", []))}).')
         c['status'], c['resposta'] = status, resposta
+    rev['mexido_em'] = datetime.now().isoformat(timespec='seconds')  # a data do card: o Claude respondeu
     gravar_json(arq, rev)
     print(f'{cid}: {status} · gravado em projetos/{slug}/revisoes/v{n}.json')
 
