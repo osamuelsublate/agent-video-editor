@@ -84,9 +84,14 @@ o card pelo nome: se o criador já criou, preencha esse.
   (ex.: `[VSL]_1085_3 Níveis de IA`), ícone 💰; Produto (ex.: 🤖 FIA), Mídia 💰 Criativo, Etapa do Funil Topo;
   **LP: Responsável pela gravação = Renata Lopes** (`90d28337-53cb-489e-8b69-6859640dede5`), sempre (Copywriter e
   Editor seguem Rodrigo). **Campanha**: LP em branco · VSL `[COD_PROD]_VSL_Nome_do_ad` · ISCA `[COD_PROD]_ISC_NNN_Nome_do_ad` (ex.:
-  `[FIA]_ISC_932_5_plugins_Claude`); **Landing Page em branco** (o criador preenche). **Campanha e Landing Page são
-  listas fechadas**: valor novo é recusado (criá-lo muda a estrutura da base, só o criador). Use uma opção que já
-  existe ou deixe vazio e escreva o valor proposto (e o link de destino, ex. a isca no GitHub) no topo do corpo do card.
+  `[FIA]_ISC_932_5_plugins_Claude`); **Landing Page em branco** (o criador preenche).
+  **VSL: uma campanha por ad**, `[COD_PROD]_VSL_Nome_do_ad` (ex.: `[FIA]_VSL_Strix_2`), e a **Landing Page da VSL da FIA
+  é `/formacoes/engenheiro-de-ia/vsl/v12`** (já existe como opção).
+  **Campanha e Landing Page são listas fechadas** e a API recusa valor novo. **Nunca** crie opção pelo
+  `notion-update-data-source` (`ALTER COLUMN … MULTI_SELECT` exige listar todas as opções e apaga as que faltarem: centenas
+  de campanhas em uso). Opção nova se cria **digitando no campo do card**, no navegador do criador (Claude in Chrome:
+  abrir o card → clicar no valor de Campanha → digitar o nome → Enter em "Create" → Esc); depois confirme pela API
+  (`update_properties` com o valor só passa se a opção existe).
 - **Pico · Black** (template Criativo): título **`P2🟡BF26_Nome_do_ad`** (ex.: `P2🟡BF26_3_niveis_de_IA`), com
   **Nível prioridade = P2🟡 Importante mas não urgente** (o prefixo do título é a prioridade); Fase Black Friday (Captura ou
   Carrinho), Produto Black Friday, Público Black Friday (Público geral), Campanha `[PICO_BF26]_Geral_Rodrigo`, Mídia 💰
