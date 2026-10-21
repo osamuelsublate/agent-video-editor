@@ -64,7 +64,7 @@ export type PedidoInsert = {
   duracao: number
   midias: MidiaLigada[]
   enriquecimento?: Partial<Record<'layout' | 'entrada' | 'entrada_2' | 'saida' | 'saida_2' | 'entre' | 'movimento', string> & { corte: number; preset: string; divisao: string; ajustes: Record<string, string>; ator: AjusteAtor }>
-  comentario?: Partial<{ texto: string | null; avatar: number; usuario: string; tempo: string; traducao: boolean; x: number; y: number; escala: number }>
+  comentario?: Partial<{ texto: string | null; avatar: number; usuario: string; tempo: string; traducao: boolean; x: number; y: number; escala: number; ate: string }>
 }
 
 /** Um estilo CSS como objeto (o `React.CSSProperties` do 18). */

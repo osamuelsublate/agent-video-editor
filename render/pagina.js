@@ -1923,6 +1923,11 @@ ${b}` };
       });
     };
     await Promise.all(trechos.map(async (t) => void (t.assinatura = await assinatura(t))));
+    const fimDaPalavra = new Map(saida.map((w) => [w.id, w.saida_fim]));
+    const semCard = (x, tempo) => {
+      const ate = x.comentario?.ate;
+      return ate != null && fimDaPalavra.has(ate) && tempo >= fimDaPalavra.get(ate);
+    };
     const quadro = (tempo, so) => {
       definirRelogio(tempo);
       const atual = lista2.find((x) => tempo >= x.t.inicio && tempo < x.t.fim);
@@ -1945,7 +1950,7 @@ ${b}` };
       const camada = (caixa) => {
         const out = insertNoLugar({ pedido: atual, banco, tempo, fundo: fundoInserts, receita, divisao, caixa, so });
         if (so != null) return out;
-        if (atual.tipo === "comentario_insert_ator") {
+        if (atual.tipo === "comentario_insert_ator" && !semCard(atual, tempo)) {
           const c = comentarioDe(atual, lugarDoComentario(atual, divisao, geometriaDoAtor(divisao, atual.enriquecimento?.ator, null)));
           out.push(cardComentario(c, c.texto ?? atual.texto ?? ""));
         }
@@ -1956,7 +1961,8 @@ ${b}` };
         const cena = raiz.querySelector('[data-k="cena"]');
         if (cena) desenhar(raiz, camada([cena.clientWidth, cena.clientHeight]));
       }
-      const chave = chaveParada(atual, tempo - atual.t.inicio, presets);
+      const chave0 = chaveParada(atual, tempo - atual.t.inicio, presets);
+      const chave = chave0 != null && semCard(atual, tempo) ? `${chave0}|sem-card` : chave0;
       return chave == null || el.chave == null ? null : el.chave ? `${chave}|${el.chave}` : chave;
     };
     window.__render = {

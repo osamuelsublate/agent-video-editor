@@ -68,6 +68,8 @@ fim do plano). O centro é o rosto. Proposta inicial (ajuste com as revisões do
 - `inserts.fundo`: o fundo atrás dos inserts com moldura, para o vídeo todo: `gradiente` (padrão, escuro), `chuva`
   (vídeo escuro), `verde_claro`, `papel`, `nevoa`. Mídias escuras pedem fundo claro e vice-versa.
 - Comentário + insert + ator: o card usa o texto do plano; `pedido.comentario` aceita `{"avatar": 0-4, "escala": 0.6-1.3,
-  "x": %, "y": %}` só se a posição automática cobrir algo importante.
+  "x": %, "y": %}` só se a posição automática cobrir algo importante; `"ate": "<id da palavra>"` tira o card depois dessa
+  palavra e o plano segue com o mesmo insert e a mesma divisão (no sim sim sim, o card some no "Sim"; e a foto, `avatar`,
+  muda a cada pergunta). _simsim-aplicativos v4 c2/c3 · 2026-10-21_
 
 Tempo esperado: < 1 min.

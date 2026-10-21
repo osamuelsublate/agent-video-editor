@@ -208,6 +208,13 @@ async function iniciar() {
   }
   await Promise.all(trechos.map(async (t) => void (t.assinatura = await assinatura(t))))
 
+  // o card do comentário até a palavra `comentario.ate` (inclusive): depois dela o plano segue sem o card, com o mesmo
+  // insert e a mesma divisão (no sim sim sim, o "Sim" tira a pergunta da tela sem trocar o que está em cima)
+  const fimDaPalavra = new Map(saida.map((w) => [w.id, w.saida_fim]))
+  const semCard = (x: { comentario?: { ate?: string } }, tempo: number) => {
+    const ate = x.comentario?.ate
+    return ate != null && fimDaPalavra.has(ate) && tempo >= fimDaPalavra.get(ate)!
+  }
   // a camada no instante `tempo` e a chave do quadro (parado: sem vídeo na tela, checado depois de pintar, e sem entrada
   // nem saída andando, nem um elemento mexendo; motion nunca é parado)
   const quadro = (tempo: number, so?: 'fundo' | number): string | null => {
@@ -233,7 +240,7 @@ async function iniciar() {
     const camada = (caixa: [number, number] | null): V[] => {
       const out = insertNoLugar({ pedido: atual, banco, tempo, fundo: fundoInserts, receita, divisao, caixa, so })
       if (so != null) return out
-      if (atual.tipo === 'comentario_insert_ator') {
+      if (atual.tipo === 'comentario_insert_ator' && !semCard(atual, tempo)) {
         // o card desvia do ator pela geometria dele (o rosto só muda o x: a altura é a mesma da prévia)
         const c = comentarioDe(atual, lugarDoComentario(atual, divisao, geometriaDoAtor(divisao, atual.enriquecimento?.ator, null)))
         out.push(cardComentario(c, c.texto ?? atual.texto ?? ''))
@@ -246,7 +253,8 @@ async function iniciar() {
       const cena = raiz.querySelector<HTMLElement>('[data-k="cena"]')
       if (cena) desenhar(raiz, camada([cena.clientWidth, cena.clientHeight]))
     }
-    const chave = chaveParada(atual, tempo - atual.t.inicio, presets)
+    const chave0 = chaveParada(atual, tempo - atual.t.inicio, presets)
+    const chave = chave0 != null && semCard(atual, tempo) ? `${chave0}|sem-card` : chave0
     return chave == null || el.chave == null ? null : el.chave ? `${chave}|${el.chave}` : chave
   }
 
