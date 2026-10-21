@@ -1058,7 +1058,11 @@
     });
   }
   function alturaDaLegenda(tipo, z) {
-    if (z?.y != null) return z.y;
+    if (typeof z?.y === "number") return z.y;
+    if (z?.y === "abaixo" && z.divisao?.modo === "metade") {
+      const y2 = z.divisao.f + MEIA + FOLGA + 4e-3;
+      return z.card ? desviar(y2, z.card) : y2;
+    }
     let y = ALTURA_POR_PLANO[tipo ?? ""] ?? ALTURA_PADRAO;
     const d = z?.divisao;
     if (d?.modo === "metade") y = Math.min(Math.max(d.f, 0.3), 0.7);
