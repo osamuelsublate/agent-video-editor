@@ -60,7 +60,7 @@ referências do criador, está em `render/src/elementos.ts`:
 | Full ator com lettering · lettering sobre o ator | texto branco grande (SF Pro Display Bold, sombra), logo abaixo do queixo |
 | lettering sobre insert | branco Bold no meio da área do insert, com o insert desfocado e escurecido atrás |
 | palavra ManyChat | barra branca de comentário, a palavra digitada e o botão de enviar (com som de digitação) |
-| caixinha de perguntas | sticker de pergunta do Instagram (cabeçalho em degradê), acima dos olhos sobre o ator |
+| caixinha de perguntas | sticker de pergunta do Instagram (cabeçalho em degradê), acima dos olhos sobre o ator; na tela dividida, na costura (como o card do comentário), e pode atravessar várias telas: estenda o `palavra_fim` dela até o fim da pergunta |
 | print sobreposto | com `banco` (id de uma mídia): a mídia num card no peito/costura; sem: uma etiqueta mono com o `texto` |
 
 Todos entram com um "pop" de 0,18 s e saem secos. A legenda desvia deles.
