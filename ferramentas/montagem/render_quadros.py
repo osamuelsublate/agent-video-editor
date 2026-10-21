@@ -58,19 +58,20 @@ def fixas(url: str, w: int, h: int, pedidos: list[tuple[float, str | int, str]])
     with sync_playwright() as pw:
         browser = _abrir(pw, url, w, h)
         for t, so, png in pedidos:
-            _pagina.evaluate('([t, so]) => window.__render.ir(t, so)', [t, so])
-            img = Image.frombytes('RGBA', (w, h), _foto(w, h))
+            _ir(t, so)
+            img = Image.frombytes('RGBA', (w, h), _foto(t, w, h, so))
             img.save(png)
             caixas.append(img.getchannel('A').getbbox())
         browser.close()
     return caixas
 
 
-def _ir(t: float) -> str | None:
-    """Leva a página ao instante `t`; devolve a chave do quadro quando ele é igual aos seguintes (insert parado)."""
+def _ir(t: float, so: str | int | None = None) -> str | None:
+    """Leva a página ao instante `t`; devolve a chave do quadro quando ele é igual aos seguintes (insert parado). `so`:
+    só uma parte do insert (as fotos paradas de `fixas`)."""
     for tentativa in (1, 2):
         try:
-            return _pagina.evaluate('(t) => window.__render.ir(t)', t)
+            return _pagina.evaluate('([t, so]) => window.__render.ir(t, so ?? undefined)', [t, so])
         except Exception:  # a página recarregou: espera ela voltar
             if tentativa == 2:
                 raise
@@ -90,16 +91,17 @@ def _rgba(png: bytes, w: int, h: int) -> bytes | None:
 def _janela(w: int, h: int) -> tuple[bool, bool]:
     """(a janela tem o tamanho do quadro, o zoom da página foi medido nesse tamanho)."""
     iw, ih, zoom = _pagina.evaluate('() => [innerWidth, innerHeight, document.documentElement.style.zoom]')
-    return (iw, ih) == (w, h), not zoom or abs(float(zoom) - w / 540) < 1e-6
+    # o navegador devolve o zoom arredondado em 5 casas (720 px: '1.33333'), daí a folga
+    return (iw, ih) == (w, h), not zoom or abs(float(zoom) - w / 540) < 1e-4
 
 
-def _foto(t: float, w: int, h: int) -> bytes:
+def _foto(t: float, w: int, h: int, so: str | int | None = None) -> bytes:
     """Uma foto do quadro em `t` (a página já foi levada a ele) com a janela no tamanho do quadro. Sob carga, o Chrome às
     vezes encolhe a janela (~720×790): a foto vinha menor, ou do tamanho certo (o `captureBeyondViewport` estica) com
     tudo pequeno no canto de cima, porque o `ir(t)` montou o quadro na janela encolhida (a escala do motion é medida ali:
     no caveman 4K, o card a 1/3 no canto, guardado no cache). Por isso a janela é conferida antes e depois da foto; se
     não está no tamanho, ela volta a ele (a página recarrega se o zoom foi medido encolhida), o quadro é montado de
-    novo e fotografado de novo."""
+    novo (`so`: o mesmo pedaço de `fixas`) e fotografado de novo."""
     for _ in range(4):
         certa, zoom = _janela(w, h)
         if certa and zoom:
@@ -116,7 +118,7 @@ def _foto(t: float, w: int, h: int) -> bytes:
         if not zoom:
             _pagina.reload(wait_until='load', timeout=60_000)
             esperar_render(_pagina)
-        _ir(t)
+        _ir(t, so)
     raise RuntimeError(f'A foto da camada não saiu em {w}×{h} (o navegador encolheu a janela).')
 
 
