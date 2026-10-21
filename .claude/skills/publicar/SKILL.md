@@ -129,8 +129,9 @@ era `🧑🏼‍🔧📱💰 Quizz Descubra teu nível de IA`). Ao fechar o víd
   `# Corpo` e `# CTA <tipo>`. Corrija o que a transcrição errou (Cloud → Claude, Zmove → Asimov). Mantenha a linha
   `Referência:` e o frontmatter.
 - **Tags** = `<produto>/<funil>`: produto `🤖fia` (agentes de IA, skills) ou `🖼️fid` (design com IA: sites, front-end,
-  edição); funil `ad-lp`, `ad-vsl`, `reels-vsl` (Reels com CTA para a VSL) ou `isca` (ex.: `🤖fia/ad-vsl`). Pico tem
-  a tag do pico (`💰pico/black26`) no lugar, inclusive o Reels com CTA da Black.
+  edição); funil `ad-lp`, `ad-vsl`, `reels-vsl` (Reels com CTA para a VSL) ou `isca` (ex.: `🤖fia/ad-vsl`). Black Friday tem
+  a tag da fase no lugar: **`💰bf26/captura`** ou **`💰bf26/carrinho`** (inclusive o Reels com CTA da captura). A antiga
+  `💰pico/black26` não se usa mais.
 - **👁️ na frente do nome de toda nota que você criar ou editar** (ex.: `👁️📱 3 níveis de IA`): o criador confere e
   tira o 👁️. Uma nota em que você só trocou um `[[link]]` não ganha 👁️ (renomeá-la quebraria os links para ela).
 - **Renomear pelo shell não atualiza os links** (só o Obsidian faz isso): antes de `mv`, confira que o destino não
