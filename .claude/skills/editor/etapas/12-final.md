@@ -54,4 +54,9 @@ a mais por vídeo de 45 s. Por isso, **quando entregar uma versão que pode ser 
 ou o criador falou em exportar), rode em segundo plano `uv run ferramentas/render.py <slug> --camadas --final`: o
 `--final` acha a camada pronta e só monta.
 
+O cache da camada (ProRes 4444 em 4K: ~1 GB por 10 s) não fica para sempre: o servidor apaga o `.cache/camadas` e o
+`.cache/trechos` de um projeto **aprovado e parado há 3 dias** (`servidor.limpar_caches_parados`; à mão:
+`uv run ferramentas/servidor.py --limpar-caches [dias]`). O `.cache/final/corpo.mp4` fica. Um export depois disso
+fotografa a camada de novo: rode o `--camadas --final` em segundo plano antes, se o criador avisar que vai exportar.
+
 Depois, **conclua o vídeo**: `14-concluir.md` (aprendizados com o criador e faxina do banco).

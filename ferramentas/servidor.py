@@ -4,6 +4,11 @@
     uv run ferramentas/servidor.py [porta]      → http://localhost:8719/app/
 Também importado pelo render (`servir(0)` sobe numa porta livre, numa thread). Só biblioteca padrão.
 
+    uv run ferramentas/servidor.py --limpar-caches [dias]   → o cache do render dos aprovados parados (padrão: 3 dias)
+
+Ao subir, e a cada hora, o servidor apaga o cache do render (.cache/camadas e .cache/trechos: as fotos da camada em
+ProRes 4444, o grosso do disco) dos projetos aprovados e parados há `CACHE_DIAS` dias (`limpar_caches_parados`).
+
 Rotas (JSON; um erro volta como {"erro": "…"}, com 422 numa validação):
 - GET /api/lista?pasta=… (nomes numa pasta pública) · GET /api/projetos (o início do app) · GET /api/motions/fonte/<pro|
   rounded|mono> (as SF da Apple, lidas do Mac: o render/motion/fonts.css as pede) · PUT /api/revisao/<slug>/v<N> (a
@@ -1560,9 +1565,63 @@ def servir(porta: int = 0) -> ThreadingHTTPServer:
     return srv
 
 
+# ---------------------------------------------------------------- o cache do render dos aprovados
+
+CACHE_DIAS = 3  # um projeto aprovado e parado há esses dias perde o cache do render (um render novo refaz)
+
+
+def renders_rodando() -> set[str]:
+    """Os projetos com um render.py rodando agora (de qualquer sessão)."""
+    r = subprocess.run(['ps', '-axo', 'command'], capture_output=True, text=True).stdout
+    return set(re.findall(r'render\.py\s+([\w-]+)', r))
+
+
+def limpar_caches_parados(dias: float = CACHE_DIAS) -> list[tuple[str, int]]:
+    """Apaga o cache do render (`.cache/camadas` e `.cache/trechos`: refeitos por um render novo) dos projetos aprovados
+    e parados há `dias` dias (a data do card, `ultima_edicao`). Pula o que tem um render rodando ou a camada travada.
+    Devolve [(slug, bytes liberados)]."""
+    import fcntl
+    import time
+    ocupados, limite, feitos = renders_rodando(), time.time() - dias * 86400, []
+    for p in projetos():
+        cache = PROJETOS / p['slug'] / '.cache'
+        alvos = [cache / x for x in ('camadas', 'trechos') if (cache / x).is_dir()]
+        if p['estado'] != 'aprovado' or p['atualizado'] > limite or p['slug'] in ocupados or not alvos:
+            continue
+        trava = cache / 'camadas.trava'
+        with open(trava, 'a') as f:
+            try:
+                fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)  # um render fotografando: fica para a próxima
+            except BlockingIOError:
+                continue
+            n = sum(x.stat().st_size for a in alvos for x in a.rglob('*') if x.is_file())
+            for a in alvos:
+                shutil.rmtree(a, ignore_errors=True)
+        feitos.append((p['slug'], n))
+    return feitos
+
+
+def _limpar_de_hora_em_hora() -> None:
+    import time
+    while True:
+        try:
+            for slug, n in limpar_caches_parados():
+                print(f'Cache do render de {slug} apagado (aprovado e parado): {n / 1e9:.1f} GB', flush=True)
+        except Exception as e:  # noqa: BLE001 — a limpeza nunca derruba o servidor
+            print(f'Limpeza do cache falhou: {e}', flush=True)
+        time.sleep(3600)
+
+
 if __name__ == '__main__':
+    if sys.argv[1:2] == ['--limpar-caches']:
+        feitos = limpar_caches_parados(float(sys.argv[2]) if len(sys.argv) > 2 else CACHE_DIAS)
+        for slug, n in feitos:
+            print(f'{slug}: {n / 1e9:.1f} GB')
+        print(f'Total: {sum(n for _, n in feitos) / 1e9:.1f} GB liberados em {len(feitos)} projeto(s)')
+        sys.exit(0)
     preparar_biblioteca()  # uma instalação nova: a biblioteca inicial e a pasta dos projetos
     migrar_lixeiras_antigas()  # as lixeiras de antes (projetos/_lixeira, banco/_lixeira, referencias/_lixeira) vão para a única
+    threading.Thread(target=_limpar_de_hora_em_hora, daemon=True).start()  # o cache do render dos aprovados parados
     porta = int(sys.argv[1]) if len(sys.argv) > 1 else int(os.environ.get('PORTA', PORTA))
     print(f'Editor: http://localhost:{porta}/app/')
     ThreadingHTTPServer(('127.0.0.1', porta), Handler).serve_forever()

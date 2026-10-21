@@ -97,6 +97,7 @@ uv run ferramentas/render.py <slug> --final      # o final em 4K
 uv run ferramentas/render.py <slug> --saidas     # exporta todas as saídas (ou --saida <id>, só uma)
 uv run ferramentas/cortes.py saidas <slug>       # as saídas do projeto (saida / tirar-saida para mexer)
 uv run ferramentas/render.py previas-motions     # as prévias da página Motions (só as que mudaram)
+uv run ferramentas/servidor.py --limpar-caches 3 # o cache do render dos aprovados parados há 3 dias (o servidor faz sozinho, de hora em hora)
 uv run ferramentas/codigo.py PRJ-12              # o que um código citado no chat é
 ```
 
