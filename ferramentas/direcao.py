@@ -384,9 +384,12 @@ def aplicar(slug: str, arquivo: str) -> None:
     edicao['direcao'] = {'roteiro': roteiro, 'itens': itens}
     pedidos = sincronizar(edicao, saida)
     planos = {i['id'] for i in itens if i['camada'] == 'plano'}
+    # o motion só fica num plano que ainda é de motion: com os planos renumerados, um motion antigo preso ao número
+    # cobria o insert que passou a ter aquele número (o Ultron virou a caixa de prompt, iniciante-x-avancado v3)
+    de_motion = {i['id'] for i in itens if i['camada'] == 'plano' and 'motion' in i['tipo']}
     removidos = []
-    for campo in ('motions', 'transicoes'):
-        for pid in [k for k in (edicao.get(campo) or {}) if k not in planos]:
+    for campo, valem in (('motions', de_motion), ('transicoes', planos)):
+        for pid in [k for k in (edicao.get(campo) or {}) if k not in valem]:
             del edicao[campo][pid]
             removidos.append(f'{campo}.{pid}')
     gravar(slug, edicao)
