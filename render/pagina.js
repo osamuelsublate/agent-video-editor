@@ -1570,7 +1570,7 @@ ${b}` };
     const linhas = quebrar(e.texto ?? "", CAIXINHA.pergunta, CAIXINHA.w - 0.1, 600);
     const h = (2 * CAIXINHA.padCab + CAIXINHA.cabecalho * 1.2 + 2 * CAIXINHA.pad + linhas.length * CAIXINHA.pergunta * 1.25) / 100;
     const l = e.lugar;
-    const y = l.modo === "metade" ? Math.max(l.f / 2, h / 2 + 0.03) : l.modo === "ator" ? Math.min(CAIXINHA.y, Math.max(olhos(l) - 0.03 - h / 2, h / 2 + 0.05)) : CAIXINHA.y;
+    const y = l.modo === "metade" ? l.f : l.modo === "ator" ? Math.min(CAIXINHA.y, Math.max(olhos(l) - 0.03 - h / 2, h / 2 + 0.05)) : CAIXINHA.y;
     return { linhas, h, y };
   }
   function medidasPrint(e, item) {
