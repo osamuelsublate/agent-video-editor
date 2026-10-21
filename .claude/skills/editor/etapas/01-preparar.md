@@ -10,6 +10,10 @@ uv run ferramentas/preparar.py "<caminho do bruto>" --nome "<nome curto do víde
 ```
 
 - O nome vira o slug (`projetos/<slug>/`). Use um nome curto do assunto ("Melhor IA design"), não o nome do arquivo.
+- **[gosto] Nome curto, só o assunto:** 2–3 palavras, sem subtítulo nem dois-pontos ("Claude Advisor", não "Claude
+  advisor: Opus conselheiro, Haiku nos subagentes"). O nome abre o nome de cada arquivo em `final/` (`<nome> - <destino>.mp4`):
+  o título longo do Reels deixa os arquivos ilegíveis. O criador renomeou dois projetos assim (mvi-0717 → "Claude
+  Advisor", mvi-0718 → "OpenAI Realtime TTS"). _2026-10-21_
 - Materiais de apoio que o criador citou: copie para `projetos/<slug>/apoio/` logo depois (com `cp -c`).
 - Briefing em áudio: transcreva com o próprio preparar num projeto à parte ou com `gemini.py` e use o texto.
 
