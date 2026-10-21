@@ -90,13 +90,14 @@ function quebrar(texto: string, tam: number, largura: number, peso: number) {
 
 /** A caixinha de perguntas: o card (frações do quadro), o tamanho das letras (cqh) e as linhas da pergunta. A ~32% da
  *  altura; sobre o ator, subindo até ficar acima dos olhos (como os stickers dos Stories, que não cobrem o rosto); na
- *  tela dividida, na costura, como o card do comentário (no meio da metade de cima, ela tapava o insert atrás). */
+ *  tela dividida, na costura, como o card do comentário (no meio da metade de cima, ela tapava o insert atrás), sem
+ *  descer mais que 5% abaixo dela (a caixinha de três linhas cobria a cabeça do ator). */
 const CAIXINHA = { w: 0.8, cabecalho: 1.9, pergunta: 2.9, pad: 2.2, padCab: 1.4, y: 0.32 }
 function medidasCaixinha(e: Elemento) {
   const linhas = quebrar(e.texto ?? '', CAIXINHA.pergunta, CAIXINHA.w - 0.1, 600)
   const h = (2 * CAIXINHA.padCab + CAIXINHA.cabecalho * 1.2 + 2 * CAIXINHA.pad + linhas.length * CAIXINHA.pergunta * 1.25) / 100
   const l = e.lugar
-  const y = l.modo === 'metade' ? l.f : l.modo === 'ator' ? Math.min(CAIXINHA.y, Math.max(olhos(l) - 0.03 - h / 2, h / 2 + 0.05)) : CAIXINHA.y
+  const y = l.modo === 'metade' ? Math.max(Math.min(l.f, l.f + 0.05 - h / 2), h / 2 + 0.03) : l.modo === 'ator' ? Math.min(CAIXINHA.y, Math.max(olhos(l) - 0.03 - h / 2, h / 2 + 0.05)) : CAIXINHA.y
   return { linhas, h, y }
 }
 

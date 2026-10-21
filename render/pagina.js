@@ -1570,7 +1570,7 @@ ${b}` };
     const linhas = quebrar(e.texto ?? "", CAIXINHA.pergunta, CAIXINHA.w - 0.1, 600);
     const h = (2 * CAIXINHA.padCab + CAIXINHA.cabecalho * 1.2 + 2 * CAIXINHA.pad + linhas.length * CAIXINHA.pergunta * 1.25) / 100;
     const l = e.lugar;
-    const y = l.modo === "metade" ? l.f : l.modo === "ator" ? Math.min(CAIXINHA.y, Math.max(olhos(l) - 0.03 - h / 2, h / 2 + 0.05)) : CAIXINHA.y;
+    const y = l.modo === "metade" ? Math.max(Math.min(l.f, l.f + 0.05 - h / 2), h / 2 + 0.03) : l.modo === "ator" ? Math.min(CAIXINHA.y, Math.max(olhos(l) - 0.03 - h / 2, h / 2 + 0.05)) : CAIXINHA.y;
     return { linhas, h, y };
   }
   function medidasPrint(e, item) {
@@ -1840,8 +1840,7 @@ ${b}` };
         return { ini: m.ini, fim: m.fim, dividida: m.dividida, divisao: divisao && { ...divisao, ator: geometriaDoAtor(divisao, null, rostoEm?.(m.ini, m.fim) ?? null) } };
       })
     ];
-    const lugarEm = (ini, fim) => {
-      const t = (ini + fim) / 2;
+    const lugarEm = (ini, fim, t = (ini + fim) / 2) => {
       const x = lista2.find((x2) => t >= x2.t.inicio && t < x2.t.fim);
       if (x) {
         const d2 = divisaoDe(x, banco, presets);
@@ -1851,8 +1850,13 @@ ${b}` };
       if (m) return { modo: m.dividida ? "metade" : "cheia", f: m.dividida ? 0.5 : 1, rosto: null };
       return { modo: "ator", f: 1, rosto: rostoEm?.(ini, fim) ?? null };
     };
+    const caixinhaEm = (ini, fim) => {
+      const ls = [0.05, 0.25, 0.5, 0.75, 0.95].map((k) => lugarEm(ini, fim, ini + (fim - ini) * k));
+      const m = ls.filter((l) => l.modo === "metade");
+      return m.length === ls.length ? m.reduce((a, b) => b.f < a.f ? b : a) : lugarEm(ini, fim);
+    };
     const originais = new Map((edicao.direcao?.itens ?? []).map((i) => [i.id, i]));
-    const desenhaveis = [...planos.filter((p) => p.tipo === "full_ator_lettering"), ...elementos].sort((a, b) => a.inicio - b.inicio).map((e) => ({ id: e.id, tipo: e.tipo, inicio: e.inicio, fim: e.fim, texto: e.texto, descricao: e.descricao, banco: originais.get(e.id)?.banco ?? null, lugar: lugarEm(e.inicio, e.fim) }));
+    const desenhaveis = [...planos.filter((p) => p.tipo === "full_ator_lettering"), ...elementos].sort((a, b) => a.inicio - b.inicio).map((e) => ({ id: e.id, tipo: e.tipo, inicio: e.inicio, fim: e.fim, texto: e.texto, descricao: e.descricao, banco: originais.get(e.id)?.banco ?? null, lugar: e.tipo === "caixinha_perguntas" ? caixinhaEm(e.inicio, e.fim) : lugarEm(e.inicio, e.fim) }));
     lista2.forEach((x, i) => {
       if (x.tipo === "comentario_insert_ator" || desenhaveis.some((e) => e.inicio < x.t.fim && e.fim > x.t.inicio)) return;
       trechos[i].geometria = geometriaDoInsert(x, banco, receitaDoInsert(x, banco, presets), divisaoDe(x, banco, presets), fundoInserts);

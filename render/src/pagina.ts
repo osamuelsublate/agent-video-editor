@@ -132,8 +132,7 @@ async function iniciar() {
   ]
   // os elementos da direção e o texto dos planos Full ator com lettering (`elementos.ts`), cada um com o lugar onde cai
   // (pelo meio dele): o ator em tela cheia, o insert ou motion na tela toda ou a tela dividida
-  const lugarEm = (ini: number, fim: number): Lugar => {
-    const t = (ini + fim) / 2
+  const lugarEm = (ini: number, fim: number, t = (ini + fim) / 2): Lugar => {
     const x = lista.find((x) => t >= x.t.inicio && t < x.t.fim)
     if (x) {
       const d = divisaoDe(x, banco, presets)
@@ -143,10 +142,17 @@ async function iniciar() {
     if (m) return { modo: m.dividida ? 'metade' : 'cheia', f: m.dividida ? 0.5 : 1, rosto: null }
     return { modo: 'ator', f: 1, rosto: rostoEm?.(ini, fim) ?? null }
   }
+  // a caixinha fica a pergunta inteira, com as telas trocando embaixo: na tela dividida, a costura mais alta do trecho
+  // (no meio dele, a de um card em pé descia a caixinha sobre o rosto quando a tela seguinte era um insert deitado)
+  const caixinhaEm = (ini: number, fim: number): Lugar => {
+    const ls = [0.05, 0.25, 0.5, 0.75, 0.95].map((k) => lugarEm(ini, fim, ini + (fim - ini) * k))
+    const m = ls.filter((l) => l.modo === 'metade')
+    return m.length === ls.length ? m.reduce((a, b) => (b.f < a.f ? b : a)) : lugarEm(ini, fim)
+  }
   const originais = new Map((edicao.direcao?.itens ?? []).map((i) => [i.id, i]))
   const desenhaveis: Elemento[] = [...planos.filter((p) => p.tipo === 'full_ator_lettering'), ...elementos]
     .sort((a, b) => a.inicio - b.inicio)
-    .map((e) => ({ id: e.id, tipo: e.tipo, inicio: e.inicio, fim: e.fim, texto: e.texto, descricao: e.descricao, banco: originais.get(e.id)?.banco ?? null, lugar: lugarEm(e.inicio, e.fim) }))
+    .map((e) => ({ id: e.id, tipo: e.tipo, inicio: e.inicio, fim: e.fim, texto: e.texto, descricao: e.descricao, banco: originais.get(e.id)?.banco ?? null, lugar: e.tipo === 'caixinha_perguntas' ? caixinhaEm(e.inicio, e.fim) : lugarEm(e.inicio, e.fim) }))
   // os pedaços deles fora dos inserts e motions entram para o render fotografar (os de dentro já saem na foto do trecho)
   // os inserts parados, sem elemento nem comentário por cima: o ffmpeg desenha (a geometria vai no lugar da foto)
   lista.forEach((x, i) => {
