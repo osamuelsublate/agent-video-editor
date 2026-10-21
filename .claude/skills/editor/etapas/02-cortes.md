@@ -79,6 +79,10 @@ deles: separe.
 - Se um final novo começa **antes** do fim do corpo, o ponto comum recua: aplique de novo com o `manter` mais curto e o
   trecho que saiu do corpo dentro de cada final que o usa (o bloco do fim do corpo reabre; avise o criador).
 
+**Resposta curta no fim do trecho ("Sim.", "Isso."):** o começo com folga (~0,2 s, sem cortar o ataque da palavra) e o
+fim logo que a voz acaba (medido na voz limpa, ~25 dB abaixo do pico da palavra, + 0,04 s; não o fim da palavra do
+transcritor, nem a respiração depois): 0,2 s a mais já mostra o ator olhando para o lado. _simsim-dados v6 c1 · 2026-10-21_
+
 Uma correção pontual num vídeo vale só para aquele vídeo, a menos que o criador diga que é regra geral.
 
 Tempo esperado: ~1 min.
