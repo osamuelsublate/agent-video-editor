@@ -20,6 +20,9 @@ Em `edicao.legenda.ajustes`, presos às palavras:
 - A chave é o id da 1ª palavra do bloco; `fim`, a última (junta palavras num bloco); `texto` corrigido; `""` esconde.
 - `modo`: `palavra` (padrão) ou `frase` (até 3 palavras / 18 letras) — só se o criador pedir.
 - `ligada: false` desliga.
+- A altura: um insert ou um motion podem dizer onde a legenda fica enquanto estão na tela (`legenda_y`, fração do quadro, no
+  pedido do insert ou em `edicao.motions`). Na tela dividida ela fica na divisa; se ficar ilegível ali, ponha logo abaixo
+  (a costura + ~0,035). _lembrete-hoje v2 c1 · 2026-10-21_
 
 Para achar os ids: `uv run ferramentas/cortes.py texto <slug>` (ou o `transcricao.json`).
 
