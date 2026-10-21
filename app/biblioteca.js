@@ -89,12 +89,46 @@ function listaTrechos(ts, cod) {
 const FILTROS_BANCO = { todos: ['Todos', null], usado: ['Usados', 'usado'], aprovado: ['Aprovados', 'check'], recusado: ['Recusados', 'fechar'], sem: ['Em edição', 'semSelo'] }
 /** Os chips de onde a peça entrou nos vídeos aprovados ("PRJ-05·p3"): abrem a revisão da versão aprovada naquele plano.
  *  Agrupados por projeto: um projeto com vários planos vira um chip só ("PRJ-07 · 12 planos ▾") que abre a lista. */
-/** O chip na miniatura com quantas vezes a mídia ou o motion já entrou em vídeos (cada plano conta uma vez). */
-const chipVezes = (usos) => {
-  if (!usos?.length) return ''
-  const prjs = new Set(usos.map((u) => u.projeto)).size
-  return `<span class="chip-vezes" title="Usado ${usos.length} ${usos.length === 1 ? 'vez' : 'vezes'}, em ${prjs} ${prjs === 1 ? 'projeto' : 'projetos'}">${usos.length}×</span>`
+/** O selo de uma mídia ou motion. O de usado diz quantas vezes ("Usado 6×": cada plano de um vídeo aprovado conta) e,
+ *  com o mouse em cima, abre a lista dos projetos (`popUsos`), cada plano um link para aquele ponto do vídeo. */
+const seloDe = (estado, usos, cods, classe = '') => {
+  const [rotulo, cor] = SELOS[estado] || []
+  if (!rotulo) return ''
+  if (estado !== 'usado' || !usos?.length) return `<span class="selo-linha ${classe} ${cor}">${rotulo}</span>`
+  const porProjeto = {}
+  for (const u of usos) (porProjeto[u.projeto] ||= []).push(u)
+  const lista = Object.entries(porProjeto).map(([projeto, l]) => `<div class="pop-prj"><div class="pop-prj-nome"><b>${esc(cods.projeto?.[projeto] || '')}</b> ${esc(projeto)}<span>${l.length}×</span></div>
+    <div class="pop-planos">${l.map((u) => `<a href="#/p/${encodeURIComponent(u.projeto)}/v${u.versao}${u.t != null ? `/t${(+u.t + 0.05).toFixed(2)}` : ''}" title="Abrir a v${u.versao} de ${esc(projeto)} neste plano">${esc(u.plano)}${u.t != null ? ` · ${mmss(u.t)}` : ''}</a>`).join('')}</div></div>`).join('')
+  return `<span class="selo-linha selo-usado ${classe} ${cor}" tabindex="0" data-pop-usos="${esc(lista)}">Usado ${usos.length}×</span>`
 }
+
+// o balão dos usos: fora do card (a miniatura corta o que passa da borda), preso ao selo; fica aberto enquanto o mouse
+// está no selo ou nele
+let balao = null
+let fecharBalao = null
+function popUsos(selo) {
+  clearTimeout(fecharBalao)
+  balao?.remove()
+  balao = document.createElement('div')
+  balao.className = 'balao-usos'
+  balao.innerHTML = `<span class="eyebrow">Onde foi usado</span>${selo.dataset.popUsos}`
+  document.body.appendChild(balao)
+  const r = selo.getBoundingClientRect()
+  const w = balao.offsetWidth, h = balao.offsetHeight
+  balao.style.left = `${Math.max(8, Math.min(r.left, innerWidth - w - 8))}px`
+  balao.style.top = `${r.bottom + 6 + h > innerHeight - 8 ? Math.max(8, r.top - h - 6) : r.bottom + 6}px`
+  const sair = () => (fecharBalao = setTimeout(() => { balao?.remove(); balao = null }, 180))
+  const ficar = () => clearTimeout(fecharBalao)
+  selo.addEventListener('mouseleave', sair, { once: true })
+  balao.addEventListener('mouseenter', ficar)
+  balao.addEventListener('mouseleave', sair)
+  balao.addEventListener('click', (e) => e.target.closest('a') && (balao.remove(), (balao = null)))
+}
+document.addEventListener('mouseover', (e) => {
+  const selo = e.target.closest?.('[data-pop-usos]')
+  if (selo && !selo.contains(e.relatedTarget)) popUsos(selo)
+})
+window.addEventListener('hashchange', () => { balao?.remove(); balao = null })
 
 const chipsDeUso = (usos, cods) => {
   const porProjeto = {}
@@ -174,7 +208,8 @@ async function bancoInserts(el, tipo = 'inserts', modo = 'novo') {
   const visiveis = midiasT.filter((it) => filtro === 'todos' || estadoDe(it) === filtro)
   const cardsMidia = visiveis.map((it) => {
     const e = estados[it.id] || {}
-    const [rotulo, cor] = SELOS[e.estado] || []
+    const ts0 = trechos[it.id] || []
+    const selo = seloDe(e.estado, [...(e.usos || []), ...ts0.flatMap((t) => estados[t.id]?.usos || [])], cods, 'selo-na-thumb')
     const base = `/biblioteca/banco/${it.id}/`
     const video = it.tipo === 'video'
     const ts = trechos[it.id] || []
@@ -184,9 +219,8 @@ async function bancoInserts(el, tipo = 'inserts', modo = 'novo') {
         ${video ? `<video muted loop playsinline preload="none" data-src="${base}${it.proxy || 'proxy.mp4'}"></video>` : ''}
         <span class="selo ${video ? 'selo-azul' : 'selo-menta'}">${video ? 'Vídeo' : 'Imagem'} · ${esc(it.formato || '')}</span>
         ${video && it.duracao ? `<span class="duracao">${seg(it.duracao)}</span>` : ''}
-        ${rotulo ? `<span class="selo-linha selo-na-thumb ${cor}">${rotulo}</span>` : ''}
-        <span class="chip-tipo">Insert${ts.length ? ` · ${ts.length} ${ts.length === 1 ? 'trecho' : 'trechos'}` : ''}</span>
-        ${chipVezes([...(e.usos || []), ...ts.flatMap((t) => estados[t.id]?.usos || [])])}</div>
+        ${selo}
+        <span class="chip-tipo">Insert${ts.length ? ` · ${ts.length} ${ts.length === 1 ? 'trecho' : 'trechos'}` : ''}</span></div>
       <div class="card-titulo"><h3 title="${esc([it.descricao, it.fonte].filter(Boolean).join('\n'))}">${esc(it.nome)}</h3>${chipCodigo(cod[it.id], it.nome)}</div>
       ${htmlTagsCard(it.tags)}
       ${listaTrechos(ts, cod)}
@@ -195,7 +229,7 @@ async function bancoInserts(el, tipo = 'inserts', modo = 'novo') {
   // os motions na mesma grade: a prévia em pé no meio do card, o chip "Motion" e os selos do mesmo jeito
   cardsMidia.forEach((c, k) => (c.criado = recente(visiveis[k])))
   const cardsMotion = motionsT.filter((m) => filtro === 'todos' || estadoMotion(m) === filtro).map((m) => {
-    const [rotulo, cor] = SELOS[estadoMotion(m)] || []
+    const selo = seloDe(estadoMotion(m), usosM[m.id], cods)
     const busca = semAcento([m.nome, m.id, m.descricao, cods.motion?.[m.id], ...(m.tags || []).map((t) => `#${t}`)].join(' '))
     const e = estadoMotion(m)
     return { criado: m.criado_em || '', html: `<article class="card-banco card-banco-motion${selecao?.has(`m:${m.id}`) ? ' selecionado' : ''}" data-motion="${esc(m.id)}" data-busca="${esc(busca)}">
@@ -203,9 +237,9 @@ async function bancoInserts(el, tipo = 'inserts', modo = 'novo') {
         ? `<video class="previa-motion" muted loop playsinline preload="metadata" src="/biblioteca/motions/previas/${encodeURIComponent(m.id)}.mp4"></video>`
         : `<iframe src="/render/motion.html?preset=${encodeURIComponent(m.id)}&formato=vertical&tocar=1" loading="lazy" tabindex="-1" title="${esc(m.nome || m.id)}"></iframe>`}</div>
         ${e === 'sem' ? '<span class="selo selo-coral">A revisar</span>' : ''}${m.duracao ? `<span class="duracao">${seg(m.duracao)}</span>` : ''}
-        <span class="chip-tipo chip-tipo-motion">Motion</span>${chipVezes(usosM[m.id])}</div>
+        <span class="chip-tipo chip-tipo-motion">Motion</span></div>
       <div class="card-titulo"><h3 title="${esc(m.descricao || '')}">${esc(m.nome || m.id)}</h3>${chipCodigo(cods.motion?.[m.id], m.nome || m.id)}</div>
-      ${rotulo ? `<div class="estado-banco"><span class="selo-linha ${cor}">${rotulo}</span>${chipsDeUso(usosM[m.id], cods)}</div>` : ''}
+      ${selo ? `<div class="estado-banco">${selo}</div>` : ''}
       ${htmlTagsCard(m.tags)}
       ${e === 'sem' && !selecao ? `<div class="acoes-pe"><button class="botao pequeno" data-aprovar-motion title="Tira a marca “a revisar”">${ICONE.check} Aprovar</button>
         <button class="botao pequeno botao-perigo-contorno" data-recusar-motion title="Recusa a sugestão (fica em Recusados até o Limpar recusados)">${ICONE.fechar} Recusar</button></div>` : ''}
