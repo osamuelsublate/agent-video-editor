@@ -43,10 +43,6 @@ def preparar_biblioteca() -> None:
 
 # ---------------------------------------------------------------- a lixeira
 
-def _tamanho(p: Path) -> int:
-    return sum(f.stat().st_size for f in p.rglob('*') if f.is_file() and not f.is_symlink()) if p.is_dir() else p.stat().st_size
-
-
 def para_lixeira(pastas: list[Path], tipo: str, id_: str, nome: str, miniatura: str | None = None, video: str | None = None,
                  de: list[str] | None = None, apagado_em: str | None = None) -> dict:
     """Manda pastas para a lixeira única: `biblioteca/lixeira/<AAAAMMDD-HHMMSS>-<tipo>-<id>/`, cada uma inteira (nada
@@ -76,7 +72,7 @@ def para_lixeira(pastas: list[Path], tipo: str, id_: str, nome: str, miniatura: 
         raise SystemExit(f'Nada para mandar para a lixeira ({tipo} {id_}).')
     primeira = itens[0]['em']
     meta = {'tipo': tipo, 'id': id_, 'nome': nome, 'apagado_em': apagado_em or agora.isoformat(timespec='seconds'),
-            'itens': itens, 'bytes': sum(_tamanho(entrada / i['em']) for i in itens),
+            'itens': itens, 'bytes': sum(tamanho(entrada / i['em']) for i in itens),
             **({'miniatura': f'{primeira}/{miniatura}'} if miniatura and (entrada / primeira / miniatura).is_file() else {}),
             **({'video': f'{primeira}/{video}'} if video and (entrada / primeira / video).is_file() else {})}
     gravar_json(entrada / 'lixeira.json', meta)
@@ -155,6 +151,19 @@ def migrar_lixeiras_antigas() -> int:
         if not any(velha.iterdir()):
             velha.rmdir()
     return n
+
+
+def renders_rodando() -> set[str]:
+    """Os projetos com um render.py rodando agora (de qualquer sessão)."""
+    r = subprocess.run(['ps', '-axo', 'command'], capture_output=True, text=True).stdout
+    return set(re.findall(r'render\.py\s+([\w-]+)', r))
+
+
+def tamanho(p: Path) -> int:
+    """Bytes de um arquivo ou de uma pasta inteira."""
+    if p.is_file():
+        return p.stat().st_size
+    return sum(f.stat().st_size for f in p.rglob('*') if f.is_file() and not f.is_symlink()) if p.is_dir() else 0
 
 
 def pasta(slug: str) -> Path:

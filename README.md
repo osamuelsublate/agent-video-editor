@@ -92,6 +92,7 @@ Alguns comandos do dia a dia:
 uv run ferramentas/revisao.py pendentes          # os projetos com comentários sem resposta (em qualquer versão)
 uv run ferramentas/revisao.py ler <slug>         # os comentários pendentes, com bloco, palavra e plano
 uv run ferramentas/revisao.py historico <slug>   # todas as revisões, para a conclusão
+uv run ferramentas/revisao.py encerrar <slug>    # o fim do projeto: fica só a última versão; sai o resto e o cache (--confirmar)
 uv run ferramentas/render.py <slug>              # a versão nova (o render é incremental: só refaz o que mudou)
 uv run ferramentas/render.py <slug> --final      # o final em 4K
 uv run ferramentas/render.py <slug> --saidas     # exporta todas as saídas (ou --saida <id>, só uma)

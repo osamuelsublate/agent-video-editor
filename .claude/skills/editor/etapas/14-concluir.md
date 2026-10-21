@@ -1,6 +1,7 @@
-# 14 · Concluir um vídeo: aprendizados e faxina do banco
+# 14 · Concluir um vídeo: aprendizados, faxina do banco e encerramento
 
-Depois do vídeo aprovado e exportado (`12-final.md`), feche o ciclo em três passos. É aqui que a skill aprende: o que o
+Depois do vídeo aprovado e exportado (`12-final.md`), feche o ciclo: aprendizados, faxina do banco e, quando o criador
+disser que acabou, o encerramento (o passo 4). É aqui que a skill aprende: o que o
 criador corrigiu num vídeo não pode se repetir no próximo.
 
 ## 1. Aprendizados (com o criador)
@@ -86,7 +87,7 @@ gostos daquele formato). As etapas leem os dois.
 2. **Não apague.** Com o vídeo aprovado, os selos do banco se resolvem sozinhos (`banco.estados`, a partir da versão
    aprovada): o que entrou no vídeo vira **Usado em vídeo** (com o chip do projeto e do plano), e o que você trouxe para
    este projeto e ficou de fora vira **Recusado**. As recusadas só saem quando o criador clica em "Limpar recusados" no
-   Banco do app (são apagadas de vez, sem lixeira); antes disso ele pode promover qualquer uma a
+   Banco do app (vão para a Lixeira, de onde ele restaura ou apaga de vez); antes disso ele pode promover qualquer uma a
    **Aprovado** (boa, mesmo sem uso). Os motions usados no vídeo ganham o mesmo selo de uso.
 3. **Melhore a descrição** das que ficaram, para servirem de novo: nome claro, descrição do que aparece e do que ela
    ilustrou ("home da Anthropic, título serifado em fundo creme; usada como exemplo de 'clichê de site de IA'"),
@@ -100,7 +101,28 @@ Os arquivos de `aprendizados/` são lidos em toda edição: precisam ficar curto
 origens), tire os defeitos que já viraram correção no código, e os gostos que o criador desmentiu depois. Mostre ao
 criador o antes e o depois de cada arquivo em poucas linhas e grave com o "ok" dele.
 
+## 4. Encerrar o projeto (quando o criador disser que acabou)
+
+Depois dos exports (todas as saídas que ele quis) e dos aprendizados, o projeto não precisa carregar o histórico de
+renders. **Encerrar** deixa só a última versão (cada render é do vídeo inteiro: ela tem a última de todos os blocos), as
+revisões (o texto dos comentários e das respostas), a mídia original e o `final/`; saem as versões anteriores e o
+`.cache` (as fotos da camada, o áudio, o corpo em 4K das saídas e os temporários).
+
+```bash
+uv run ferramentas/revisao.py encerrar <slug>              # mostra o que sai e quanto libera; não apaga nada
+uv run ferramentas/revisao.py encerrar <slug> --confirmar  # apaga (sem lixeira: não tem volta)
+```
+
+- Só depois que **o criador disser que encerrou** (ou aceitar a sua sugestão): mostre a ele o que sai e quanto libera, e
+  confirme. Nunca no meio de exports: o comando recusa se há um render do projeto rodando, ou uma saída aprovada sem
+  export (passe `--mesmo-assim` só se ele mandar).
+- **Sugira o encerramento** quando o vídeo foi exportado e os aprendizados gravados ("posso encerrar o <nome>? libera
+  X GB: as versões v1–v(N-1) e o cache"), com o número do `encerrar` sem `--confirmar`.
+- Encerrado não é trancado: plugar uma saída nova depois reabre o projeto (volta para Em edição) e o render refaz o que
+  precisar (o corpo em 4K, a camada: mais lento na primeira vez).
+
 ## No fim
 
 Diga ao criador, em 3 linhas: quantos aprendizados entraram e em quais áreas, quantas mídias saíram do banco e quantas
-ganharam descrição melhor, e que a referência do vídeo está na Calibragem esperando a revisão dele.
+ganharam descrição melhor, e que a referência do vídeo está na Calibragem esperando a revisão dele. Na mesma mensagem,
+sugira encerrar o projeto (o passo 4), com quanto libera.

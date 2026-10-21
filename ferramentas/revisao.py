@@ -17,6 +17,11 @@
     uv run ferramentas/revisao.py historico <slug>
         todas as revisões do projeto, versão a versão (cada comentário com o bloco e a sua resposta) e os blocos que
         voltaram a ser comentados. É o que a conclusão (14-concluir.md) lê.
+    uv run ferramentas/revisao.py encerrar <slug> [--confirmar] [--mesmo-assim]
+        o fim do projeto, depois dos exports e dos aprendizados (14-concluir.md): fica só a última versão (a de todos os
+        blocos), as revisões, a mídia original e o final/; saem as versões anteriores e o .cache (um render novo refaz).
+        Sem --confirmar, só mostra o que sairia e quanto libera. Recusa se a última versão não está aprovada, se há um
+        render dele rodando ou uma saída aprovada sem export (--mesmo-assim passa por cima dos dois últimos).
     uv run ferramentas/revisao.py clipes [--refazer]
         recorta das referências os clipes das galerias da biblioteca: presets/clipes/<id>.mp4 (o trecho da 1ª fonte,
         480 px, com som) e transicoes/clipes/<id>.mp4 (1,5 s em volta do corte da 1ª fonte, com som). A referência vem
@@ -28,7 +33,7 @@ from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from base import BIBLIOTECA, PROJETOS, RAIZ, ffmpeg, gravar_json, ler_json, pasta  # noqa: E402
+from base import BIBLIOTECA, PROJETOS, RAIZ, ffmpeg, gravar_json, ler_json, pasta, renders_rodando, tamanho  # noqa: E402
 
 DEZOITO = RAIZ.parent / '18-harness-video-editor' / 'dados'
 STATUS = ('aplicado', 'respondido', 'nao_aplicado')
@@ -372,6 +377,47 @@ def clipes(refazer: bool) -> None:
     print(f'{feitos} clipes feitos.' if feitos else 'Os clipes já existem (use --refazer para refazer).')
 
 
+def encerrar(slug: str, confirmar: bool = False, mesmo_assim: bool = False) -> None:
+    """Encerra o projeto: apaga as versões anteriores à última e o .cache (ver o docstring do módulo)."""
+    import shutil
+    p = pasta(slug)
+    vs = sorted(int(d.name[1:]) for d in (p / 'versoes').glob('v*') if d.name[1:].isdigit())
+    if not vs:
+        raise SystemExit(f'{slug} não tem versões.')
+    ultima = vs[-1]
+    edicao = ler_json(p / 'edicao.json', {}) or {}
+    rev = ler_json(p / 'revisoes' / f'v{ultima}.json', {}) or {}
+    if not rev.get('aprovado'):
+        raise SystemExit(f'{slug}: a v{ultima} não está aprovada. Encerre só depois de aprovar e exportar.')
+    avisos = []
+    if slug in renders_rodando():
+        avisos.append('há um render deste projeto rodando agora')
+    falta = [x['destino'] for x in edicao.get('saidas') or [] if isinstance(x, dict) and x.get('final') and x.get('aprovado') and not x.get('exportado')]
+    if falta:
+        avisos.append(f'saídas aprovadas ainda sem export: {", ".join(falta)}')
+    alvos = [p / 'versoes' / f'v{v}' for v in vs[:-1]] + sorted((p / 'versoes').glob('.v*.parte')) + sorted(p.glob('.render-*'))
+    if (p / '.cache').is_dir():
+        alvos.append(p / '.cache')
+    total = sum(tamanho(a) for a in alvos)
+    print(f'Encerrar {slug}: fica a v{ultima} (a última de todos os blocos), as revisões, a mídia original e o final/.')
+    for a in alvos:
+        print(f'  sai {a.relative_to(p)}  {tamanho(a) / 1e9:.2f} GB')
+    print(f'Libera {total / 1e9:.1f} GB.' if alvos else 'Nada a apagar: já está encerrado.')
+    for x in avisos:
+        print(f'Atenção: {x}.')
+    if not confirmar or not alvos:
+        if alvos:
+            print(f'Nada apagado. Para encerrar: uv run ferramentas/revisao.py encerrar {slug} --confirmar')
+        return
+    if avisos and not mesmo_assim:
+        raise SystemExit('Não encerrei por causa da atenção acima (resolva, ou --mesmo-assim se o criador mandar).')
+    for a in alvos:
+        shutil.rmtree(a, ignore_errors=True)
+    edicao['encerrado_em'] = datetime.now().isoformat(timespec='seconds')
+    gravar_json(p / 'edicao.json', edicao)
+    print(f'Encerrado: {total / 1e9:.1f} GB liberados.')
+
+
 if __name__ == '__main__':
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest='cmd', required=True)
@@ -390,6 +436,10 @@ if __name__ == '__main__':
     a.add_argument('slug')
     a = sub.add_parser('historico')
     a.add_argument('slug')
+    a = sub.add_parser('encerrar')
+    a.add_argument('slug')
+    a.add_argument('--confirmar', action='store_true')
+    a.add_argument('--mesmo-assim', action='store_true')
     a = sub.add_parser('clipes')
     a.add_argument('--refazer', action='store_true')
     x = ap.parse_args()
@@ -410,5 +460,7 @@ if __name__ == '__main__':
         pronto(x.slug)
     elif x.cmd == 'historico':
         historico(x.slug)
+    elif x.cmd == 'encerrar':
+        encerrar(x.slug, x.confirmar, x.mesmo_assim)
     else:
         clipes(x.refazer)

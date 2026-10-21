@@ -7,7 +7,8 @@ Também importado pelo render (`servir(0)` sobe numa porta livre, numa thread). 
     uv run ferramentas/servidor.py --limpar-caches [dias]   → o cache do render dos aprovados parados (padrão: 3 dias)
 
 Ao subir, e a cada hora, o servidor apaga o cache do render (.cache/camadas e .cache/trechos: as fotos da camada em
-ProRes 4444, o grosso do disco) dos projetos aprovados e parados há `CACHE_DIAS` dias (`limpar_caches_parados`).
+ProRes 4444, o grosso do disco) dos projetos aprovados e parados há `CACHE_DIAS` dias (`limpar_caches_parados`) e as
+pastas temporárias de renders que morreram no meio (`.render-*` com mais de 6 h, `limpar_temporarios`).
 
 Rotas (JSON; um erro volta como {"erro": "…"}, com 422 numa validação):
 - GET /api/lista?pasta=… (nomes numa pasta pública) · GET /api/projetos (o início do app) · GET /api/motions/fonte/<pro|
@@ -63,7 +64,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 
 sys.path.insert(0, str(Path(__file__).parent))
 from base import (APRENDIZADOS, BIBLIOTECA, EXEMPLOS, PROJETOS, RAIZ, apagar_de_vez, gravar_json, ler_json, listar_lixeira, migrar_lixeiras_antigas,  # noqa: E402
-                  para_lixeira, preparar_biblioteca, renomear_tags, restaurar_da_lixeira, tag_limpa, tags_limpas)
+                  para_lixeira, preparar_biblioteca, renders_rodando, tamanho, renomear_tags, restaurar_da_lixeira, tag_limpa, tags_limpas)
 
 PORTA = 8719
 PUBLICOS = ('app', 'render', 'projetos', 'biblioteca')
@@ -1570,12 +1571,6 @@ def servir(porta: int = 0) -> ThreadingHTTPServer:
 CACHE_DIAS = 3  # um projeto aprovado e parado há esses dias perde o cache do render (um render novo refaz)
 
 
-def renders_rodando() -> set[str]:
-    """Os projetos com um render.py rodando agora (de qualquer sessão)."""
-    r = subprocess.run(['ps', '-axo', 'command'], capture_output=True, text=True).stdout
-    return set(re.findall(r'render\.py\s+([\w-]+)', r))
-
-
 def limpar_caches_parados(dias: float = CACHE_DIAS) -> list[tuple[str, int]]:
     """Apaga o cache do render (`.cache/camadas` e `.cache/trechos`: refeitos por um render novo) dos projetos aprovados
     e parados há `dias` dias (a data do card, `ultima_edicao`). Pula o que tem um render rodando ou a camada travada.
@@ -1594,10 +1589,23 @@ def limpar_caches_parados(dias: float = CACHE_DIAS) -> list[tuple[str, int]]:
                 fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)  # um render fotografando: fica para a próxima
             except BlockingIOError:
                 continue
-            n = sum(x.stat().st_size for a in alvos for x in a.rglob('*') if x.is_file())
+            n = sum(tamanho(a) for a in alvos)
             for a in alvos:
                 shutil.rmtree(a, ignore_errors=True)
         feitos.append((p['slug'], n))
+    return feitos
+
+
+def limpar_temporarios(horas: float = 6) -> list[tuple[str, int]]:
+    """Apaga as pastas temporárias de renders que morreram no meio (`projetos/<slug>/.render-*`, que o render apaga ao
+    terminar): as com mais de `horas` horas, de projetos sem render rodando. Devolve [(pasta, bytes)]."""
+    import time
+    ocupados, limite, feitos = renders_rodando(), time.time() - horas * 3600, []
+    for d in PROJETOS.glob('*/.render-*'):
+        if d.is_dir() and d.parent.name not in ocupados and d.stat().st_mtime < limite:
+            n = tamanho(d)
+            shutil.rmtree(d, ignore_errors=True)
+            feitos.append((str(d.relative_to(PROJETOS)), n))
     return feitos
 
 
@@ -1607,6 +1615,8 @@ def _limpar_de_hora_em_hora() -> None:
         try:
             for slug, n in limpar_caches_parados():
                 print(f'Cache do render de {slug} apagado (aprovado e parado): {n / 1e9:.1f} GB', flush=True)
+            for d, n in limpar_temporarios():
+                print(f'Temporário de render que morreu no meio apagado: {d} ({n / 1e9:.1f} GB)', flush=True)
         except Exception as e:  # noqa: BLE001 — a limpeza nunca derruba o servidor
             print(f'Limpeza do cache falhou: {e}', flush=True)
         time.sleep(3600)
@@ -1614,7 +1624,7 @@ def _limpar_de_hora_em_hora() -> None:
 
 if __name__ == '__main__':
     if sys.argv[1:2] == ['--limpar-caches']:
-        feitos = limpar_caches_parados(float(sys.argv[2]) if len(sys.argv) > 2 else CACHE_DIAS)
+        feitos = limpar_caches_parados(float(sys.argv[2]) if len(sys.argv) > 2 else CACHE_DIAS) + limpar_temporarios()
         for slug, n in feitos:
             print(f'{slug}: {n / 1e9:.1f} GB')
         print(f'Total: {sum(n for _, n in feitos) / 1e9:.1f} GB liberados em {len(feitos)} projeto(s)')
