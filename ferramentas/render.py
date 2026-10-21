@@ -49,7 +49,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 import servidor  # noqa: E402
-from base import BIBLIOTECA, RAIZ, ffmpeg, gravar_json, inspecionar, ler, ler_json, pasta  # noqa: E402
+from base import BIBLIOTECA, PROJETOS, RAIZ, ffmpeg, gravar_json, inspecionar, ler, ler_json, pasta  # noqa: E402
 from montagem import audio, exportacao, legenda, look, render_quadros, sons  # noqa: E402
 from montagem.exportacao import dur_saida  # noqa: E402
 
@@ -1112,6 +1112,15 @@ if __name__ == '__main__':
     if '--previa-saida' in sys.argv:  # a prévia de uma saída de CTA nova, na versão mais nova (o + Saída do app)
         previa_da_saida(sys.argv[1], sys.argv[sys.argv.index('--previa-saida') + 1])
         sys.exit(0)
+    if {'--final', '--saida', '--saidas'} & set(sys.argv):
+        # um export em 4K por vez na máquina (a fila): vários juntos (4 CTAs aprovados de uma vez, cada um com os seus
+        # navegadores) travaram todos por falta de memória e de rede (2026-10-20)
+        fila = open(PROJETOS / '.export-4k.trava', 'w')
+        try:
+            fcntl.flock(fila, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            print('Há outro export em 4K rodando: este espera a vez na fila.', flush=True)
+            fcntl.flock(fila, fcntl.LOCK_EX)
     if '--saida' in sys.argv or '--saidas' in sys.argv:  # o export das saídas: uma (--saida <id>) ou todas (--saidas)
         slug = sys.argv[1]
         ids = [sys.argv[sys.argv.index('--saida') + 1]] if '--saida' in sys.argv else [
