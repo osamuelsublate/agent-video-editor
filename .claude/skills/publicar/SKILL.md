@@ -64,6 +64,13 @@ roda `rclone config reconnect asimov:`; nunca mostre nem registre client_secret 
 | Perpétuo LP / VSL / ISCA | Ads `15Igbv6wQnMihfrFh-f_25zBY8XMxdw1w` | `NNN [COD_PROD FUNIL] Nome do ad` (ex.: `1085 [FIA VSL] 3 Níveis de IA`), uma pasta por funil |
 | Pico · Captura (Black) | `11TDBjW0vvaaldLq_wboyC4XzborO65pn` | `XX Nome do Ad` (ex.: `21 Rodrigo 3 níveis de IA`) |
 | Pico · Carrinho (Black) | `11yWWQni7MmyonmpOzIvMCHb6iYAbYL2U` | idem |
+| Pico · Lembrete (Black) | `1Hv3RegJCYsYS1UnPMhQ_MgL9eMwvoYZ9` | idem (ex.: `06 Rodrigo Lembretes`), todos os lembretes numa pasta |
+
+**Série com várias versões do mesmo ad** (ex.: Sim sim sim Agentes/Aplicativos/Dados/Design/IA): **uma pasta por fase**
+com todas as versões dentro (`44 Rodrigo Sim sim sim` na Captura, `10 Rodrigo Sim sim sim` no Carrinho), **um card por
+fase** no Notion e **uma nota por fase** no Obsidian, com a fala de cada versão e o CTA (igual em todas) uma vez.
+**Lembretes da live** (3 dias, amanhã, hoje, ao vivo, coringa): uma pasta, **um card** com Fase Black Friday =
+**Lembrete** e as falas de todos, e **sem nota** no Obsidian.
 
 Perpétuo: **LP** faz o pitch direto para a landing page (compra); **VSL** convida para uma aula gratuita (curiosidade,
 ainda não é venda); **ISCA** atrai para uma isca digital.
