@@ -78,6 +78,8 @@ function origemDe(o) {
 }
 
 /** Os selos do banco e dos motions (o que entrou num vídeo aprovado, o aprovado à mão, o recusado). */
+// a ordem da grade do Banco e dos Motions (lembrada por aba)
+const ORDENS_BANCO = { recentes: 'Recentes', usados: 'Mais usados' }
 const SELOS = { usado: ['Usado em vídeo', 'selo-menta'], aprovado: ['Aprovado', 'selo-verde'], recusado: ['Recusado', 'selo-coral'] }
 /** Os trechos no card do banco; com mais de 3, recolhidos num expansor (não ocupam a altura toda da grade). */
 function listaTrechos(ts, cod) {
@@ -187,8 +189,7 @@ async function bancoInserts(el, tipo = 'inserts', modo = 'novo') {
   let filtro = FILTROS_BANCO[preferencia(chaveFiltro, 'todos')] ? preferencia(chaveFiltro, 'todos') : 'todos'
   const cod = cods.midia || {}
   const itens = itensBanco || []
-  const recente = (it) => (estados[it.id]?.usos || []).reduce((m, u) => (u.quando > m ? u.quando : m), '') || it.criado_em || ''
-  const originais = itens.filter((i) => !i.pai).sort((a, b) => recente(b).localeCompare(recente(a)))
+  const originais = itens.filter((i) => !i.pai) // a ordem da grade sai no fim (ORDENS_BANCO)
   const trechos = {}
   for (const t of itens.filter((i) => i.pai)) (trechos[t.pai] ||= []).push(t)
   for (const l of Object.values(trechos)) l.sort((a, b) => a.inicio - b.inicio)
@@ -227,12 +228,17 @@ async function bancoInserts(el, tipo = 'inserts', modo = 'novo') {
     </article>`
   }).map((html, k) => ({ html, criado: '' }))
   // os motions na mesma grade: a prévia em pé no meio do card, o chip "Motion" e os selos do mesmo jeito
-  cardsMidia.forEach((c, k) => (c.criado = recente(visiveis[k])))
+  // para ordenar: a data do upload e quantas vezes entrou em vídeos (no insert, com os trechos dele)
+  cardsMidia.forEach((c, k) => {
+    const it = visiveis[k]
+    c.criado = it.criado_em || ''
+    c.usos = [it, ...(trechos[it.id] || [])].reduce((n, x) => n + (estados[x.id]?.usos?.length || 0), 0)
+  })
   const cardsMotion = motionsT.filter((m) => filtro === 'todos' || estadoMotion(m) === filtro).map((m) => {
     const selo = seloDe(estadoMotion(m), usosM[m.id], cods)
     const busca = semAcento([m.nome, m.id, m.descricao, cods.motion?.[m.id], ...(m.tags || []).map((t) => `#${t}`)].join(' '))
     const e = estadoMotion(m)
-    return { criado: m.criado_em || '', html: `<article class="card-banco card-banco-motion${selecao?.has(`m:${m.id}`) ? ' selecionado' : ''}" data-motion="${esc(m.id)}" data-busca="${esc(busca)}">
+    return { criado: m.criado_em || '', usos: usosM[m.id]?.length || 0, html: `<article class="card-banco card-banco-motion${selecao?.has(`m:${m.id}`) ? ' selecionado' : ''}" data-motion="${esc(m.id)}" data-busca="${esc(busca)}">
       <div class="mini mini-169 fundo-${esc(m.fundo || 'escuro')}"><div class="palco-motion">${comPrevia.has(m.id)
         ? `<video class="previa-motion" muted loop playsinline preload="metadata" src="/biblioteca/motions/previas/${encodeURIComponent(m.id)}.mp4"></video>`
         : `<iframe src="/render/motion.html?preset=${encodeURIComponent(m.id)}&formato=vertical&tocar=1" loading="lazy" tabindex="-1" title="${esc(m.nome || m.id)}"></iframe>`}</div>
@@ -245,12 +251,16 @@ async function bancoInserts(el, tipo = 'inserts', modo = 'novo') {
         <button class="botao pequeno botao-perigo-contorno" data-recusar-motion title="Recusa a sugestão (fica em Recusados até o Limpar recusados)">${ICONE.fechar} Recusar</button></div>` : ''}
     </article>` }
   })
-  const cards = [...(tipo === 'motions' ? [] : cardsMidia), ...(tipo === 'inserts' ? [] : cardsMotion)].sort((a, b) => b.criado.localeCompare(a.criado)).map((c) => c.html)
+  const ordem = ORDENS_BANCO[preferencia(`${tipo}.ordem`, 'recentes')] ? preferencia(`${tipo}.ordem`, 'recentes') : 'recentes'
+  const porData = (a, b) => b.criado.localeCompare(a.criado)
+  const cards = [...(tipo === 'motions' ? [] : cardsMidia), ...(tipo === 'inserts' ? [] : cardsMotion)]
+    .sort(ordem === 'usados' ? (a, b) => b.usos - a.usos || porData(a, b) : porData).map((c) => c.html)
   const icone = (n) => (n ? ICONE[n] : '')
   const nRecusados = conta('recusado')
   el.innerHTML = `<div class="barra-banco">
       ${Object.entries(FILTROS_BANCO).filter(([k]) => k === 'todos' || conta(k)).map(([k, [n, ic]]) => chip(k === filtro, `${icone(ic)}${n} <span class="conta">${conta(k)}</span>`, `data-filtro-banco="${k}"`)).join('')}
-      <span class="barra-banco-acoes"><input class="busca" type="search" data-busca placeholder="Buscar (nome, descrição, código, #tag)" value="${esc(buscas[tipo])}">
+      <span class="barra-banco-acoes"><span class="ordens">${Object.entries(ORDENS_BANCO).map(([k, nome]) => chip(k === ordem, nome, `data-ordem-banco="${k}" title="${k === 'usados' ? 'Os que mais entraram em vídeos aprovados primeiro' : 'Os que entraram no banco por último primeiro'}"`)).join('')}</span>
+        <input class="busca" type="search" data-busca placeholder="Buscar (nome, descrição, código, #tag)" value="${esc(buscas[tipo])}">
         ${tipo === 'motions' ? '' : `<label class="botao pequeno botao-subir" title="Vídeos e imagens, vários de uma vez (ou arraste para esta página): entram Aprovados e a IA descreve">${ICONE.subir} Subir mídia<input type="file" multiple accept="video/mp4,video/quicktime,video/webm,image/png,image/jpeg,image/webp" hidden data-subir></label>`}
         ${selecao
     ? `<span class="barra-selecao"><b data-sel-conta>${selecao.size}</b> <span data-sel-rotulo>${selecao.size === 1 ? 'selecionada' : 'selecionadas'}</span>
@@ -374,6 +384,10 @@ async function bancoInserts(el, tipo = 'inserts', modo = 'novo') {
     }
     selecao = null
     bancoInserts(el, tipo)
+  })
+  for (const b of $$('[data-ordem-banco]', el)) b.addEventListener('click', () => {
+    preferencia(`${tipo}.ordem`, 'recentes', b.dataset.ordemBanco)
+    bancoInserts(el, tipo, 'local')
   })
   for (const b of $$('[data-filtro-banco]', el)) b.addEventListener('click', () => {
     preferencia(chaveFiltro, 'todos', b.dataset.filtroBanco)
