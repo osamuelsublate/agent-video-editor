@@ -82,7 +82,8 @@ o card pelo nome: se o criador já criou, preencha esse.
   do Reels) e a **descrição** proposta com a skill `roteiro-to-descricao` (vault: `~/Obsidian Notes/3 Skills/`).
 - **Perpétuo** (template Criativo `3063ee05-7ee5-816f-b147-f12935ee6519`), um card por funil: título `[FUNIL]_NNN_Nome`
   (ex.: `[VSL]_1085_3 Níveis de IA`), ícone 💰; Produto (ex.: 🤖 FIA), Mídia 💰 Criativo, Etapa do Funil Topo;
-  **Campanha**: LP em branco · VSL `[COD_PROD]_VSL_Nome_do_ad` · ISCA `[COD_PROD]_ISC_NNN_Nome_do_ad` (ex.:
+  **LP: Responsável pela gravação = Renata Lopes** (`90d28337-53cb-489e-8b69-6859640dede5`), sempre (Copywriter e
+  Editor seguem Rodrigo). **Campanha**: LP em branco · VSL `[COD_PROD]_VSL_Nome_do_ad` · ISCA `[COD_PROD]_ISC_NNN_Nome_do_ad` (ex.:
   `[FIA]_ISC_932_5_plugins_Claude`); **Landing Page em branco** (o criador preenche). **Campanha e Landing Page são
   listas fechadas**: valor novo é recusado (criá-lo muda a estrutura da base, só o criador). Use uma opção que já
   existe ou deixe vazio e escreva o valor proposto (e o link de destino, ex. a isca no GitHub) no topo do corpo do card.
