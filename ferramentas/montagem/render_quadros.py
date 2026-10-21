@@ -64,18 +64,36 @@ def _rgba(png: bytes, w: int, h: int) -> bytes | None:
     return img.tobytes() if img.size == (w, h) else None
 
 
-def _foto(w: int, h: int) -> bytes:
-    """Uma foto do quadro no tamanho certo: se vier menor, devolve o tamanho à janela e fotografa de novo."""
+def _janela(w: int, h: int) -> tuple[bool, bool]:
+    """(a janela tem o tamanho do quadro, o zoom da página foi medido nesse tamanho)."""
+    iw, ih, zoom = _pagina.evaluate('() => [innerWidth, innerHeight, document.documentElement.style.zoom]')
+    return (iw, ih) == (w, h), not zoom or abs(float(zoom) - w / 540) < 1e-6
+
+
+def _foto(t: float, w: int, h: int) -> bytes:
+    """Uma foto do quadro em `t` (a página já foi levada a ele) com a janela no tamanho do quadro. Sob carga, o Chrome às
+    vezes encolhe a janela (~720×790): a foto vinha menor, ou do tamanho certo (o `captureBeyondViewport` estica) com
+    tudo pequeno no canto de cima, porque o `ir(t)` montou o quadro na janela encolhida (a escala do motion é medida ali:
+    no caveman 4K, o card a 1/3 no canto, guardado no cache). Por isso a janela é conferida antes e depois da foto; se
+    não está no tamanho, ela volta a ele (a página recarrega se o zoom foi medido encolhida), o quadro é montado de
+    novo e fotografado de novo."""
     for _ in range(4):
-        png = base64.b64decode(_cdp.send('Page.captureScreenshot', {
-            'format': 'png', 'optimizeForSpeed': True, 'captureBeyondViewport': True,
-            'clip': {'x': 0, 'y': 0, 'width': w, 'height': h, 'scale': 1}})['data'])
-        cru = _rgba(png, w, h)
-        if cru is not None:
-            return cru
-        print('      foto da camada em tamanho errado, de novo', flush=True)
+        certa, zoom = _janela(w, h)
+        if certa and zoom:
+            png = base64.b64decode(_cdp.send('Page.captureScreenshot', {
+                'format': 'png', 'optimizeForSpeed': True, 'captureBeyondViewport': True,
+                'clip': {'x': 0, 'y': 0, 'width': w, 'height': h, 'scale': 1}})['data'])
+            cru = _rgba(png, w, h)
+            certa, zoom = _janela(w, h)
+            if cru is not None and certa and zoom:
+                return cru
+        print('      janela da camada fora do tamanho, de novo', flush=True)
         _pagina.set_viewport_size({'width': w, 'height': h})
         _pagina.wait_for_timeout(200)
+        if not zoom:
+            _pagina.reload(wait_until='load', timeout=60_000)
+            esperar_render(_pagina)
+        _ir(t)
     raise RuntimeError(f'A foto da camada não saiu em {w}×{h} (o navegador encolheu a janela).')
 
 
@@ -92,7 +110,7 @@ def pedaco(args: tuple[list[float], int, int, int, str]) -> int:
         if chave and chave == anterior[0]:
             cru = anterior[1]  # insert parado: o mesmo quadro de antes, sem fotografar
         else:
-            cru = _foto(w, h)
+            cru = _foto(t, w, h)
         ff.stdin.write(cru)
         anterior = (chave, cru)
     ff.stdin.close()
