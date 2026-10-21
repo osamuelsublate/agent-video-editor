@@ -85,7 +85,8 @@ export function zonasDaLegenda(pedidos: Pedido[], banco: Map<string, ItemBanco> 
     // um insert em tela cheia só com mídias deitadas: o card fica no meio do quadro, e a legenda desce para baixo dele
     const as = x.formato !== 'dividida' && x.midias.length ? aspectosDe(x.midias, banco) : []
     const deitada = as.length > 0 && as.every((a) => a >= 1.2)
-    return { ini: x.t.inicio, fim: x.t.fim, divisao, ator, card, deitada }
+    // o insert pode dizer a altura da legenda, como o motion (`legenda_y`, fração do quadro)
+    return { ini: x.t.inicio, fim: x.t.fim, divisao, ator, card, deitada, y: x.legenda_y ?? undefined }
   })
 }
 
@@ -95,7 +96,7 @@ export function zonasDaLegenda(pedidos: Pedido[], banco: Map<string, ItemBanco> 
  *  e, se houver um card de comentário ali, logo acima dele (ou abaixo, se não couber). Inserts em tela cheia e motions não são lidos (o conteúdo é desenhado na hora): fica a
  *  altura medida. */
 function alturaDaLegenda(tipo: string | undefined, z: Zona | null): number {
-  if (z?.y != null) return z.y // o motion diz onde a legenda não atrapalha (`legenda_y` no edicao.motions)
+  if (z?.y != null) return z.y // o motion ou o insert diz onde a legenda não atrapalha (`legenda_y`)
   let y = ALTURA_POR_PLANO[tipo ?? ''] ?? ALTURA_PADRAO
   const d = z?.divisao
   if (d?.modo === 'metade') y = Math.min(Math.max(d.f, 0.3), 0.7)

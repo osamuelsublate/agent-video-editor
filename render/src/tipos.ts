@@ -54,6 +54,7 @@ export type ItemBanco = {
 export type MidiaLigada = { id: string; banco: string }
 export type PedidoInsert = {
   id: string
+  legenda_y?: number
   plano: string
   tipo: string
   formato: 'vertical' | 'dividida'

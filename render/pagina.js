@@ -1054,7 +1054,7 @@
       }
       const as = x.formato !== "dividida" && x.midias.length ? aspectosDe(x.midias, banco) : [];
       const deitada = as.length > 0 && as.every((a) => a >= 1.2);
-      return { ini: x.t.inicio, fim: x.t.fim, divisao, ator, card, deitada };
+      return { ini: x.t.inicio, fim: x.t.fim, divisao, ator, card, deitada, y: x.legenda_y ?? void 0 };
     });
   }
   function alturaDaLegenda(tipo, z) {
