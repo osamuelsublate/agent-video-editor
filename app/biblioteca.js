@@ -89,6 +89,13 @@ function listaTrechos(ts, cod) {
 const FILTROS_BANCO = { todos: ['Todos', null], usado: ['Usados', 'usado'], aprovado: ['Aprovados', 'check'], recusado: ['Recusados', 'fechar'], sem: ['Em edição', 'semSelo'] }
 /** Os chips de onde a peça entrou nos vídeos aprovados ("PRJ-05·p3"): abrem a revisão da versão aprovada naquele plano.
  *  Agrupados por projeto: um projeto com vários planos vira um chip só ("PRJ-07 · 12 planos ▾") que abre a lista. */
+/** O chip na miniatura com quantas vezes a mídia ou o motion já entrou em vídeos (cada plano conta uma vez). */
+const chipVezes = (usos) => {
+  if (!usos?.length) return ''
+  const prjs = new Set(usos.map((u) => u.projeto)).size
+  return `<span class="chip-vezes" title="Usado ${usos.length} ${usos.length === 1 ? 'vez' : 'vezes'}, em ${prjs} ${prjs === 1 ? 'projeto' : 'projetos'}">${usos.length}×</span>`
+}
+
 const chipsDeUso = (usos, cods) => {
   const porProjeto = {}
   for (const u of usos || []) (porProjeto[u.projeto] ||= []).push(u)
@@ -178,7 +185,8 @@ async function bancoInserts(el, tipo = 'inserts', modo = 'novo') {
         <span class="selo ${video ? 'selo-azul' : 'selo-menta'}">${video ? 'Vídeo' : 'Imagem'} · ${esc(it.formato || '')}</span>
         ${video && it.duracao ? `<span class="duracao">${seg(it.duracao)}</span>` : ''}
         ${rotulo ? `<span class="selo-linha selo-na-thumb ${cor}">${rotulo}</span>` : ''}
-        <span class="chip-tipo">Insert${ts.length ? ` · ${ts.length} ${ts.length === 1 ? 'trecho' : 'trechos'}` : ''}</span></div>
+        <span class="chip-tipo">Insert${ts.length ? ` · ${ts.length} ${ts.length === 1 ? 'trecho' : 'trechos'}` : ''}</span>
+        ${chipVezes([...(e.usos || []), ...ts.flatMap((t) => estados[t.id]?.usos || [])])}</div>
       <div class="card-titulo"><h3 title="${esc([it.descricao, it.fonte].filter(Boolean).join('\n'))}">${esc(it.nome)}</h3>${chipCodigo(cod[it.id], it.nome)}</div>
       ${htmlTagsCard(it.tags)}
       ${listaTrechos(ts, cod)}
@@ -195,7 +203,7 @@ async function bancoInserts(el, tipo = 'inserts', modo = 'novo') {
         ? `<video class="previa-motion" muted loop playsinline preload="metadata" src="/biblioteca/motions/previas/${encodeURIComponent(m.id)}.mp4"></video>`
         : `<iframe src="/render/motion.html?preset=${encodeURIComponent(m.id)}&formato=vertical&tocar=1" loading="lazy" tabindex="-1" title="${esc(m.nome || m.id)}"></iframe>`}</div>
         ${e === 'sem' ? '<span class="selo selo-coral">A revisar</span>' : ''}${m.duracao ? `<span class="duracao">${seg(m.duracao)}</span>` : ''}
-        <span class="chip-tipo chip-tipo-motion">Motion</span></div>
+        <span class="chip-tipo chip-tipo-motion">Motion</span>${chipVezes(usosM[m.id])}</div>
       <div class="card-titulo"><h3 title="${esc(m.descricao || '')}">${esc(m.nome || m.id)}</h3>${chipCodigo(cods.motion?.[m.id], m.nome || m.id)}</div>
       ${rotulo ? `<div class="estado-banco"><span class="selo-linha ${cor}">${rotulo}</span>${chipsDeUso(usosM[m.id], cods)}</div>` : ''}
       ${htmlTagsCard(m.tags)}
