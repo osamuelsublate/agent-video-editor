@@ -99,5 +99,9 @@ casar todas; se não, você alterou a fala — corrija o roteiro).
   no chat, na entrega.
 - Confira as Regras do criador contra o resultado (abertura, máximo de 3–4 s de Full ator seguido etc.). Se violou,
   reescreva o trecho e aplique de novo.
+- As três que mais escaparam (claude-mods: voltaram em três revisões), confira uma a uma no roteiro:
+  - **lista na fala → um plano por item**, cada um na sua palavra ("Skills, MCPs e mods"; "painéis, botões, alertas");
+  - **lançamento de produto → a página do anúncio em tela cheia primeiro**, depois os vídeos do produto em uso;
+  - **nome de ferramenta ou mod → `card-nome`** em tela dividida, nunca a página do repositório.
 
 Tempo esperado: ~2 min.

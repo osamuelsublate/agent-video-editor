@@ -385,6 +385,41 @@ def tirar_saida(slug: str, sid: str) -> None:
     print(f'Saída {sid} tirada.')
 
 
+def apertar_inicios(clipes: list[dict], palavras: list[dict], audio: Path) -> None:
+    """O começo de cada clipe colado na voz: o respiro antes da frase (até ~0,3 s, acima do limiar dos silêncios) saía
+    junto e soava como silêncio na emenda (claude-mods v5 c1). Mede a energia em janelas de 10 ms no `audio.wav` e põe a
+    borda 0,04 s antes da primeira janela com voz (o limiar é relativo ao volume da fala), sem passar do começo da
+    primeira palavra: uma palavra fraca na borda (o "e" a −52 dB) continua dentro. O fim não muda (a cauda é curta e o
+    "s" final fraco cairia)."""
+    import array
+    import math
+    import wave
+    if not audio.exists():
+        return
+    with wave.open(str(audio)) as w:
+        if w.getsampwidth() != 2:
+            return
+        sr, canais = w.getframerate(), w.getnchannels()
+        amostras = array.array('h', w.readframes(w.getnframes()))[::canais]
+    jan = sr // 100
+
+    def nivel(i: int) -> float:
+        bloco = amostras[i:i + jan]
+        return 20 * math.log10(math.sqrt(sum(x * x for x in bloco) / max(len(bloco), 1)) / 32768 + 1e-9)
+
+    niveis = sorted(nivel(i) for i in range(0, len(amostras) - jan, jan * 50))
+    limiar = niveis[int(len(niveis) * 0.95)] - 26 if niveis else -40
+    por_id = {p['id']: p for p in palavras}
+    for c in clipes:
+        s0, ate = int(c['inicio'] * sr), int(min(c['inicio'] + 0.5, c['fim']) * sr)
+        voz = next((i for i in range(s0, ate, jan) if nivel(i) > limiar), None)
+        if voz is None:
+            continue
+        novo = min(voz / sr - 0.04, por_id[c['palavra_ini']]['inicio'])
+        if novo > c['inicio'] + 0.02:
+            c['inicio'] = round(novo, 3)
+
+
 def aplicar(slug: str, arquivo: str) -> None:
     try:
         sel = json.loads(Path(arquivo).read_text(encoding='utf-8'))
@@ -405,6 +440,7 @@ def aplicar(slug: str, arquivo: str) -> None:
     parametros = {k: float(guardados.get(k, v)) for k, v in PARAMETROS.items()}
     fica = mantidas_por_indice(ws, mantidas)
     clipes = montar_clipes(ws, fica, silencios(slug), edicao['fontes'][0]['duracao'], **parametros)
+    apertar_inicios(clipes, ws, pasta(slug) / 'audio.wav')
     mover = sel.get('mover') or []
     mover_clipes(clipes, mover, ws)
     edicao['cortes'] = {'mantidas': mantidas, 'duvidas': duvidas, 'parametros': parametros} | ({'mover': mover} if mover else {})

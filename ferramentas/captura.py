@@ -8,7 +8,8 @@ screencast pelo CDP, densidade forçada, reamostrado a 30 quadros/s, H.264 CRF 1
 
     uv run ferramentas/captura.py <url> [--proporcao 16:9|4:3|1:1|9:16] [--duracao 5] [--dobras 0,0.48] [--projeto slug]
 
-Sem --dobras: só a 1ª dobra, gravada desde a página em branco (pega o carregamento). Com --dobras: o topo de cada dobra
+Sem --dobras: só a 1ª dobra, gravada desde o 1º segundo depois da página pintar (pega as animações de entrada, sem o
+layout ainda assentando). Com --dobras: o topo de cada dobra
 (até 3), em fração da altura da página (0 a 1) ou em px de CSS (> 1); a do topo grava o carregamento, as outras pulam
 direto até a dobra com a página já carregada e gravam parada. Imprime o id de cada item criado no banco.
 """
@@ -31,6 +32,7 @@ import banco  # noqa: E402
 JANELAS = {'16:9': (1440, 810), '4:3': (1200, 900), '1:1': (1080, 1080), '9:16': (1200, 2133)}
 DENSIDADE = {'9:16': 1.8}  # as outras: 2×
 FPS = 30
+ASSENTAR = 1.0  # s do começo da dobra do topo que ficam de fora: o layout ainda muda
 MAX_DOBRAS = 3
 COOKIES = ('Accept all', 'Accept', 'Allow all', 'I agree', 'Got it', 'OK', 'Aceitar', 'Aceitar todos', 'Aceitar todos os cookies', 'Accept all cookies', 'Concordo', 'Entendi', 'Ok, entendi.')
 # pula até a dobra: fração da altura da página (≤ 1) ou px de CSS; devolve onde parou
@@ -121,7 +123,9 @@ async def _gravar(url: str, proporcao: str, y: float, duracao: float, saida: Pat
                     await asyncio.sleep(0.02)
                 if len(quadros) == antes:
                     raise SystemExit('O site não pintou nada em 15 s')
-                t0 = max(quadros[antes][0], t_nav)
+                # o 1º segundo fica de fora: a página ainda assenta (o layout muda) e o insert parecia ter um corte no meio
+                # (claude-mods v8 c5)
+                t0 = max(quadros[antes][0], t_nav) + ASSENTAR
                 await asyncio.sleep(max(0.0, duracao - (time.time() - t0)) + 0.3)
             else:
                 await page.goto(url, wait_until='load', timeout=60_000)

@@ -12,17 +12,16 @@ fala, em laço com crossfade e fade no fim). No final, −14 LUFS (o padrão do 
 
 | id | clima · BPM |
 |---|---|
-| `lofi-piano` | calmo, focado · 86 |
+| `lofi-piano` | calmo, focado · 86 · **tem voz** (0:15–0:19): evite |
 | `arpejo-suave` | leve, inspirador · 103 |
 | `pads-ambiente` | flutuante, reflexivo · 108 |
-| `chillhop` | descontraído · 92 |
-| `sinos-leves` | otimista, curioso · 118 |
+| `chillhop` | descontraído · 92 · **tem voz** (0:05 e 1:49): evite |
 | `cinematico` | pensativo, com tensão leve · 86 |
 | `grave-tech` | focado, escuro · 103 |
 | `piano-pulsante` | energia · 152 |
 
-  Tutorial/ferramenta → `lofi-piano`, `chillhop` ou `arpejo-suave`; notícia/novidade de IA → `sinos-leves` ou
-  `grave-tech`; opinião forte/polêmica → `cinematico`. Varie entre vídeos seguidos.
+  Tutorial/ferramenta → `arpejo-suave`; notícia/novidade de IA → `arpejo-suave`, `piano-pulsante` ou
+  `grave-tech` (o criador achou a `pads-ambiente` tosca); opinião forte/polêmica → `cinematico`. Varie entre vídeos seguidos.
 - **`voz.limpeza`**: `leve` (padrão, já feita no preparar). `media`/`forte` só se o ruído de fundo incomodar (pede
   rodar a limpeza de novo; veja o preparar). `voz.timbre`: `encorpada` (padrão: a voz do criador
   com o equilíbrio das VSLs de referência — mais grave, menos médio, mais ar; o microfone dele não pega o brilho) ·
