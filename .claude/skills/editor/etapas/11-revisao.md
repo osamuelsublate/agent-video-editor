@@ -46,6 +46,13 @@ em que algo mudou, e sai em ~1 min. Por isso:
   ordem em que ele comentou), e não todos e só no fim.
 - **O aviso no app** ("Claude aplicando…") acende com o `revisao.py ler` e apaga sozinho quando a versão nova chega:
   rode o `ler` de cada projeto (ou bloco) no momento em que começa a trabalhar nele.
+- **Cada render é uma versão de entrega, nunca um teste**: todo `render.py <slug>` vira a v(N+1) e sobe a versão de
+  cada bloco em que algo mudou. Confira antes, fora do projeto: o motion na página dele
+  (`render/motion.html?preset=…&formato=…&duracao=…`), a mídia e o recorte com o ffmpeg. Renderize quando o bloco
+  estiver pronto, uma vez.
+- **Fale em blocos, não na versão do vídeo**: o seletor do app numera cada bloco (só sobe quando ele muda). Nas
+  respostas e no chat, nada de "v10"; diga o bloco ("B1 e B2 prontos") e, para abrir, o link do projeto.
+  _design-por-imagem · 2026-10-28_
 - **Nunca apague uma versão** (`versoes/vN`): o app, os comentários e o histórico dos blocos dependem delas. Uma versão
   errada se corrige com a próxima.
 - **Não mexa no `edicao.json`** de um projeto enquanto um render ou um pré-render dele está fotografando a camada: o
