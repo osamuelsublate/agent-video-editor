@@ -31,6 +31,8 @@ uv run ferramentas/inserts.py motion <slug> <plano> --video <banco_id>     # um 
 ```
 Preencha os campos com o que a fala diz (o texto digitado é o da fala quando ela cita o prompt/o link: a digitação
 acompanha as palavras faladas).
+**Nunca o fundo vazio**: o motion já mostra algo no 1º quadro do plano. Num campo de palavra (`palavra1`…), a 1ª
+entra na 1ª palavra do plano, nunca no meio da frase com a tela parada no fundo até lá. _design-por-imagem v9 c4_
 
 ### Motion novo
 

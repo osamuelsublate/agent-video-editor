@@ -308,7 +308,8 @@ class Revisao {
   }
 
   /** As versões de cada bloco: o bloco só ganha versão nova quando o que há nele mudou de uma versão do vídeo para a
-   *  outra (as palavras que ficaram, os planos com o tipo, o texto e a mídia, os motions e os presets). Lido uma vez,
+   *  outra (as palavras que ficaram, os planos com o tipo, o texto e a mídia, os motions, os presets e o enriquecimento: o
+   *  ator, os ajustes, a legenda). Lido uma vez,
    *  na primeira escolha de bloco. `this.versoesBloco[id]`: [{bv, vs: [versões do vídeo com esse conteúdo]}]. */
   async carregarVersoesBlocos() {
     if (this.versoesBloco) return
@@ -324,7 +325,7 @@ class Revisao {
       const fim = prox ? (ws.find((w) => w.id === prox.palavra) || ws.find((w) => w.id > prox.palavra))?.ini ?? Infinity : Infinity
       const dentro = (a, b) => a < fim - 0.05 && b > ini + 0.05
       const midias = {}
-      for (const q of ed?.inserts?.pedidos || []) midias[q.plano] = [(q.midias || []).map((m) => m.banco || m.id), q.enriquecimento?.preset]
+      for (const q of ed?.inserts?.pedidos || []) midias[q.plano] = [(q.midias || []).map((m) => m.banco || m.id), q.enriquecimento ?? null, q.legenda_y ?? null]
       for (const [pl, m] of Object.entries(ed?.motions || {})) midias[pl] = [...(midias[pl] || []), m.preset || m.tipo, m.valores]
       return JSON.stringify([
         ws.filter((w) => dentro(w.ini, w.fim)).map((w) => w.id),
