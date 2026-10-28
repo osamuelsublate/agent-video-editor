@@ -38,15 +38,17 @@ uv run ferramentas/render.py <slug> --camadas     # em segundo plano (run_in_bac
 `escolher` usa as favoritas que o criador marcou por **situação** (modo de tela × nº de mídias × proporção, em
 `biblioteca/presets/ordem.json`). Ele imprime a escolha de cada insert e o motivo.
 
-**Sempre revise a escolha:** o `escolher` põe o 1º favorito da situação em todos, e quase toda tela dividida com 1 mídia
-cai no mesmo (no 1º teste, 9 de 12 inserts com "Corte seco"). Alterne entre os favoritos da situação (`presets.py listar`
-mostra as situações ★) para os inserts vizinhos não ficarem iguais.
+**Revise a escolha pela fala, não por variedade:** o `escolher` põe o 1º favorito da situação. Nos exemplos, o mais comum
+é justamente a mídia entrar no corte e ficar ("Corte seco", quase metade dos planos dos Reels), então repetir o Corte seco
+em inserts vizinhos está certo. Troque por outro preset só onde a fala pede algo que os exemplos mostram com aquele preset
+(um mergulho num detalhe citado, uma sequência que sobe uma mídia por cima da outra). **Nunca alterne presets só para os
+vizinhos não ficarem iguais**: era daí que vinham os mergulhos e zooms sem motivo.
 
 ## Quando trocar à mão
 
 Edite `inserts.pedidos[i].enriquecimento` no `edicao.json`:
-- `preset`: o id de outro preset que sirva (`presets.py listar`). Varie entre inserts vizinhos parecidos para o vídeo
-  não ficar repetitivo; mantenha o favorito nos inserts mais importantes (abertura, a ferramenta principal).
+- `preset`: o id de outro preset que sirva (`presets.py listar`), quando a fala pede o que ele faz (veja a edição dos
+  exemplos); não troque só para variar.
 - `ajustes` (só este insert; escolher a opção que o preset já é = não mexer):
 
 | id | opções | efeito |
