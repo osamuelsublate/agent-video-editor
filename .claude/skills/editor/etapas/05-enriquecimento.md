@@ -6,21 +6,6 @@ receitas genéricas que se adaptam ao nº de mídias, à proporção delas e à 
 
 > **Antes de começar, leia `biblioteca/aprendizados/enriquecimento.md` (+ `biblioteca/exemplos/<categoria>/aprendizados/enriquecimento.md`)**: o que o criador já corrigiu em vídeos anteriores. Não repita esses erros.
 
-## A referência: a edição dos exemplos
-
-Cada plano dos roteiros de exemplo da categoria (`biblioteca/exemplos/<categoria>/roteiros/*.md`, os mesmos da direção)
-diz como ele foi editado, logo abaixo da marcação:
-```
-[Tela dividida · insert: o terminal rodando /graphify]
-edição: Mergulho — no comando citado
-transição de saída: corte seco
-“tu pode simplesmente rodar o Graphify”
-```
-Antes de escolher, leia essas linhas: elas mostram, plano a plano, que preset o criador usa em cada tipo de fala, com
-que frequência a mídia se mexe e quando há zoom ou mergulho (quase sempre, nada: "Corte seco", "sem movimento"). Siga o
-padrão delas: zoom, mergulho e zoom no ator só onde a fala pede como nos exemplos (um detalhe citado, a virada), nunca
-para preencher.
-
 ## Rodar
 
 ```bash
@@ -38,17 +23,15 @@ uv run ferramentas/render.py <slug> --camadas     # em segundo plano (run_in_bac
 `escolher` usa as favoritas que o criador marcou por **situação** (modo de tela × nº de mídias × proporção, em
 `biblioteca/presets/ordem.json`). Ele imprime a escolha de cada insert e o motivo.
 
-**Revise a escolha pela fala, não por variedade:** o `escolher` põe o 1º favorito da situação. Nos exemplos, o mais comum
-é justamente a mídia entrar no corte e ficar ("Corte seco", quase metade dos planos dos Reels), então repetir o Corte seco
-em inserts vizinhos está certo. Troque por outro preset só onde a fala pede algo que os exemplos mostram com aquele preset
-(um mergulho num detalhe citado, uma sequência que sobe uma mídia por cima da outra). **Nunca alterne presets só para os
-vizinhos não ficarem iguais**: era daí que vinham os mergulhos e zooms sem motivo.
+**Sempre revise a escolha:** o `escolher` põe o 1º favorito da situação em todos, e quase toda tela dividida com 1 mídia
+cai no mesmo (no 1º teste, 9 de 12 inserts com "Corte seco"). Alterne entre os favoritos da situação (`presets.py listar`
+mostra as situações ★) para os inserts vizinhos não ficarem iguais.
 
 ## Quando trocar à mão
 
 Edite `inserts.pedidos[i].enriquecimento` no `edicao.json`:
-- `preset`: o id de outro preset que sirva (`presets.py listar`), quando a fala pede o que ele faz (veja a edição dos
-  exemplos); não troque só para variar.
+- `preset`: o id de outro preset que sirva (`presets.py listar`). Varie entre inserts vizinhos parecidos para o vídeo
+  não ficar repetitivo; mantenha o favorito nos inserts mais importantes (abertura, a ferramenta principal).
 - `ajustes` (só este insert; escolher a opção que o preset já é = não mexer):
 
 | id | opções | efeito |
@@ -75,9 +58,10 @@ peito. Rode uma vez por projeto, em segundo plano: `uv run ferramentas/recorte.p
 ## Full ator
 
 Em `inserts.ator_planos[<plano>]`: `zoom_lento` (+3 %/s, até +15 %, nunca para) ou `zoom_seco` (+18 % de uma vez, até o
-fim do plano). O centro é o rosto. **Padrão: sem movimento** (sem a chave), como na maioria dos Full ator dos exemplos
-("edição: sem movimento"). Movimento só onde os exemplos da categoria usam numa fala parecida (uma frase curta de impacto,
-a virada) — nunca pela duração do plano.
+fim do plano). O centro é o rosto. Proposta inicial (ajuste com as revisões do criador):
+- Full ator de 3 s ou mais → `zoom_lento`;
+- frase curta de impacto (conclusão, virada, "e o mais curioso é…") → `zoom_seco`;
+- dois Full ator seguidos (separados por um corte) não usam o mesmo movimento.
 
 ## Fundo e card do comentário
 

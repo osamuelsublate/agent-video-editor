@@ -396,7 +396,6 @@ export async function abrirHeuristica(tela) {
         <a class="link" href="#/calibragem/${encodeURIComponent(r.ref)}">abrir calibragem ↗</a></summary>
       <div class="roteiro">${r.linhas.map((l, k) => `<button class="linha-roteiro" data-k="${k}" ${l.inicio == null ? 'title="Sem os tempos deste trecho"' : `title="${tempo(l.inicio)}–${tempo(l.fim)} · clique para assistir"`}>
           <span class="marcacao"><i class="ponto ${l.tipo ? `tipo-${esc(l.tipo)}` : ''}"></i>${esc(l.marcacao)}</span>
-          ${l.edicao || l.transicao_saida ? `<span class="edicao-roteiro">${l.edicao ? `<b>edição</b> ${esc(l.edicao)}` : ''}${l.transicao_saida ? `${l.edicao ? ' · ' : ''}<b>saída</b> ${esc(l.transicao_saida)}` : ''}</span>` : ''}
           <span class="fala-roteiro">${l.fala ? falaComLettering(l.fala) : '<i class="apagado">(sem fala)</i>'}</span></button>`).join('')}</div>
     </details>`
   const desenhar = () => {
@@ -447,7 +446,6 @@ export async function abrirHeuristica(tela) {
     const { el } = janela(`<div class="player-linha"><video src="${urlRef(r.ref, 'proxy.mp4')}" controls playsinline></video>
         <div class="player-info"><div class="item-cabeca"><span class="dica">${esc(r.nome)} · ${tempo(l.inicio)}–${tempo(l.fim)}</span><span class="espaco"></span><button class="botao-icone" data-fechar title="Fechar (Esc)">${ICONE.fechar}</button></div>
           <p class="marcacao">${l.tipo ? `<i class="ponto tipo-${esc(l.tipo)}"></i>` : ''}${esc(l.marcacao)}</p>
-          ${l.edicao || l.transicao_saida ? `<p class="edicao-roteiro">${l.edicao ? `<b>edição</b> ${esc(l.edicao)}` : ''}${l.transicao_saida ? `${l.edicao ? ' · ' : ''}<b>saída</b> ${esc(l.transicao_saida)}` : ''}</p>` : ''}
           <p class="fala-roteiro">${l.fala ? falaComLettering(l.fala) : '(sem fala)'}</p></div></div>`, { classe: 'janela-linha', aoFechar: () => parar?.() })
     parar = tocarTrecho($('video', el), l.inicio, l.fim)
   })

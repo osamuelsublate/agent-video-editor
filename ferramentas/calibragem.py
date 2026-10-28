@@ -10,7 +10,6 @@ já editados do criador viram os roteiros dirigidos de exemplo que a direção l
     uv run ferramentas/calibragem.py analisar --id <id>            # o trabalho de fundo (o app dispara)
     uv run ferramentas/calibragem.py roteiros                      # reescreve exemplos/<categoria>/roteiros/*.md e favoritos.md
     uv run ferramentas/calibragem.py de-projeto <slug> [vN]        # a versão aprovada de um projeto vira referência
-    uv run ferramentas/calibragem.py edicao [<id> …]               # a edição (preset e transição de saída) nas que não a têm
     uv run ferramentas/calibragem.py categorias                    # as categorias de vídeo (Reels, Ad, VSL, YouTube, Aula…)
     uv run ferramentas/calibragem.py categoria <ref> <categoria>   # muda a categoria de uma referência
     uv run ferramentas/calibragem.py categoria-projeto <slug> <categoria>
@@ -27,10 +26,9 @@ com o andamento em `analise.passos`), video.<ext>, proxy.mp4, palavras.json, sil
 (o cache da análise por trecho), analise.json, direcao.json (`itens` revisáveis, `itens_ia`, `cortes`), quadros/.
 A análise: proxy → transcrição (ElevenLabs) → cortes de cena (PySceneDetect adaptativo) → uma chamada ao Gemini por trecho
 (vídeo com áudio, saída estruturada nas categorias fixas) → montagem → cada plano com insert assistido de novo, inteiro →
-a edição de cada plano (o preset do catálogo mais parecido com o que ocorreu e a transição de saída) → "a revisar". Uma referência por vez (a trava `_fila`); os trechos de cada uma vão 2 em paralelo.
+"a revisar". Uma referência por vez (a trava `_fila`); os trechos de cada uma vão 2 em paralelo.
 Um projeto aprovado também vira referência (`de_projeto`, id `prj-<slug>-vN`), sem análise: a direção já é conhecida.
 Ela leva `origem` e `revisoes` (os comentários do criador) no referencia.json e só ensina a direção depois de revisada.
-A edição dela vem exata do projeto (o preset e os ajustes, o motion, o zoom do Full ator, a transição de saída).
 
 Importado pelo servidor do app, que roda sem dependências: no topo, só biblioteca padrão (scenedetect e httpx só dentro
 das funções que os usam). Erros para o app: FileNotFoundError (referência que não existe) e ValueError (o resto), com a
@@ -80,9 +78,9 @@ PLANOS = {'full_ator': 'Full ator', 'full_ator_lettering': 'Full ator com letter
 PLANOS_COM_TEXTO = ('full_ator_lettering', 'comentario_insert_ator')  # o texto do lettering / do comentário fica no plano
 ELEMENTOS = {'lettering': 'Lettering', 'palavra_manychat': 'Palavra ManyChat', 'caixinha_perguntas': 'Caixinha de perguntas',
              'print_sobreposto': 'Print/imagem sobreposta'}
-PASSOS = ['proxy', 'transcricao', 'cenas', 'analise', 'montagem', 'inserts', 'edicao']
+PASSOS = ['proxy', 'transcricao', 'cenas', 'analise', 'montagem', 'inserts']
 ROTULOS = {'proxy': 'proxy', 'transcricao': 'transcrição', 'cenas': 'cortes de cena', 'analise': 'análise dos trechos',
-           'montagem': 'montagem', 'inserts': 'inserts', 'edicao': 'edição (preset e transição)'}
+           'montagem': 'montagem', 'inserts': 'inserts'}
 ANALISADAS = ('a_revisar', 'revisado')
 FIM_DE_FRASE = ('.', '?', '!', '…')
 
@@ -362,9 +360,7 @@ def validar_edicao(itens: list[dict], duracao: float) -> list[dict]:
         limpo = {'id': id, 'camada': camada, 'tipo': i['tipo'], 'conteudo': None, 'inicio': round(ini, 3), 'fim': round(fim, 3),
                  'descricao': str(i.get('descricao') or '').strip(), 'texto': (str(i['texto']).strip() or None) if i.get('texto') else None,
                  'miniatura': i.get('miniatura'), 'miniatura_t': i.get('miniatura_t'),
-                 **({'porque': str(i['porque']).strip()} if i.get('porque') else {}),  # o porquê das referências de projeto
-                 # a edição do plano: o preset (o que ocorreu, com uma explicação curta) e a transição de saída
-                 **{k: str(i[k]).strip() for k in ('edicao', 'transicao_saida') if camada == 'plano' and str(i.get(k) or '').strip()}}
+                 **({'porque': str(i['porque']).strip()} if i.get('porque') else {})}  # o porquê das referências de projeto
         (planos if camada == 'plano' else elementos).append(limpo)
     planos.sort(key=lambda p: p['inicio'])
     if not planos:
@@ -640,14 +636,11 @@ def roteiro(itens: list[dict], palavras: list[dict]) -> list[dict]:
     letterings = [i for i in itens if i['camada'] == 'elemento' and i['tipo'] == 'lettering']
     return [{'plano': p['id'], 'tipo': p['tipo'], 'inicio': p['inicio'], 'fim': p['fim'],
              'marcacao': marcacao(p, [e for e in elementos if p['inicio'] <= e['inicio'] < p['fim']]),
-             'edicao': p.get('edicao'), 'transicao_saida': p.get('transicao_saida'),
              'fala': _fala(palavras, p['inicio'], p['fim'], letterings)} for p in planos]
 
 
 def _bloco(linha: dict) -> str:
-    edicao = (f"edição: {linha['edicao']}\n" if linha.get('edicao') else '') + \
-        (f"transição de saída: {linha['transicao_saida']}\n" if linha.get('transicao_saida') else '')
-    return f"{linha['marcacao']}\n{edicao}" + (f"“{linha['fala']}”" if linha['fala'] else '(sem fala)')
+    return f"{linha['marcacao']}\n" + (f"“{linha['fala']}”" if linha['fala'] else '(sem fala)')
 
 
 def _minuto(t: float) -> str:
@@ -790,82 +783,6 @@ def no_tempo_da_saida(itens: list[dict], saida: list[dict], duracao: float) -> l
              'texto': x.get('texto') or None, **({'porque': x['porque']} if x.get('porque') else {})} for x in planos + elementos]
 
 
-def _nomes(pasta_json: Path) -> dict[str, str]:
-    """id → nome dos presets ou das transições da biblioteca (`<id>.json`)."""
-    out = {}
-    for arq in pasta_json.glob('*.json'):
-        d = ler_json(arq) or {}
-        if isinstance(d, dict) and d.get('id') and d.get('nome'):
-            out[d['id']] = d['nome']
-    return out
-
-
-def _nome_motion(pid: str) -> str:
-    for arq in (BIBLIOTECA / 'motions' / 'presets' / f'{pid}.html', BIBLIOTECA / 'motions' / 'presets' / '_recusados' / f'{pid}.html'):
-        if arq.is_file():
-            m = re.search(r'<script type="application/json" id="preset">(.*?)</script>', arq.read_text(encoding='utf-8'), re.S)
-            if m:
-                return (json.loads(m.group(1)) or {}).get('nome') or pid
-    return pid
-
-
-# os ajustes de um insert ditos em poucas palavras (só os que mudam algo; os nomes da tabela de 05-enriquecimento.md)
-AJUSTES_EM_PALAVRAS = {'camera': {'Parado': 'câmera parada', 'Leve': 'zoom lento leve', 'Mais': 'zoom lento'},
-                       'forma': {'Tela toda': 'tela toda', 'Card': 'em card'},
-                       'zoom': {'Mais': 'zoom maior', 'Menos': 'zoom menor'},
-                       'entrada': {'Rápida': 'entrada rápida', 'Lenta': 'entrada lenta'}}
-
-
-def edicao_do_projeto(edicao: dict) -> dict[str, dict]:
-    """A edição de cada plano de um projeto (`{plano: {edicao, transicao_saida}}`), exata, do edicao.json: o preset do
-    insert com os ajustes que mudam algo, o motion, o movimento do Full ator; a transição de saída é a que entra no plano
-    seguinte (`transicoes` guarda a transição no plano em que ela entra)."""
-    presets, transicoes = _nomes(BIBLIOTECA / 'presets'), _nomes(BIBLIOTECA / 'transicoes')
-    planos = [i for i in (edicao.get('direcao') or {}).get('itens') or [] if i.get('camada') == 'plano']
-    ins = edicao.get('inserts') or {}
-    pedidos = {x.get('plano'): x for x in ins.get('pedidos') or []}
-    motions, ator, trs = edicao.get('motions') or {}, ins.get('ator_planos') or {}, edicao.get('transicoes') or {}
-    out = {}
-    for k, p in enumerate(planos):
-        pid, tipo = p['id'], tipo_atual(p.get('tipo'), p.get('conteudo'))
-        if pid in motions:
-            m = motions[pid]
-            ed = f"motion {_nome_motion(m['preset'])}" if m.get('preset') else 'motion'
-        elif tipo.startswith('full_ator'):
-            ed = {'zoom_lento': 'zoom lento no ator', 'zoom_seco': 'zoom seco no ator'}.get(ator.get(pid), 'sem movimento')
-        elif pid in pedidos:
-            enr = pedidos[pid].get('enriquecimento') or {}
-            aj = [AJUSTES_EM_PALAVRAS[a][v] for a, v in (enr.get('ajustes') or {}).items() if v in AJUSTES_EM_PALAVRAS.get(a, {})]
-            n = len(pedidos[pid].get('midias') or [])
-            ed = presets.get(enr.get('preset'), 'sem preset') + (f" — {', '.join(([f'{n} mídias'] if n > 1 else []) + aj)}" if aj or n > 1 else '')
-        else:
-            ed = ''
-        seguinte = planos[k + 1]['id'] if k + 1 < len(planos) else None
-        tr = transicoes.get((trs.get(seguinte) or {}).get('id'), 'Corte seco') if seguinte else ''
-        out[pid] = {**({'edicao': ed} if ed else {}), **({'transicao_saida': tr} if tr else {})}
-    return out
-
-
-def preencher_edicao_projeto(id: str) -> int:
-    """Numa referência de projeto (`prj-…`), preenche a edição dos planos que ainda não a têm, do edicao.json da versão de
-    origem (o que o criador editou à mão fica). Devolve quantos planos ganharam."""
-    r = ler(id)
-    o = r.get('origem') or {}
-    ed = ler_json(PROJETOS / str(o.get('projeto')) / 'versoes' / f"v{o.get('versao')}" / 'edicao.json')
-    if not ed:
-        return 0
-    por_plano, base = edicao_do_projeto(ed), pasta(id)
-    dados = ler_json(base / 'direcao.json') or {}
-    n = 0
-    for i in dados.get('itens') or []:
-        if i.get('camada') == 'plano' and not i.get('edicao') and por_plano.get(i['id']):
-            i.update(por_plano[i['id']])
-            n += 1
-    if n:
-        gravar_json(base / 'direcao.json', dados)
-    return n
-
-
 def _revisoes(p: Path) -> dict[int, tuple[dict, Path]]:
     revs = {}
     for arq in (p / 'revisoes').glob('v*.json'):
@@ -900,10 +817,6 @@ def de_projeto(slug: str, versao: int | str | None = None) -> str:
     for i in itens:
         if i['camada'] == 'plano' and i['id'] in tocados:
             i['inicio'], i['fim'] = round(tocados[i['id']]['ini'], 3), round(tocados[i['id']]['fim'], 3)
-    por_plano = edicao_do_projeto(edicao)  # o preset, o motion, o zoom e a transição de saída de cada plano, exatos
-    for i in itens:
-        if i['camada'] == 'plano':
-            i.update(por_plano.get(i['id']) or {})
     itens = [ancorar(i, palavras) for i in validar_edicao(itens, dur)]
     v1 = ler_json(p / 'versoes' / 'v1' / 'edicao.json') or {}
     itens_ia = [ancorar(i, palavras) for i in no_tempo_da_saida((v1.get('direcao') or {}).get('itens') or [], saida, dur)]
@@ -1465,104 +1378,7 @@ def _inserts(id: str, base: Path):
     return {'blocos': len(blocos), 'tokens': tokens[0], **({'falhas': falhas} if falhas else {})}
 
 
-ESQUEMA_EDICAO = {
-    'title': 'EdicaoVista', 'type': 'object',
-    'properties': {'edicao': {'type': 'string', 'description': 'o preset do catálogo mais parecido com o que ocorreu, e depois de um travessão uma explicação curta'},
-                   'transicao_saida': {'type': 'string', 'description': 'a transição do catálogo no corte para o plano seguinte'}},
-    'required': ['edicao', 'transicao_saida']}
-
-PROMPT_EDICAO = """Você está vendo UM plano de um vídeo vertical curto já editado, do corte que o abre até logo depois do corte que o fecha (o último meio segundo, quando houver, já é o plano seguinte). O plano é: {tipo}. O que aparece nele: {descricao}
-
-Diga, curto, como ele foi EDITADO:
-- edicao: o nome do preset do catálogo abaixo que mais se parece com o que acontece com a mídia (como entra, se fica parada, se tem zoom lento, se mergulha num detalhe, se desliza, como sai). Só se houver movimento, acrescente depois de um travessão uma explicação curtíssima (até ~8 palavras) DO MOVIMENTO: em quê o zoom ou o mergulho, a rolagem, como entra ou sai. NUNCA repita o layout (tela dividida, tela cheia, apresentador embaixo) nem o conteúdo (o site, o texto, o card): isso já está na descrição. Num plano só com o apresentador: "sem movimento", "zoom lento no ator" ou "zoom seco no ator". Num motion: "motion" e, se houver, o movimento de câmera ("motion — zoom lento"). Se nenhum preset se parece, só o movimento, curto. Ex.: "Mergulho — no comando citado" · "Corte seco" · "Corte seco — rolagem lenta" · "sem movimento" · "motion".
-- transicao_saida: o nome da transição do catálogo no corte para o plano seguinte (o mais comum é "Corte seco"). Se o plano é o último do vídeo, "—".
-
-PRESETS (nome: o que faz):
-{presets}
-
-TRANSIÇÕES (nome: o que faz):
-{transicoes}"""
-
-
-def _catalogo(pasta_json: Path) -> str:
-    linhas = []
-    for arq in sorted(pasta_json.glob('*.json')):
-        d = ler_json(arq) or {}
-        if isinstance(d, dict) and d.get('nome') and d.get('aprovado', True) and d.get('id'):
-            linhas.append(f"- {d['nome']}: {(d.get('descricao') or '').split('. ')[0][:180]}")
-    return '\n'.join(linhas)
-
-
-def analisar_edicao(base: Path, plano: dict, duracao: float, catalogo: tuple[str, str]) -> tuple[dict, dict]:
-    """Assiste um plano (com o começo do seguinte) e devolve a edição dele: o preset e a transição de saída."""
-    video = base / 'proxy.mp4'
-    fim = min(plano['fim'] + 0.5, duracao)
-    with tempfile.TemporaryDirectory() as tmp:
-        tmp = Path(tmp)
-        if fim - plano['inicio'] < MIN_VIDEO_INSERT:
-            visto = gemini.bloco(quadro(video, (plano['inicio'] + plano['fim']) / 2, tmp / 'plano.jpg', 640), tmp)
-        else:
-            visto = gemini.bloco(_clipe(video, plano['inicio'], fim, tmp / 'plano.mp4'), tmp, preparado=True)
-        sistema = PROMPT_EDICAO.format(tipo=PLANOS.get(plano['tipo'], plano['tipo']), descricao=plano.get('descricao') or '—',
-                                       presets=catalogo[0], transicoes=catalogo[1])
-        r, uso = _perguntar(sistema, [{'type': 'text', 'text': 'O plano:'}, visto], ESQUEMA_EDICAO, 800, 120)
-    ed = {k: str(r.get(k) or '').strip()[:200] for k in ('edicao', 'transicao_saida')}
-    if ed['transicao_saida'] in ('—', '-'):
-        ed.pop('transicao_saida')
-    return {k: v for k, v in ed.items() if v}, uso
-
-
-def _edicao(id: str, base: Path):
-    """A edição de cada plano (o preset, o que ocorreu, e a transição de saída), assistindo cada um (3 por vez). Só os
-    planos que ainda não a têm: o que o criador corrigiu fica. Uma referência de projeto pega a edição exata do projeto."""
-    if (ler(id).get('origem') or {}).get('projeto'):
-        return {'planos': preencher_edicao_projeto(id)}
-    dados = ler_json(base / 'direcao.json')
-    dur = ler(id)['video']['duracao']
-    planos = [i for i in dados['itens'] if i['camada'] == 'plano' and not i.get('edicao')]
-    catalogo = (_catalogo(BIBLIOTECA / 'presets'), _catalogo(BIBLIOTECA / 'transicoes'))
-    falhas, tokens, feitos, trava = [], [0], [0], threading.Lock()
-
-    def um(p: dict) -> tuple[str, dict | None]:
-        try:
-            ed, uso = analisar_edicao(base, p, dur, catalogo)
-        except SemCredito:
-            raise
-        except Exception:
-            traceback.print_exc()
-            falhas.append(p['id'])
-            return p['id'], None
-        with trava:
-            tokens[0] += uso.get('total_tokens') or 0
-            feitos[0] += 1
-            _passo(id, 'edicao', progresso=round(feitos[0] / len(planos), 2), feitos=feitos[0], total=len(planos))
-        return p['id'], ed
-
-    _passo(id, 'edicao', feitos=0, total=len(planos))
-    feito = dict(_em_paralelo(um, planos, 3))
-    dados = ler_json(base / 'direcao.json')
-    for i in dados['itens']:
-        if feito.get(i['id']) and not i.get('edicao'):
-            i.update(feito[i['id']])
-    _gravar(base, 'direcao.json', dados)
-    return {'planos': len(planos), 'tokens': tokens[0], **({'falhas': falhas} if falhas else {})}
-
-
-def completar_edicao(ids: list[str] | None = None) -> None:
-    """A edição nas referências que já existem, sem refazer a análise: as de projeto pelo projeto; as outras pela passada
-    do Gemini, só nos planos sem ela. Reescreve os roteiros de exemplo no fim."""
-    for r in _todas():
-        if (ids and r['id'] not in ids) or r['status'] not in ANALISADAS:
-            continue
-        t = time.time()
-        extra = _edicao(r['id'], pasta(r['id']))
-        _passo(r['id'], 'edicao', status='pronto', segundos=round(time.time() - t, 1), **extra)
-        print(f"  {r['id']}: {_resumo(extra)} ({time.time() - t:.0f} s)", flush=True)
-    print(regenerar_exemplos())
-
-
-FAZER = {'proxy': _proxy, 'transcricao': _transcricao, 'cenas': _cenas, 'analise': _analise, 'montagem': _montagem, 'inserts': _inserts,
-         'edicao': _edicao}
+FAZER = {'proxy': _proxy, 'transcricao': _transcricao, 'cenas': _cenas, 'analise': _analise, 'montagem': _montagem, 'inserts': _inserts}
 
 
 def _resumo(extra: dict) -> str:
@@ -1643,14 +1459,9 @@ def main() -> None:
     pj = sub.add_parser('de-projeto', help='a versão aprovada de um projeto vira uma referência a revisar')
     pj.add_argument('slug')
     pj.add_argument('versao', nargs='?', help='vN (sem: a última aprovada, senão a última)')
-    ed = sub.add_parser('edicao', help='a edição (preset e transição de saída) nas referências que ainda não a têm')
-    ed.add_argument('ids', nargs='*', help='as referências (sem: todas as analisadas)')
     a = ap.parse_args()
 
-    if a.comando == 'edicao':
-        _mostrar[0] = True
-        completar_edicao(a.ids or None)
-    elif a.comando == 'listar':
+    if a.comando == 'listar':
         for r in listar_referencias():
             pct = f" {r['progresso']:.0%}" if r['progresso'] is not None else ''
             andamento = f" ({r['passo_rotulo']}{pct})" if r['passo'] else ''
