@@ -6,6 +6,21 @@ receitas genéricas que se adaptam ao nº de mídias, à proporção delas e à 
 
 > **Antes de começar, leia `biblioteca/aprendizados/enriquecimento.md` (+ `biblioteca/exemplos/<categoria>/aprendizados/enriquecimento.md`)**: o que o criador já corrigiu em vídeos anteriores. Não repita esses erros.
 
+## A referência: a edição dos exemplos
+
+Cada plano dos roteiros de exemplo da categoria (`biblioteca/exemplos/<categoria>/roteiros/*.md`, os mesmos da direção)
+diz como ele foi editado, logo abaixo da marcação:
+```
+[Tela dividida · insert: o terminal rodando /graphify]
+edição: Mergulho — no comando citado
+transição de saída: corte seco
+“tu pode simplesmente rodar o Graphify”
+```
+Antes de escolher, leia essas linhas: elas mostram, plano a plano, que preset o criador usa em cada tipo de fala, com
+que frequência a mídia se mexe e quando há zoom ou mergulho (quase sempre, nada: "Corte seco", "sem movimento"). Siga o
+padrão delas: zoom, mergulho e zoom no ator só onde a fala pede como nos exemplos (um detalhe citado, a virada), nunca
+para preencher.
+
 ## Rodar
 
 ```bash
@@ -58,10 +73,9 @@ peito. Rode uma vez por projeto, em segundo plano: `uv run ferramentas/recorte.p
 ## Full ator
 
 Em `inserts.ator_planos[<plano>]`: `zoom_lento` (+3 %/s, até +15 %, nunca para) ou `zoom_seco` (+18 % de uma vez, até o
-fim do plano). O centro é o rosto. Proposta inicial (ajuste com as revisões do criador):
-- Full ator de 3 s ou mais → `zoom_lento`;
-- frase curta de impacto (conclusão, virada, "e o mais curioso é…") → `zoom_seco`;
-- dois Full ator seguidos (separados por um corte) não usam o mesmo movimento.
+fim do plano). O centro é o rosto. **Padrão: sem movimento** (sem a chave), como na maioria dos Full ator dos exemplos
+("edição: sem movimento"). Movimento só onde os exemplos da categoria usam numa fala parecida (uma frase curta de impacto,
+a virada) — nunca pela duração do plano.
 
 ## Fundo e card do comentário
 

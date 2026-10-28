@@ -15,6 +15,10 @@ uv run ferramentas/transicoes.py variar <slug>     # cada corte recebe uma das 2
 
 Sem escolha, o corte usa a 1ª favorita do par. `variar` dá variedade sem sair do gosto do criador; rode sempre na v1.
 
+Depois confira contra os exemplos da categoria: cada plano dos roteiros (`biblioteca/exemplos/<categoria>/roteiros/*.md`)
+traz a `transição de saída` usada no corte para o seguinte. Onde eles usam efeito (luz, brilho) e onde é corte seco
+(quase sempre): ponha efeito só em cortes parecidos com os deles, e troque por `corte-seco` o que o `variar` enfeitou à toa.
+
 ## A biblioteca (7)
 
 | id | efeito | som |

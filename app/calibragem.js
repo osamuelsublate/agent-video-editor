@@ -506,6 +506,8 @@ class RevisaoReferencia {
         <label class="campo"><span class="eyebrow">Tipo</span><select data-campo="tipo">${Object.entries(tipos).map(([k, n]) => `<option value="${k}"${k === i.tipo ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select></label>
         ${texto ? `<label class="campo"><span class="eyebrow">${i.tipo === 'comentario_insert_ator' ? 'Texto do comentário' : 'Texto exato'}</span><input data-campo="texto" value="${esc(i.texto || '')}"></label>` : ''}
         <label class="campo"><span class="eyebrow">${COM_INSERT.includes(i.tipo) ? 'Marcação · o que acontece no insert' : 'Marcação'}</span><textarea data-campo="descricao" rows="7">${esc(i.descricao || '')}</textarea></label>
+        ${plano ? `<label class="campo"><span class="eyebrow" title="O preset mais parecido com o que ocorreu e, depois do travessão, uma explicação curta (ex.: Mergulho — zoom suave na linha citada)">Edição · preset</span><input data-campo="edicao" value="${esc(i.edicao || '')}" placeholder="ex.: Corte seco — tela toda, parado"></label>
+        <label class="campo"><span class="eyebrow">Transição de saída</span><input data-campo="transicao_saida" value="${esc(i.transicao_saida || '')}" placeholder="ex.: Corte seco"></label>` : ''}
         <div class="acoes-linha"><button class="botao pequeno" data-acao="ver">${ICONE.tocar} Ver trecho</button>
           <button class="botao pequeno" data-acao="excluir" ${unico ? 'disabled' : ''} title="${plano ? 'O plano some e o anterior (ou o seguinte) ocupa o lugar dele' : 'Tira o elemento'}">${ICONE.lixo} ${plano ? 'Juntar com o vizinho' : 'Excluir'}</button></div>
         <p class="erro-linha" id="erro-validacao" ${this.erro ? '' : 'hidden'}>${esc(this.erro || '')}</p>
