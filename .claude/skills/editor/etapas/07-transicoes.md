@@ -34,4 +34,13 @@ exatos dos dois planos; `transicoes.py variar` mostra). Use para dar peso a um m
 ou `zoom-desfoque`) ou para limpar excesso (três efeitos seguidos cansam: troque o do meio por `corte-seco`). Para voltar
 ao padrão, apague a chave.
 
+## Som em toda entrada
+
+Todo insert ou motion que entra tem som no corte. Se ele mesmo já soa no 1º instante (um preset com som de entrada, um
+motion que abre com pop), o corte fica seco; se entra mudo (o Corte seco só soa nas trocas internas), o corte ganha som
+sem efeito na imagem: `corte-camera`, ou `corte-clique` vindo da tela cheia e entre motions de uma mesma sequência.
+Entre dois planos que continuam a mesma imagem (o fim de um motion é o começo do outro), corte seco, sem som. As voltas
+ao Full ator ficam na 1ª favorita do par. Confira no `audio.json` da versão: nenhum corte para insert sem som e nenhum
+som sem algo mudando na tela. _design-por-imagem v15–v17_
+
 Tempo esperado: segundos.
