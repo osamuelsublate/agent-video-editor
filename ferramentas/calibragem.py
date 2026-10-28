@@ -88,7 +88,7 @@ ALTURA_QUADRO = 384  # até 384 px o Gemini cobra 258 tokens por imagem
 PARALELO = 2
 MIN_PLANO = 0.1
 MIN_VIDEO_INSERT = 1.0  # abaixo disso o Gemini recusa o vídeo: vai o quadro do meio
-VERSAO_ANALISE = 10  # a do 18: muda quando o prompt ou o que é enviado muda (os trechos guardados com outra são refeitos)
+VERSAO_ANALISE = 11  # muda quando o prompt ou o que é enviado muda (os trechos guardados com outra são refeitos); 11: a marcação mais longa, com a edição
 # da chave do cache do 18 (config do app dele): só o formato "video" foi portado
 FPS, FORMATO, GRADE = 2, 'video', '3x2'
 
@@ -1095,7 +1095,7 @@ ESQUEMA_TRECHO = {
                 'texto': {**_TEXTO_OU_NADA, 'description': 'Só para full_ator_lettering (texto exato do lettering) e comentario_insert_ator (texto exato do comentário)'},
                 'inicio': {'type': 'number', 'description': 'Segundos do vídeo (use os tempos t= dos quadros)'},
                 'fim': {'type': 'number'},
-                'descricao': {'type': 'string', 'description': 'A marcação do roteiro: só o que o nome do plano não diz (o que aparece e o que acontece), ligado à fala, em 1 a 2 frases; vazia se não houver nada além do plano'}},
+                'descricao': {'type': 'string', 'description': 'A marcação do roteiro: só o que o nome do plano não diz (o que aparece, o que acontece e como foi editado: entrada, zoom, mergulho, saída), ligado à fala, em 2 a 3 frases; vazia num full_ator sem nada de especial'}},
             'required': ['tipo', 'texto', 'inicio', 'fim', 'descricao']}},
         'elementos': {'type': 'array', 'items': {
             'title': 'ElementoIA', 'type': 'object',
@@ -1138,7 +1138,7 @@ ELEMENTOS (sobrepostos ao plano; podem durar menos que ele):
 IGNORE a legenda palavra a palavra queimada no vídeo (texto curto que acompanha a fala, uma ou poucas palavras por vez): ela é outra etapa e NÃO é lettering.
 Se o texto em destaque É o próprio motion em tela cheia (ex.: uma animação tipográfica sem o apresentador), ele já é o plano motion_tela_cheia: não crie um lettering repetindo-o. Lettering é texto SOBRE outro plano.
 
-MARCAÇÃO (o campo descricao, o mais importante): é a anotação de roteiro deste trecho, como um diretor anota ao lado da fala o que deve aparecer na tela. Ela vai virar uma linha `[plano: marcação]` acima da fala, então diga SÓ o que o nome do plano não diz: nunca descreva o layout (tela dividida, apresentador embaixo, conteúdo em cima, apresentador falando para a câmera — o plano já diz isso). Em 1 a 2 frases, diga o que aparece e o que acontece na tela (qual site, app, ferramenta, gráfico, texto; o que se mexe: entra, abre, digita, rola, dá zoom, destaca, troca), ligado ao que está sendo dito. Concreto e acionável, como instrução para quem vai editar; sem cores, texturas e posições. Num full_ator sem nada de especial, deixe vazia.
+MARCAÇÃO (o campo descricao, o mais importante): é a anotação de roteiro deste trecho, como um diretor anota ao lado da fala o que deve aparecer na tela. Ela vai virar uma linha `[plano: marcação]` acima da fala, então diga SÓ o que o nome do plano não diz: nunca descreva o layout (tela dividida, apresentador embaixo, conteúdo em cima, apresentador falando para a câmera — o plano já diz isso). Em 2 a 3 frases, diga o que aparece e o que acontece na tela (qual site, app, ferramenta, gráfico, texto; o que se mexe: entra, abre, digita, rola, dá zoom, destaca, troca), ligado ao que está sendo dito, e como foi editado: como o material entra (no corte, subindo, crescendo, desfocado), se fica parado ou tem zoom lento, se mergulha num detalhe (em qual), se o apresentador tem zoom, e como sai ou troca no corte seguinte. Concreto e acionável, como instrução para quem vai editar; sem cores, texturas e posições. Num full_ator sem nada de especial, deixe vazia.
 Exemplos de marcação: "em cima, o YouTube abrindo e alguém digitando 'IA' na busca; embaixo, o apresentador" · "o ChatGPT respondendo, com a lista de ferramentas aparecendo enquanto ele cita ChatGPT, Claude, Python, n8n…" · "motion minimalista: a pasta SKILL.md e o ícone do Claude saindo dela, enquanto ele fala 'eu criei uma skill'".
 Para elementos, diga o que é e o que destaca, em poucas palavras.
 
@@ -1150,7 +1150,7 @@ Regras:
 
 PROMPT_INSERT = """Você está vendo um bloco de INSERT de um vídeo vertical curto já editado: material real (site, página, ferramenta, vídeo, print) que aparece enquanto o criador fala.
 
-Escreva a MARCAÇÃO do roteiro para este bloco: conte o que acontece no insert, em ordem, como um editor contaria a outro — qual material aparece (o site, a página, a ferramenta, concretos), como entra, zooms (em quê), destaques (caixas, setas, blur), rolagens, trocas de um material para outro. 1 a 3 frases, concretas.
+Escreva a MARCAÇÃO do roteiro para este bloco: conte o que acontece no insert, em ordem, como um editor contaria a outro — qual material aparece (o site, a página, a ferramenta, concretos), como entra (no corte, subindo, crescendo, desfocado, num card ou na tela toda), se fica parado ou tem zoom lento, zooms e mergulhos (em quê, e em que palavra), destaques (caixas, setas, blur), rolagens, trocas de um material para outro e como sai. 2 a 4 frases, concretas.
 NÃO descreva o layout do plano (tela dividida, apresentador embaixo, conteúdo em cima, apresentador falando): o nome do plano já diz isso.
 O bloco tem {duracao:.1f} s."""
 
