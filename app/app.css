@@ -1487,3 +1487,7 @@ button.tag:hover { background: rgba(185, 166, 242, 0.26); }
 .mini-lixo > img, .mini-lixo > video { filter: grayscale(0.6) brightness(0.8); }
 .selo-tipo { position: absolute; left: 8px; top: 8px; z-index: 2; padding: 2px 8px; border-radius: var(--radius-full); background: var(--color-ink-85); color: var(--color-cream); font-size: 10.5px; font-weight: 600; }
 .acoes-lixo { display: flex; align-items: center; gap: 6px; }
+
+/* a edição de cada plano nos roteiros de exemplo (Heurística): o preset e a transição de saída, entre a marcação e a fala */
+.edicao-roteiro { display: block; margin: 2px 0 4px; padding-left: 16px; font-size: 12px; color: var(--color-mint); }
+.edicao-roteiro b { font-weight: 600; text-transform: uppercase; letter-spacing: .04em; font-size: 10px; opacity: .75; margin-right: 4px; }

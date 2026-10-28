@@ -767,8 +767,8 @@ def _categoria(q) -> str:
 
 
 def roteiros(cat: str = 'reels') -> list[dict]:
-    """Os roteiros de exemplo da categoria (exemplos/<categoria>/roteiros/<ref>.md), linha a linha: a marcação entre [ ]
-    e a fala. A linha k é o plano k da direção da referência (os roteiros são escritos dela, um bloco por plano): daí vêm
+    """Os roteiros de exemplo da categoria (exemplos/<categoria>/roteiros/<ref>.md), linha a linha: a marcação entre [ ],
+    a edição (o preset e a transição de saída, quando houver) e a fala. A linha k é o plano k da direção da referência (os roteiros são escritos dela, um bloco por plano): daí vêm
     o tipo e os tempos."""
     out = []
     for md in sorted((EXEMPLOS / cat / 'roteiros').glob('*.md')):
@@ -781,8 +781,14 @@ def roteiros(cat: str = 'reels') -> list[dict]:
             s = s.strip()
             if s.startswith('# '):
                 titulo = s[2:].strip()
+            elif s.startswith('## '):  # o fim dos planos (ex.: "O que o criador corrigiu nas revisões")
+                break
             elif s.startswith('[') and s.endswith(']'):
                 linhas.append({'marcacao': s[1:-1], 'fala': ''})
+            elif linhas and s.startswith('edição:'):
+                linhas[-1]['edicao'] = s[len('edição:'):].strip()
+            elif linhas and s.startswith('transição de saída:'):
+                linhas[-1]['transicao_saida'] = s[len('transição de saída:'):].strip()
             elif s and linhas:
                 linhas[-1]['fala'] = (linhas[-1]['fala'] + ' ' + s.strip('“”"')).strip()
         if len(planos) == len(linhas):
