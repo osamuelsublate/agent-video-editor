@@ -6,7 +6,7 @@ import { carregar, itemBanco } from './dados'
 import { montarSequencia } from './sequencia'
 import { paraTempo, palavrasNaSaida } from './direcaoProjeto'
 import { geometriaDoAtor, rostoDoArquivo } from './ator'
-import { centroDoMovimento, ehFullAtor } from './movimento'
+import { centroQueCentraliza, ehFullAtor, escalaFinal } from './movimento'
 import { divisaoDe, lugarDoComentario, type Divisao } from './divisao'
 import { chaveParada, pedidosNoTempo, receitaDoInsert } from './inserts'
 import { blocosDaLegenda, paraExportar, semOsLetterings, zonasDaLegenda } from './legenda'
@@ -264,7 +264,7 @@ async function iniciar() {
     movimentos: planos.flatMap((pl) => {
       const tipo = ehFullAtor(pl.tipo) ? ins.ator_planos?.[pl.id] : undefined
       if (!tipo) return []
-      const c = centroDoMovimento(rostoEm?.(pl.inicio, pl.fim))
+      const c = centroQueCentraliza(rostoEm?.(pl.inicio, pl.fim), escalaFinal(tipo, pl.fim - pl.inicio))
       return [{ ini: pl.inicio, fim: pl.fim, tipo, cx: c.x, cy: c.y }]
     }),
     sons: async () => {

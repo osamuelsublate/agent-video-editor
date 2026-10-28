@@ -26,3 +26,15 @@ export function escalaDoMovimento(m: Movimento, rel: number, dur: number): numbe
 
 /** O ponto que fica parado no zoom (fração do quadro): o centro do rosto; sem medida, um pouco acima do meio. */
 export const centroDoMovimento = (r: Rosto | null | undefined) => (r ? { x: r.cx, y: r.cy } : { x: 0.5, y: 0.4 })
+
+/** O ponto parado de um movimento que também traz o rosto para o meio da largura: com o rosto fora do centro (o ator se
+ *  mexeu na gravação), o zoom não o deixa no canto. Na escala final `escala`, o rosto vai para o meio até onde o quadro
+ *  ampliado ainda cobre a tela (o ponto parado fica entre 0 e 1). */
+export function centroQueCentraliza(r: Rosto | null | undefined, escala: number) {
+  const c = centroDoMovimento(r)
+  if (!r || escala <= 1) return c
+  return { x: Math.min(Math.max((0.5 - escala * r.cx) / (1 - escala), 0), 1), y: c.y }
+}
+
+/** A escala no fim do plano (a maior do movimento). */
+export const escalaFinal = (m: Movimento, dur: number) => escalaDoMovimento(m, dur, dur)

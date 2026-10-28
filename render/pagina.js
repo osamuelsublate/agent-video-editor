@@ -603,8 +603,22 @@
   }
 
   // src/movimento.ts
+  var ZOOM_LENTO = { porSegundo: 0.03, maximo: 0.15 };
+  var ZOOM_SECO = 0.18;
   var ehFullAtor = (tipo) => tipo.startsWith("full_ator");
+  function escalaDoMovimento(m, rel, dur) {
+    if (m === "zoom_seco") return 1 + ZOOM_SECO;
+    const a = Math.min(ZOOM_LENTO.porSegundo * dur, ZOOM_LENTO.maximo);
+    const u = Math.min(Math.max(rel / Math.max(dur, 0.01), 0), 1);
+    return 1 + a * (0.5 * u + 0.5 * u * u * (3 - 2 * u));
+  }
   var centroDoMovimento = (r) => r ? { x: r.cx, y: r.cy } : { x: 0.5, y: 0.4 };
+  function centroQueCentraliza(r, escala) {
+    const c = centroDoMovimento(r);
+    if (!r || escala <= 1) return c;
+    return { x: Math.min(Math.max((0.5 - escala * r.cx) / (1 - escala), 0), 1), y: c.y };
+  }
+  var escalaFinal = (m, dur) => escalaDoMovimento(m, dur, dur);
 
   // src/ajustes.ts
   var escalaTempo = (m, k) => m ? {
@@ -1975,7 +1989,7 @@ ${b}` };
       movimentos: planos.flatMap((pl) => {
         const tipo = ehFullAtor(pl.tipo) ? ins.ator_planos?.[pl.id] : void 0;
         if (!tipo) return [];
-        const c = centroDoMovimento(rostoEm?.(pl.inicio, pl.fim));
+        const c = centroQueCentraliza(rostoEm?.(pl.inicio, pl.fim), escalaFinal(tipo, pl.fim - pl.inicio));
         return [{ ini: pl.inicio, fim: pl.fim, tipo, cx: c.x, cy: c.y }];
       }),
       sons: async () => {
