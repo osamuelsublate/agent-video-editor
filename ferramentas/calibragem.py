@@ -808,7 +808,7 @@ def de_projeto(slug: str, versao: int | str | None = None) -> str:
     """A versão aprovada de um projeto (a última aprovada, senão a última; ou a dada) vira a referência `prj-<slug>-vN`,
     sem o Gemini: o proxy da versão, as palavras e a direção no tempo do vídeo final (`itens`), a da v1 para comparar
     (`itens_ia`) e os comentários das revisões. Fica "a revisar": só ensina a direção depois que o criador revisa.
-    Refazer substitui. Devolve o id."""
+    Refazer substitui; a referência de uma versão anterior do mesmo projeto vai para a lixeira. Devolve o id."""
     p = PROJETOS / str(slug)
     feitas = sorted(int(x.name[1:]) for x in p.glob('versoes/v*') if re.fullmatch(r'v\d+', x.name) and (x / 'proxy.mp4').exists())
     if not feitas:
@@ -873,6 +873,10 @@ def de_projeto(slug: str, versao: int | str | None = None) -> str:
     except BaseException:
         shutil.rmtree(base, ignore_errors=True)
         raise
+    # um projeto ensina por uma referência só: as de versões anteriores dele (aprovado de novo depois) vão para a lixeira
+    for velha in REFS.glob(f'prj-{slug}-v*'):
+        if velha.name != id and re.fullmatch(rf'prj-{re.escape(slug)}-v\d+', velha.name) and (velha / 'referencia.json').is_file():
+            apagar(velha.name)
     regenerar_exemplos()
     return id
 
