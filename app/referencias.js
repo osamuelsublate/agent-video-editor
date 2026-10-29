@@ -514,7 +514,7 @@ export async function abrirAprendizados(tela, area) {
       <div class="cabeca-secao"><span class="eyebrow">Aprendizados · ${esc(a.nome)}</span>${ajuda('O que o Claude aprendeu nesta área, vídeo a vídeo: o que você corrigiu (Do criador) e os erros técnicos dele (Técnicos), que valem para qualquer vídeo, e embaixo os seus gostos que valem só para uma categoria (Reels, VSL…). Ele lê o geral e o da categoria do vídeo antes de trabalhar na área. Os aprendizados entram quando um vídeo é aprovado; você também pode editá-los aqui.')}
         <div class="alternar">${['ler', 'editar'].map((m) => `<button class="pilula pequena${modoAprendizado === m ? ' ativa' : ''}" data-modo="${m}">${m === 'ler' ? 'Ler' : 'Editar'}</button>`).join('')}</div>
         ${modoAprendizado === 'editar' ? '<span class="dica">Grava ao sair da caixa.</span>' : ''}<span class="salvo" id="salvo-a"></span>
-        <a class="link link-regras" href="#/heuristica" title="Os aprendizados de direção (que plano, quando, abertura, ritmo) ficam nas Regras do criador, na Heurística">Direção → Regras do criador</a></div>
+        <a class="link link-regras" href="#/heuristica" title="Os princípios da direção (poucos) ficam nas Regras do criador, na Heurística; as lições específicas, na área Direção daqui">Princípios → Regras do criador</a></div>
       ${pilulasCategoria(cats, filtro)}
       ${corpo}</div></div>`
   }

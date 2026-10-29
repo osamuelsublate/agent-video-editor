@@ -58,9 +58,11 @@ criador corrigiu num vídeo não pode se repetir no próximo.
    - Um print ajuda quando o texto sozinho é ambíguo ("poluído", "card grande demais"): copie o anexo do comentário
      (`projetos/<slug>/revisoes/anexos/…`) ou um quadro do vídeo (ffmpeg) para `biblioteca/aprendizados/imagens/<prj>-<cN>.png`
      e mostre-o no bullet (um "certo" e um "errado" lado a lado é o melhor exemplo).
-   - Aprendizados de **direção** (que plano, quando, abertura, ritmo, lettering como decisão de roteiro) vão para as
-     **Regras do criador** em `biblioteca/exemplos/<categoria>/regras.md` (o criador também as edita na página Heurística do app), não para
-     esta pasta.
+   - Aprendizados de **direção** (que plano, quando, abertura, ritmo, lettering como decisão de roteiro) vão para a
+     área Direção: `biblioteca/aprendizados/direcao.md` (qualquer vídeo) ou `exemplos/<categoria>/aprendizados/direcao.md`
+     (o quadro), como as outras áreas. As **Regras do criador** (`exemplos/<categoria>/regras.md`, a Heurística do app)
+     são poucos princípios: só mexa nelas quando o criador disser que algo é um princípio ("regra geral", "sempre"), e
+     mantenha-as curtas (um princípio por linha, sem a origem). Muito texto ali faz a direção se perder.
    - Preset, transição, motion ou trilha que o criador não quer mais: tire das favoritas/recomendados (`ordem.json`) ou
      recuse (página Presets/Motions do app) — e anote o porquê no arquivo da área.
 
@@ -70,7 +72,7 @@ gostos daquele formato). As etapas leem os dois.
 | Área | Arquivo geral | Lido em |
 |---|---|---|
 | Cortes | `biblioteca/aprendizados/cortes.md` | `02-cortes.md` |
-| Direção | `biblioteca/exemplos/<categoria>/regras.md` (Regras do criador) | `03-direcao.md` |
+| Direção | `biblioteca/aprendizados/direcao.md` (os princípios: `exemplos/<categoria>/regras.md`) | `03-direcao.md` |
 | Inserts (busca, captura de tela, escolha da mídia) | `biblioteca/aprendizados/inserts.md` | `04-inserts.md` e o prompt dos subagentes |
 | Enriquecimento (presets, Full ator, fundo) | `biblioteca/aprendizados/enriquecimento.md` | `05-enriquecimento.md` |
 | Motions | `biblioteca/aprendizados/motions.md` | `06-…` e o prompt do subagente de motion |

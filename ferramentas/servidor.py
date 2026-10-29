@@ -69,7 +69,7 @@ from base import (APRENDIZADOS, BIBLIOTECA, CATEGORIA_PADRAO, EXEMPLOS, PROJETOS
 PORTA = 8719
 PUBLICOS = ('app', 'render', 'projetos', 'biblioteca')
 FONTES_DO_MAC = {'pro': 'SFNS.ttf', 'rounded': 'SFNSRounded.ttf', 'mono': 'SFNSMono.ttf'}  # não vão para o git
-AREAS = {'cortes': 'Cortes', 'inserts': 'Inserts', 'enriquecimento': 'Enriquecimento', 'motions': 'Motions', 'elementos': 'Elementos',
+AREAS = {'direcao': 'Direção', 'cortes': 'Cortes', 'inserts': 'Inserts', 'enriquecimento': 'Enriquecimento', 'motions': 'Motions', 'elementos': 'Elementos',
          'transicoes': 'Transições', 'audio': 'Áudio', 'legenda': 'Legenda', 'render': 'Render'}
 IMAGEM = re.compile(r'^[\w.-]+\.(png|jpe?g|webp|gif)$', re.I)
 REFERENCIAS = BIBLIOTECA / 'referencias'
