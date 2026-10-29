@@ -344,6 +344,21 @@ class Revisao {
       })
       this.versoesBloco[def.id] = l
     })
+    // o bloco Final da saída aberta: como um bloco, com versões. Num CTA à parte, a versão é a do projeto do CTA que a
+    // prévia daquela versão do vídeo plugou (Final · v4 = o CTA na v4); num final falado, sobe quando a fala dele muda
+    const sx = this.saidaAtual()
+    if (sx && this.blocos?.some((b) => b.final)) {
+      const infos = await Promise.all(vs.map((x) => json(`/projetos/${s}/versoes/v${x}/saidas/${encodeURIComponent(sx.id)}/info.json`, null)))
+      const l = []
+      vs.forEach((x, i) => {
+        const f = infos[i]
+        if (!f) return
+        const a = f.cta ? `${f.cta}@${f.cta_versao}` : JSON.stringify([f.final, Math.round((f.duracao - f.corpo) * 4)])
+        if (l.at(-1)?.a === a) l.at(-1).vs.push(x)
+        else l.push({ bv: f.cta && f.cta_versao ? f.cta_versao : l.length + 1, a, vs: [x] })
+      })
+      if (l.length) this.versoesBloco.Final = l
+    }
   }
 
   aprovarBloco(id) {
@@ -717,6 +732,7 @@ class Revisao {
   async trocarSaida(id) {
     preferencia(`saida.${this.slug}`, null, id || null)
     this.saidaId = id || null
+    this.versoesBloco = null // as versões do Final são da saída: refeitas para a nova (o que já foi lido fica em memória)
     this.dir = this.saidaAtual()?.info ? `${this.base}saidas/${this.saidaId}/` : this.base // a sem final é o próprio corpo
     const t = this.video.currentTime
     const [palavras, planos, info] = await Promise.all([json(this.dir + 'palavras.json', []), json(this.dir + 'planos.json', []), json(this.dir + 'info.json', {})])

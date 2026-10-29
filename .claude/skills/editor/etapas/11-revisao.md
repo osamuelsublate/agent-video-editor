@@ -99,7 +99,14 @@ bloco **Final** dela. Um comentário feito no Final tem `saida` no JSON e o `ler
   novo (`12-final.md`): é esse arquivo que todas as saídas plugam.
 - Um comentário do corpo vale para todas as saídas.
 
-O render do projeto já traz a prévia de cada saída na versão nova (`versoes/vN/saidas/<id>/`).
+O render do projeto já traz a prévia de cada saída na versão nova (`versoes/vN/saidas/<id>/`, com o `info.json` dizendo
+qual versão do CTA ela plugou: `cta_versao`).
+
+**O Final é um bloco como os outros, com versões.** No seletor de cima, com a saída aberta, ele mostra `Final · vN`:
+num CTA à parte, N é a versão do projeto do CTA que aquela prévia plugou (Final · v4 = o CTA na v4); num final falado,
+sobe quando a fala dele muda. Por isso, depois de renderizar o CTA, **renderize o corpo de novo** (a versão nova só
+remonta as saídas, em segundos): sem isso a prévia continua com o CTA anterior e o criador não vê a correção. Responda
+os comentários do Final na revisão do corpo (é onde eles estão), como os de qualquer bloco. _design-por-imagem v27 · 2026-10-28_
 
 ## Aprendizados: ler sempre, gravar só na conclusão
 
