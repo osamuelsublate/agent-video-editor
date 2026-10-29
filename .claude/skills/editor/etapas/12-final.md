@@ -33,6 +33,9 @@ uv run ferramentas/render.py <slug> --final
   uma sai em `final/<nome> - <destino>.mp4` + `.md`: a falada renderizada em 4K com o final; a de CTA, o final do
   corpo emendado no final **pré-exportado** do CTA (`encaixar.py`, com a transição destacada: só a emenda e o áudio, o CTA não é renderizado; sem o final do CTA, exporte-o antes); a sem
   final, o corpo com o nome da saída. Exportar de novo substitui o arquivo da saída. É essa pasta que a `publicar` usa.
+  **Exportar as saídas inclui o corpo sozinho**: se o projeto ainda não tem uma saída sem final, crie
+  (`cortes.py saida <slug> "Corpo" --nenhum`) e exporte junto (`render.py <slug> --final --saida corpo`); sai em segundos
+  do corpo em 4K do cache. _design-por-imagem · 2026-10-28_
 - **Corpo aprovado no app** (card ou revisão): o app já fotografa a camada em 4K em segundo plano
   (`servidor.pre_render_final`, `render.py <slug> --camadas --final`, log em `.cache/export-final.log`); o export das
   saídas que o criador pedir só monta. Aprovado pelo chat, rode você o mesmo em segundo plano.
