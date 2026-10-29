@@ -2,6 +2,9 @@
 
 Você decide **quais palavras ficam**, pelo ID. O código transforma isso em trechos, com as bordas caindo em pausas reais
 do áudio (margens de 100 ms; pausas maiores que 2 s dentro de um trecho são cortadas). Nada é reescrito nem inventado.
+Os limites ficam em `edicao.json → cortes.parametros` (`pausa_max`, `folga_inicio`, `folga_fim`), não na `selecao.json`: o
+`cortes.py aplicar` lê os guardados ali. Para mudar (num CTA, pausas de no máximo 0,35 s), edite `cortes.parametros` e
+rode `aplicar` de novo; confira no `palavras.json` da versão que as pausas caíram. _design-por-imagem v27 c2 · 2026-10-28_
 
 > **Antes de começar, leia `biblioteca/aprendizados/cortes.md` (+ `biblioteca/exemplos/<categoria>/aprendizados/cortes.md`)**: o que o criador já corrigiu em vídeos anteriores. Não repita esses erros.
 
