@@ -866,7 +866,7 @@ def de_projeto(slug: str, versao: int | str | None = None) -> str:
             'formato': 'vertical', 'video': {'arquivo': 'proxy.mp4', 'nome_original': f'projetos/{slug}/versoes/v{n}/proxy.mp4', **info},
             'status': 'a_revisar', 'erro': None, 'analise': {'passos': {x: {'status': 'pronto'} for x in PASSOS}},
             'origem': {'projeto': slug, 'versao': n, 'aprovado_em': aprovado_em}, 'revisoes': revisoes,
-            'tipo': categoria_de(edicao, 'formato')})  # a categoria do projeto: ensina a direção dos projetos da mesma
+            'tipo': categoria_de(ler_json(p / 'edicao.json') or edicao, 'formato')})  # a categoria do projeto (a de agora, não a da versão): ensina a direção dos projetos da mesma
         for i in itens:
             _miniatura(base, i)
         gravar_json(base / 'direcao.json', {'itens': itens, 'itens_ia': itens_ia, 'cortes': cortes})
