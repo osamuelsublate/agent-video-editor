@@ -4,7 +4,7 @@
 import { $, $$, ESTRELA_CHEIA, ICONE, achaBusca, ajuda, aviso, chipCodigo, codigos, enviar, esc, janela, markdown, nomePlano, preferencia, seg, semAcento, tempo, tocarTrecho, urlRef } from './comum.js'
 import { jsons } from './biblioteca.js'
 import { barraDeTags, datalistTags, htmlTagsCard, ligarTags, tagEscolhida, temTag } from './tags.js'
-import { botaoCategorias, carregarCategorias, editarCategorias, pilulasCategoria, rotuloCategoria } from './categorias.js'
+import { CATEGORIA_PADRAO, botaoCategorias, carregarCategorias, editarCategorias, pilulasCategoria, rotuloCategoria } from './categorias.js'
 
 // o ícone de cada grupo nos chips (o IconeGrupo do 18)
 const ICONE_GRUPO = { todos: 'grade', dividida: 'duasFaixas', cheia: 'celular', ator: 'pessoa', comentario: 'balaoTexto' }
@@ -69,7 +69,7 @@ export async function abrirReferencias(tela) {
   // o Full ator (com e sem lettering) só entra com o chip dele: nos outros (e em Todos) ele polui a grade
   const comAtor = () => filtro === 'ator'
   const semTag = () => clipes.filter((c) => (!busca || acha(c)) && SO_ATOR.includes(c.tipo) === comAtor()
-    && (comAtor() || conteudo === 'todos' || conteudoDo(c.tipo) === conteudo) && (!categoria || (c.tipo_video || 'reels') === categoria))
+    && (comAtor() || conteudo === 'todos' || conteudoDo(c.tipo) === conteudo) && (!categoria || (c.tipo_video || CATEGORIA_PADRAO) === categoria))
   const base = () => semTag().filter((c) => !tagAtiva || temTag(c.tags, tagAtiva))
   const card = (c, k) => `<article class="card-clipe" data-k="${k}">
       <div class="mini mini-916">${c.miniatura ? `<img src="${c.miniatura}" alt="" loading="lazy">` : ''}
@@ -91,7 +91,7 @@ export async function abrirReferencias(tela) {
     const ativos = grupos
     if (filtro !== 'todos' && filtro !== 'favoritos' && !ativos.some(([id]) => id === filtro)) filtro = 'todos'
     // a contagem do Full ator vem de fora da grade (que, fora do chip dele, não tem Full ator)
-    const nAtor = clipes.filter((c) => SO_ATOR.includes(c.tipo) && (!busca || acha(c)) && (!categoria || (c.tipo_video || 'reels') === categoria)).length
+    const nAtor = clipes.filter((c) => SO_ATOR.includes(c.tipo) && (!busca || acha(c)) && (!categoria || (c.tipo_video || CATEGORIA_PADRAO) === categoria)).length
     const tiposDo = grupos.find(([id]) => id === filtro)?.[2]
     visiveis = l.filter((c) => (filtro === 'favoritos' ? c.favorito : !tiposDo || tiposDo.includes(c.tipo)))
     const dur = (c) => c.fim - c.inicio
@@ -377,8 +377,8 @@ export async function abrirHeuristica(tela) {
   tela.className = 'pagina pagina-heuristica'
   // uma heurística por categoria de vídeo (Reels, Ad…), escolhida nas pílulas do topo
   let cats = await carregarCategorias()
-  let categoria = preferencia('heuristica.categoria', 'reels')
-  if (!cats.some((c) => c.id === categoria)) categoria = 'reels'
+  let categoria = preferencia('heuristica.categoria', CATEGORIA_PADRAO)
+  if (!cats.some((c) => c.id === categoria)) categoria = CATEGORIA_PADRAO
   let h
   const ler = async () => (h = await enviar('GET', `/api/heuristica?categoria=${encodeURIComponent(categoria)}`))
   try {
@@ -395,7 +395,7 @@ export async function abrirHeuristica(tela) {
       <summary>${ICONE.seta_baixo}<b>${esc(r.nome)}</b><span class="dica">${r.linhas.length} linhas${r.revisado ? ' · ✓ revisado' : ''}</span>
         <a class="link" href="#/calibragem/${encodeURIComponent(r.ref)}">abrir calibragem ↗</a></summary>
       <div class="roteiro">${r.linhas.map((l, k) => `<button class="linha-roteiro" data-k="${k}" ${l.inicio == null ? 'title="Sem os tempos deste trecho"' : `title="${tempo(l.inicio)}–${tempo(l.fim)} · clique para assistir"`}>
-          <span class="marcacao"><i class="ponto ${l.tipo ? `tipo-${esc(l.tipo)}` : ''}"></i>${esc(l.marcacao)}</span>
+          <span class="marcacao"><i class="ponto ${l.tipo ? `tipo-${esc(l.tipo)}` : ''}"></i>${esc(l.marcacao)}${l.ref ? ` <span class="ref-corte" title="A ref deste corte: a direção a cita para modelar o plano">${esc(l.ref)}</span>` : ''}</span>
           <span class="fala-roteiro">${l.fala ? falaComLettering(l.fala) : '<i class="apagado">(sem fala)</i>'}</span></button>`).join('')}</div>
     </details>`
   const desenhar = () => {
@@ -419,7 +419,7 @@ export async function abrirHeuristica(tela) {
   tela.addEventListener('click', async (e) => {
     const c = e.target.closest('[data-categoria]')
     if (c) {
-      categoria = preferencia('heuristica.categoria', 'reels', c.dataset.categoria)
+      categoria = preferencia('heuristica.categoria', CATEGORIA_PADRAO, c.dataset.categoria)
       await ler().catch((x) => aviso(x.message, 'erro'))
       return desenhar()
     }
@@ -445,7 +445,7 @@ export async function abrirHeuristica(tela) {
     let parar = null
     const { el } = janela(`<div class="player-linha"><video src="${urlRef(r.ref, 'proxy.mp4')}" controls playsinline></video>
         <div class="player-info"><div class="item-cabeca"><span class="dica">${esc(r.nome)} · ${tempo(l.inicio)}–${tempo(l.fim)}</span><span class="espaco"></span><button class="botao-icone" data-fechar title="Fechar (Esc)">${ICONE.fechar}</button></div>
-          <p class="marcacao">${l.tipo ? `<i class="ponto tipo-${esc(l.tipo)}"></i>` : ''}${esc(l.marcacao)}</p>
+          <p class="marcacao">${l.tipo ? `<i class="ponto tipo-${esc(l.tipo)}"></i>` : ''}${esc(l.marcacao)}${l.ref ? ` <span class="ref-corte">${esc(l.ref)}</span>` : ''}</p>
           <p class="fala-roteiro">${l.fala ? falaComLettering(l.fala) : '(sem fala)'}</p></div></div>`, { classe: 'janela-linha', aoFechar: () => parar?.() })
     parar = tocarTrecho($('video', el), l.inicio, l.fim)
   })

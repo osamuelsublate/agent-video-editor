@@ -27,7 +27,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 import banco  # noqa: E402
-from base import BIBLIOTECA, EXEMPLOS, RAIZ, gravar, ler, ler_json, pasta  # noqa: E402
+from base import BIBLIOTECA, CATEGORIA_PADRAO, EXEMPLOS, RAIZ, gravar, ler, ler_json, pasta  # noqa: E402
 from cortes import num, seg  # noqa: E402
 from direcao import PLANOS, saida_do, tempos  # noqa: E402
 
@@ -228,12 +228,12 @@ def _briefs(slug: str) -> Path:
 
 def _exemplos(edicao: dict) -> Path:
     """A pasta da categoria do vídeo (`exemplos/<categoria>/`), onde moram os aprendizados dela (`aprendizados/<área>.md`)."""
-    return EXEMPLOS / (edicao.get('formato') or 'reels')
+    return EXEMPLOS / (edicao.get('formato') or CATEGORIA_PADRAO)
 
 
 def _categoria(edicao: dict) -> str:
     """O nome da categoria do vídeo (Reels, VSL…), dito aos subagentes junto com os aprendizados dela."""
-    cat = edicao.get('formato') or 'reels'
+    cat = edicao.get('formato') or CATEGORIA_PADRAO
     lista = ler_json(BIBLIOTECA / 'categorias-video.json', None) or []
     return next((c['nome'] for c in lista if c.get('id') == cat), cat)
 
@@ -276,6 +276,8 @@ def briefs(slug: str, grupo: int, contexto: str | None, todos: bool) -> None:
             blocos.append(f'- {x["plano"]} · {PLANOS.get(pl["tipo"], pl["tipo"])} · proporção {prop} · {num(b - a, 1)} s\n'
                           f'  Fala: "{x.get("fala", "")}"\n  Mostrar: {pl.get("descricao") or "—"}'
                           + (f' «{pl["texto"]}»' if pl.get('texto') else '')
+                          + (f'\n  Modelar como: {", ".join(pl["refs"])} (abra cada uma com `uv run ferramentas/codigo.py <ref>`: o trecho do vídeo de referência; '
+                             'procure um material que permita fazer na linha dela)' if pl.get('refs') else '')
                           + (f'\n  (já tem: {", ".join(m["banco"] for m in x["midias"])})' if x.get('midias') else ''))
         arq = destino / f'inserts-{n}.md'
         arq.write_text(modelo.format(n=len(g), raiz=RAIZ, slug=slug, contexto=texto_contexto, pedidos='\n'.join(blocos),
@@ -301,7 +303,12 @@ def motion_brief(slug: str, plano: str, preset: str, duracao: float | None, pedi
         raiz=RAIZ, preset=preset, projeto=slug, pedido=pl.get('descricao') or pedido_extra or '—', formato='dividida' if dividida else 'vertical',
         categoria=_categoria(edicao), exemplos=_exemplos(edicao),
         palco='1080×960, a metade de cima; o ator fica embaixo' if dividida else '1080×1920, a tela toda',
-        duracao=num(duracao or (b - a), 1), fala=fala, extra=f'Mais: {pedido_extra}' if pedido_extra else '')
+        duracao=num(duracao or (b - a), 1), fala=fala,
+        extra='\n'.join(x for x in [f'Mais: {pedido_extra}' if pedido_extra else '',
+                                     f'Modele na linha destas refs da Calibragem: {", ".join(pl["refs"])}. Antes de escrever, abra cada uma '
+                                     '(`uv run ferramentas/codigo.py <ref>` dá o vídeo e o intervalo; tire 4 a 6 quadros do trecho com o ffmpeg e '
+                                     'olhe-os) e recrie o que ela faz (composição, como entra, o movimento), com o conteúdo deste plano.'
+                                     if pl.get('refs') else ''] if x))
     arq = _briefs(slug) / f'motion-{plano}.md'
     arq.write_text(texto, encoding='utf-8')
     print(arq)

@@ -8,7 +8,7 @@ import { abrirCalibragem, abrirRevisaoReferencia } from './calibragem.js'
 import { abrirAprendizados, abrirHeuristica, abrirReferencias } from './referencias.js'
 import { abrirLixeira } from './lixeira.js'
 import { barraDeTags, datalistTags, htmlTagsCard, ligarTags, tagEscolhida, temTag } from './tags.js'
-import { botaoCategorias, carregarCategorias, categoriaCta, editarCategorias, pilulasCategoria, seletorCategoria } from './categorias.js'
+import { CATEGORIA_PADRAO, botaoCategorias, carregarCategorias, categoriaCta, editarCategorias, pilulasCategoria, seletorCategoria } from './categorias.js'
 
 const ESTADOS = {
   em_revisao: ['Em revisão', 'selo-coral'],
@@ -76,7 +76,7 @@ async function inicio(tela, ctas = false) {
   const [todos, cods] = await Promise.all([json('/api/projetos', []), codigos()])
   // a categoria do projeto (edicao.formato: Reels, Ad…): filtra a lista e troca no card
   let cats = await carregarCategorias()
-  const daPagina = (p) => categoriaCta(cats, p.formato || 'reels') === ctas
+  const daPagina = (p) => categoriaCta(cats, p.formato || CATEGORIA_PADRAO) === ctas
   let verOcultos = false // a vista dos ocultos: os projetos que saíram da lista
   const naVista = () => todos.filter((p) => daPagina(p) && !!p.oculto === verOcultos)
   let projetos = naVista()
@@ -100,11 +100,11 @@ async function inicio(tela, ctas = false) {
       <p class="sub" title="${esc(p.slug)}">${quandoFoi(p.atualizado)} · ${p.conclusao != null ? `${p.conclusao}% concluído` : `v${p.ultima}`}${p.comentarios ? ` · ${p.comentarios} ${p.comentarios === 1 ? 'comentário' : 'comentários'}` : ''}</p>
     </a><div class="centro-mini"><button class="tocar-card" data-tocar-card title="Tocar com som (clique de novo para pausar)" aria-label="Tocar ${esc(p.nome)}">${ICONE.tocar}</button></div>
     <div class="sobre-mini">${nSaidas(p) ? `<span class="chip-saidas">${nSaidas(p)} ${nSaidas(p) === 1 ? 'saída' : 'saídas'}${p.saidas_novas?.length
-      ? `<span class="dica-saidas">${p.saidas_novas.map((x) => `<span>${esc(x.destino)}${x.aprovado ? ' ✓' : ''}</span>`).join('')}</span>` : ''}</span>` : ''}${seletorCategoria(cats, p.formato || 'reels')}${p.duracao ? `<span class="duracao-mini">${mmss(p.duracao)}</span>` : ''}</div>
+      ? `<span class="dica-saidas">${p.saidas_novas.map((x) => `<span>${esc(x.destino)}${x.aprovado ? ' ✓' : ''}</span>`).join('')}</span>` : ''}</span>` : ''}${seletorCategoria(cats, p.formato || CATEGORIA_PADRAO)}${p.duracao ? `<span class="duracao-mini">${mmss(p.duracao)}</span>` : ''}</div>
     <div class="pe-projeto">${htmlTagsCard(p.tags)}${chipCodigo(cods.projeto?.[p.slug], p.nome)}</div></div>`
   }
   // as tags (como no Banco): a barra à esquerda conta os projetos da categoria escolhida e filtra a lista
-  const daCategoria = () => projetos.filter((p) => !filtro || (p.formato || 'reels') === filtro)
+  const daCategoria = () => projetos.filter((p) => !filtro || (p.formato || CATEGORIA_PADRAO) === filtro)
   let tagAtiva = ''
   const lista = () => {
     const l = daCategoria().filter((p) => !tagAtiva || temTag(p.tags, tagAtiva))
@@ -120,7 +120,7 @@ async function inicio(tela, ctas = false) {
   const desenhar = () => {
     projetos = naVista() // trocar a categoria no card leva o projeto para a outra página; ocultar, para os Ocultos
     $('.cabeca-secao .eyebrow', tela).textContent = `${titulo} · ${String(projetos.length).padStart(2, '0')}`
-    $('.filtro-categorias', tela).innerHTML = pilulasCategoria(catsDaPagina(), filtro, { contar: (id) => projetos.filter((p) => !id || (p.formato || 'reels') === id).length })
+    $('.filtro-categorias', tela).innerHTML = pilulasCategoria(catsDaPagina(), filtro, { contar: (id) => projetos.filter((p) => !id || (p.formato || CATEGORIA_PADRAO) === id).length })
       + `<button class="pilula pequena${verOcultos ? ' ativa' : ''}" data-ver-ocultos title="${verOcultos ? 'Voltar à lista' : 'Os projetos que você ocultou'}">${ICONE.olhoFechado} Ocultos <span class="conta">${todos.filter((p) => daPagina(p) && p.oculto).length}</span></button>`
       + botaoCategorias()
     const itens = daCategoria().map((p) => ({ chave: p.slug, tags: p.tags }))
@@ -319,7 +319,7 @@ window.addEventListener('abas-projetos', desenharAbas)
 Promise.all([json('/api/projetos', []), carregarCategorias()]).then(([ps, cats]) => {
   for (const a of abasAbertas()) {
     const p = ps.find((x) => x.slug === a.slug)
-    if (p) abrirAba(a.slug, a.nome, categoriaCta(cats, p.formato || 'reels'))
+    if (p) abrirAba(a.slug, a.nome, categoriaCta(cats, p.formato || CATEGORIA_PADRAO))
   }
 })
 window.addEventListener('storage', desenharAbas)

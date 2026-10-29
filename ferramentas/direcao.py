@@ -9,7 +9,8 @@ sem as LLMs: a formatadora virou o `formatar` abaixo).
     uv run ferramentas/direcao.py fala <slug>                  a fala do vídeo cortado, para dirigir
     uv run ferramentas/direcao.py aplicar <slug> <roteiro.md>  grava edicao.direcao e sincroniza os pedidos de insert
 
-No roteiro, uma linha logo abaixo do `[...]` começando com `> ` é o porquê do plano (vai em `porque`).
+No roteiro, uma linha logo abaixo do `[...]` começando com `> ` é o porquê do plano (vai em `porque`), e uma começando
+com `refs:` são as refs candidatas para modelar o plano (os cortes da Calibragem, `REF-12·p4`; vão em `refs`).
 """
 import difflib
 import re
@@ -90,14 +91,39 @@ BLOCO = re.compile(r'^\s*\[(.+?)\]\s*$', re.M)
 COMENTARIO = re.compile(r'\{💬[^}]*\}')
 
 
+# uma ref da Calibragem: o código da referência e o plano (REF-12·p4, REF-12 p4, REF12.p4…)
+REF = re.compile(r'REF-?\s*(\d+)\s*[·.:/ ]\s*p\s*(\d+)', re.I)
+
+
+def normalizar_ref(m: tuple[str, str]) -> str:
+    return f'REF-{int(m[0]):02d}·p{int(m[1])}'
+
+
+def conferir_refs(refs: list[str]) -> list[str]:
+    """As refs que não existem (o código não é de uma referência, ou ela não tem aquele plano)."""
+    import codigo
+    from base import BIBLIOTECA, ler_json
+    reg = {c: v for c, v in codigo.atribuir().items() if v['tipo'] == 'referencia'}
+    ruins = []
+    for r in refs:
+        cod, plano = r.split('·')
+        v = reg.get(cod)
+        itens = (ler_json(BIBLIOTECA / 'referencias' / v['id'] / 'direcao.json', {}) or {}).get('itens', []) if v else []
+        if not any(i.get('camada') == 'plano' and i.get('id') == plano for i in itens):
+            ruins.append(r)
+    return ruins
+
+
 def ler_roteiro(texto: str) -> list[dict]:
-    """O roteiro em blocos: [{marcacao, porque, fala}]. Linhas `[...]` abrem um bloco; `> …` logo abaixo é o porquê; o resto
-    é fala (do 18, mais o porquê)."""
+    """O roteiro em blocos: [{marcacao, porque, refs, fala}]. Linhas `[...]` abrem um bloco; `> …` logo abaixo é o porquê;
+    `refs: REF-12·p4, REF-27·p3` são as refs candidatas para modelar o plano; o resto é fala (do 18, mais o porquê)."""
     blocos: list[dict] = []
     for linha in texto.splitlines():
         m = BLOCO.match(linha)
         if m:
-            blocos.append({'marcacao': m.group(1).strip(), 'porque': '', 'fala': ''})
+            blocos.append({'marcacao': m.group(1).strip(), 'porque': '', 'refs': [], 'fala': ''})
+        elif blocos and re.match(r'\s*refs?\s*:', linha, re.I) and not blocos[-1]['fala']:
+            blocos[-1]['refs'] += [normalizar_ref(x) for x in REF.findall(linha)]
         elif blocos and linha.lstrip().startswith('>') and not blocos[-1]['fala']:
             blocos[-1]['porque'] = (blocos[-1]['porque'] + ' ' + linha.lstrip()[1:].strip()).strip()
         elif blocos and linha.strip() and not linha.lstrip().startswith('#'):
@@ -258,6 +284,8 @@ def montar(resp: dict, saida: list[dict]) -> list[dict]:
                 'texto': (p.get('texto') or None) if com_texto else None, 'descricao': (p.get('descricao') or '').strip()}
         if p.get('porque'):
             item['porque'] = p['porque']
+        if p.get('refs'):
+            item['refs'] = list(dict.fromkeys(p['refs']))
         itens.append(item)
     for n, e in enumerate(resp['elementos']):
         a, b = idx.get(e['palavra_ini']), idx.get(e['palavra_fim'])
@@ -290,7 +318,9 @@ def estruturar(roteiro: str, saida: list[dict]) -> tuple[list[dict], int, list[s
                           + (f' (fala: “{b["fala"][:60]}”)' if b['fala'] else ' (sem fala)'))
             continue
         resp['planos'].append({'tipo': f['tipo'], 'palavra_ini': saida[ini]['id'], 'palavra_fim': saida[fim]['id'],
-                               'texto': f['texto'], 'descricao': f['descricao'], 'porque': b['porque']})
+                               'texto': f['texto'], 'descricao': f['descricao'], 'porque': b['porque'], 'refs': b['refs']})
+        if b['refs'] and (ruins := conferir_refs(b['refs'])):
+            avisos.append(f'bloco {n + 1}: refs que não existem na Calibragem: {", ".join(ruins)} (confira com codigo.py)')
         for e in f['elementos']:
             if e['tipo'] == 'lettering':
                 avisos.append(f'bloco {n + 1}: “+ {e["descricao"]}” na marcação foi ignorado; marque o lettering na fala com <lettering>')
@@ -320,6 +350,7 @@ def pedidos_da_direcao(itens: list[dict], saida: list[dict]) -> list[dict]:
                         'formato': 'vertical' if pl['tipo'] == 'insert_tela_cheia' else 'dividida',
                         'palavra_ini': pl['palavra_ini'], 'palavra_fim': saida[k1]['id'], 'descricao': pl.get('descricao') or '',
                         'texto': pl.get('texto'), 'fala': ' '.join(w['texto'] for w in saida[k0:k1 + 1]),
+                        **({'refs': pl['refs']} if pl.get('refs') else {}),
                         'inicio': round(t0, 3), 'duracao': round(max(t1 - t0, 0.3), 3)})
     return pedidos
 

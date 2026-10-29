@@ -219,6 +219,19 @@ def resumo_preset(id_: str, reg_inv: dict) -> list[str]:
             f'usado em: {", ".join(usos) or "nenhum projeto"}']
 
 
+def presets_do_plano(ref: str, ini: float, fim: float) -> str:
+    """Os presets que nasceram deste trecho da referência (`fontes` do preset sobre o plano, com ±0,5 s, como a galeria)."""
+    reg = {(v['tipo'], v['id']): c for c, v in (ler_json(REGISTRO, {}) or {}).items()}
+    achados = []
+    for arq in sorted((BIBLIOTECA / 'presets').glob('*.json')):
+        p = ler_json(arq, {}) or {}
+        if not isinstance(p, dict) or not p.get('receita'):
+            continue
+        if any(f.get('ref') == ref and f.get('inicio', 0) < fim + 0.5 and f.get('fim', 0) > ini - 0.5 for f in p.get('fontes') or []):
+            achados.append(f'{reg.get(("preset", arq.stem), arq.stem)} {p.get("nome") or ""}'.strip())
+    return ' · '.join(achados)
+
+
 def resolver(texto: str) -> None:
     m = CODIGO.match(texto.strip().replace(' · ', '·'))
     if not m:
@@ -287,7 +300,8 @@ def resolver(texto: str) -> None:
                       f'marcação: {q.get("descricao") or "—"}', *([f'texto na tela: {q["texto"]}'] if q.get('texto') else []),
                       f'fala: “{fala_entre(pal, q["inicio"], q["fim"])}”',
                       *(['elementos: ' + '; '.join(f'{e["tipo"]} {tempo(e["inicio"])}' + (f' “{e["texto"]}”' if e.get('texto') else '') for e in els)] if els else []),
-                      *([f'miniatura: {rel(base / q["miniatura"])}'] if q.get('miniatura') else [])]
+                      *([f'miniatura: {rel(base / q["miniatura"])}'] if q.get('miniatura') else []),
+                      *([f'virou preset: {v}'] if (v := presets_do_plano(id_, q['inicio'], q['fim'])) else [])]
         else:
             linhas = [f'pasta: {rel(base)} · vídeo: {rel(base / "proxy.mp4")}',
                       f'estado: {r.get("status")} · {(r.get("video") or {}).get("duracao")} s · {len(planos)} planos',

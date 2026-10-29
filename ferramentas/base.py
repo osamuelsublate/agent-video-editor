@@ -16,6 +16,8 @@ PROJETOS = RAIZ / 'projetos'
 # na biblioteca, o que o Claude lê para editar: os exemplos da direção (criador.md e uma pasta por categoria de vídeo,
 # gerados pela Calibragem) e os aprendizados (um .md por área, as correções do criador)
 EXEMPLOS = BIBLIOTECA / 'exemplos'
+# a categoria (o quadro) de um vídeo ou referência sem categoria; as categorias moram em biblioteca/categorias-video.json
+CATEGORIA_PADRAO = 'hacks'
 APRENDIZADOS = BIBLIOTECA / 'aprendizados'
 # no git: o que uma biblioteca nova recebe (os aprendizados técnicos e motions de exemplo)
 INICIAL = Path(__file__).resolve().parent / 'inicial'

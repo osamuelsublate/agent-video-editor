@@ -44,6 +44,7 @@ gráfico de barras), um **subagente em segundo plano** (`model: opus`) escreve u
 ```bash
 uv run ferramentas/inserts.py motion-brief <slug> <plano> --preset <id-novo> [--duracao <s>] [--pedido "<o que mais mostrar>"]
 ```
+Um plano com `refs` (da direção) já leva as refs no brief: o subagente abre cada uma e recria na linha dela.
 **Pedido por uma referência** (o criador citou um `REF-…·pN` ou "como este"): o `--pedido` manda extrair e olhar os
 quadros dela (o vídeo e o trecho vêm do `codigo.py`) e copiar ritmo, tipo de troca, tamanho, vinheta, curva e o material
 real; não descreva a referência de cabeça (`aprendizados/motions.md`).

@@ -2,7 +2,7 @@
 // os vídeos, acompanha a análise e revisa a direção de cada um (planos-base, elementos, marcação). Cada referência
 // revisada vira um roteiro de exemplo que o Claude lê antes de dirigir (ferramentas/calibragem.py regenera sozinho).
 import { $, $$, ELEMENTOS, ICONE, ICONE_ATALHO, PLANOS, barraDaLinha, ajuda, aviso, chipCodigo, codigos, confirmar, dataHora, enviar, esc, modalAberto, mmss, nomePlano, num, preferencia, tempo, tocarTrecho, urlRef } from './comum.js'
-import { botaoCategorias, carregarCategorias, editarCategorias, pilulasCategoria, seletorCategoria } from './categorias.js'
+import { CATEGORIA_PADRAO, botaoCategorias, carregarCategorias, editarCategorias, pilulasCategoria, seletorCategoria } from './categorias.js'
 
 const STATUS = {
   na_fila: ['Na fila', 'selo-amarelo'],
@@ -58,14 +58,14 @@ export async function abrirCalibragem(tela) {
     return `<article class="card-ref${abrivel(r) ? ' abrivel' : ''}" data-id="${esc(r.id)}">
       ${abrivel(r) ? `<a href="#/calibragem/${encodeURIComponent(r.id)}" title="Abrir a revisão">${mini}</a>` : mini}
       ${editando === r.id ? `<input class="renomear" value="${esc(r.nome)}" maxlength="120">` : `<div class="card-titulo"><h3 data-renomear title="Dois cliques para renomear">${esc(r.nome)}</h3><span class="sub data-ref" title="${r.largura ? `${r.largura}×${r.altura}` : ''}">${emAndamento(r) ? esc(passo || 'Na fila') : esc(dataHora(r.criado_em).slice(0, 5))}</span></div>`}
-      <div class="pe-ref">${seletorCategoria(cats, r.tipo || 'reels')}${chipCodigo(cod[r.id], r.nome)}</div>
+      <div class="pe-ref">${seletorCategoria(cats, r.tipo || CATEGORIA_PADRAO)}${chipCodigo(cod[r.id], r.nome)}</div>
       ${r.status === 'erro' ? `<p class="erro-ref">${esc(r.erro || 'A análise falhou.')}</p><button class="botao pequeno" data-tentar>${ICONE.refazer} Tentar de novo</button>` : ''}
     </article>`
   }
 
   const desenhar = () => {
     const naVista = refs.filter((r) => !!r.oculto === verOcultos)
-    const visiveis = naVista.filter((r) => !filtro || (r.tipo || 'reels') === filtro)
+    const visiveis = naVista.filter((r) => !filtro || (r.tipo || CATEGORIA_PADRAO) === filtro)
     // dois grupos: os ativos (ensinam a direção) em cima, os inativos embaixo; dentro de cada um, a ordem de sempre
     const grupos = [['Ativos', visiveis.filter((r) => r.ensina !== false)], ['Inativos', visiveis.filter((r) => r.ensina === false)]].filter(([, l]) => l.length)
     const nOcultos = refs.filter((r) => r.oculto).length
@@ -73,7 +73,7 @@ export async function abrirCalibragem(tela) {
     const numeros = [[n('revisado'), 'revisada', 'revisadas'], [n('a_revisar'), 'a revisar', 'a revisar'], [n('analisando'), 'analisando', 'analisando'], [n('na_fila'), 'na fila', 'na fila'], [n('erro'), 'com erro', 'com erro']]
       .filter(([q]) => q).map(([q, um, varios]) => `${q} ${q === 1 ? um : varios}`).join(' · ')
     tela.innerHTML = `<div class="cabeca-secao"><span class="eyebrow">Calibragem · ${String(visiveis.length).padStart(2, '0')} vídeos${numeros ? ` <span class="numeros">· ${numeros}</span>` : ''}</span>
-        ${pilulasCategoria(cats, filtro, { contar: (id) => naVista.filter((r) => !id || (r.tipo || 'reels') === id).length })}
+        ${pilulasCategoria(cats, filtro, { contar: (id) => naVista.filter((r) => !id || (r.tipo || CATEGORIA_PADRAO) === id).length })}
         <button class="pilula pequena${verOcultos ? ' ativa' : ''}" data-ver-ocultos title="Os vídeos que você ocultou">${OLHO_FECHADO} Ocultos <span class="conta">${nOcultos}</span></button>${botaoCategorias()}
         ${ajuda('Seus Reels já editados: a IA descobre como cada um foi dirigido, você corrige e marca como revisado. Cada um vira um roteiro de exemplo que o Claude lê antes de dirigir.')}
         <label class="botao botao-coral"><input type="file" accept="video/*,.mp4,.mov,.m4v,.webm" multiple hidden>${enviando ? `Enviando ${enviando}…` : `${ICONE.subir} Adicionar vídeos`}</label></div>
@@ -110,7 +110,7 @@ export async function abrirCalibragem(tela) {
       enviando = `${k + 1}/${videos.length}`
       desenhar()
       try {
-        const r = await fetch('/api/referencias', { method: 'POST', headers: { 'X-Nome': encodeURIComponent(f.name), 'X-Categoria': encodeURIComponent(filtro || 'reels'), 'Content-Type': 'application/octet-stream' }, body: f })
+        const r = await fetch('/api/referencias', { method: 'POST', headers: { 'X-Nome': encodeURIComponent(f.name), 'X-Categoria': encodeURIComponent(filtro || CATEGORIA_PADRAO), 'Content-Type': 'application/octet-stream' }, body: f })
         const d = await r.json().catch(() => ({}))
         if (!r.ok) throw new Error(d.erro || `Erro ${r.status}`)
       } catch (e) {

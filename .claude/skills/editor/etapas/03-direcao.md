@@ -7,7 +7,7 @@ criador dirige. Não mexe em mídia: só a "partitura visual". Inserts, motions,
 
 ## Antes de escrever: aprenda o estilo
 
-A direção vem **sempre e só da categoria do vídeo em edição** (📱 Reels, 📺 VSL…): nunca misture exemplos de outra
+A direção vem **sempre e só da categoria do vídeo em edição** (o quadro: 📱 Storytelling Projects, 📱 Hacks & Tips, 💰 Pico, 💰 Ad VSL, 💰 CTA, 📺 VSL…): nunca misture exemplos de outra
 categoria. Descubra qual é e onde estão os exemplos dela:
 
 ```bash
@@ -48,14 +48,22 @@ casar todas; se não, você alterou a fala — corrija o roteiro).
 
 [Tela dividida · insert: o site do GPT Astra abrindo; zoom no título]
 > a fala cita a ferramenta: mostrar a ferramenta
+refs: REF-12·p4, REF-07·p31
 “cara, a galera considera o <lettering>GPT Astra</lettering>,”
 
 [Full ator: —]
 “só que na minha opinião isso é uma bobagem,”
 ```
 
-- Uma linha `[plano: marcação + elementos]`, opcionalmente uma linha `> porquê` (curto: por que esse plano aqui), e a
-  fala entre aspas. Bloco após bloco, até o fim.
+- Uma linha `[plano: marcação + elementos]`, opcionalmente uma linha `> porquê` (curto: por que esse plano aqui), a
+  linha `refs:` (abaixo) e a fala entre aspas. Bloco após bloco, até o fim.
+- **`refs:` as refs para modelar o plano** (todo plano com insert ou motion; no Full ator, só se o exemplo tiver algo
+  que valha copiar). Cada corte dos roteiros de exemplo e dos favoritos traz a `ref:` dele (`REF-12·p4`: o plano da
+  Calibragem, que o criador aprovou). Para cada plano seu, escolha **1 a 3 refs** dos exemplos cuja **fala** e **tipo**
+  mais se parecem com os dele: os favoritos primeiro, depois os vídeos "(revisado)". É por essas refs que a execução
+  (inserts, enriquecimento, motions) vai modelar o plano, em vez de escolher um preset ao acaso: escolha as que mostram
+  o que este momento pede, não só o mesmo tipo de plano. Sem nenhuma parecida, deixe sem a linha (a execução escolhe
+  livre). O `aplicar` confere se cada ref existe e avisa as que não.
 - **Planos** (use estes nomes): Full ator · Full ator com lettering «texto» · Insert tela cheia · Motion tela cheia ·
   Tela dividida · insert · Tela dividida · motion · Comentário + insert + ator «comentário».
 - **Elementos** (na marcação, com "+"): + palavra manychat «PALAVRA» · + caixinha de perguntas «pergunta» ·

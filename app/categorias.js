@@ -10,6 +10,9 @@ export const carregarCategorias = () => (cache ??= json('/api/categorias', { cat
 export const esquecerCategorias = () => (cache = null)
 
 /** Uma categoria de CTA: "CTA" no nome (CTA, CTA LP, CTA VSL…). Os projetos dela moram na página CTAs, à parte. */
+/** A categoria de um vídeo ou referência sem categoria (como o CATEGORIA_PADRAO do calibragem.py). */
+export const CATEGORIA_PADRAO = 'hacks'
+
 export const categoriaCta = (lista, id) => /\bcta\b/i.test(lista.find((c) => c.id === id)?.nome || id)
 
 export const rotuloCategoria = (lista, id) => {
@@ -48,7 +51,7 @@ export function editarCategorias(lista, depois) {
         <button class="pegador" data-pegar title="Arraste para mudar a ordem (a das pílulas de filtro)" aria-label="Mudar a ordem">${PEGADOR}</button>
         <input class="produto-emoji" value="${esc(c.emoji || '')}" maxlength="8" data-campo="emoji" aria-label="Emoji" placeholder="🎬">
         <input class="produto-nome" value="${esc(c.nome)}" maxlength="40" data-campo="nome" aria-label="Nome" placeholder="Nome da categoria">
-        <button class="botao-icone pequeno" data-tirar ${c.id === 'reels' ? 'disabled title="O Reels é a categoria padrão"' : 'title="Tirar (só sem referências e projetos dela)"'}>${ICONE.lixo}</button></div>`).join('')
+        <button class="botao-icone pequeno" data-tirar ${c.id === CATEGORIA_PADRAO ? 'disabled title="É a categoria padrão"' : 'title="Tirar (só sem referências e projetos dela)"'}>${ICONE.lixo}</button></div>`).join('')
   }
   // a ordem: arrastar pelo pegador (a lista se reordena enquanto arrasta; Salvar grava)
   let arrastando = null

@@ -1,7 +1,7 @@
 // A revisão de uma versão: o player do proxy, a linha do tempo (planos, fala e comentários) e os
 // comentários do criador, gravados sozinhos em projetos/<slug>/revisoes/vN.json (o Claude responde no mesmo arquivo).
 import { $, $$, ESTRELA_CHEIA, ICONE, ICONE_ATALHO, abrirAba, barraDaLinha, agora, aviso, chipCodigo, codigos, confirmar, copiar, dataHora, enviar, esc, quandoCurto, fecharAba, janela, json, mmss, modalAberto, nomePlano, num, PLANOS, preferencia, tempo } from './comum.js'
-import { carregarCategorias, categoriaCta } from './categorias.js'
+import { CATEGORIA_PADRAO, carregarCategorias, categoriaCta } from './categorias.js'
 
 /** A data do comentário, curta e relativa a hoje (o dia e a hora inteiros no title). */
 const dataComentario = (c) => (c.criado_em ? `<time class="data-comentario" datetime="${esc(c.criado_em)}" title="${esc(dataHora(c.criado_em))}">${quandoCurto(c.criado_em)}</time>` : '')
@@ -545,7 +545,7 @@ class Revisao {
   montar() {
     abrirAba(this.slug, this.proj.nome) // o nome do projeto fica na aba; a versão, logo ao lado dela na barra
     carregarCategorias().then((cats) => {
-      this.ehCta = categoriaCta(cats, this.proj.formato || 'reels')
+      this.ehCta = categoriaCta(cats, this.proj.formato || CATEGORIA_PADRAO)
       abrirAba(this.slug, this.proj.nome, this.ehCta) // o ícone: projeto ou CTA
       this.renderSaidas()
     })
@@ -825,7 +825,7 @@ class Revisao {
       total[cta] = (total[cta] || 0) + 1
       if (em && new Date(em).getTime() >= desde) recentes[cta] = (recentes[cta] || 0) + 1
     }
-    const ctas = projetos.filter((p) => p.estado === 'aprovado' && !p.oculto && categoriaCta(cats, p.formato || 'reels'))
+    const ctas = projetos.filter((p) => p.estado === 'aprovado' && !p.oculto && categoriaCta(cats, p.formato || CATEGORIA_PADRAO))
       .sort((a, b) => (recentes[b.slug] || 0) - (recentes[a.slug] || 0) || (total[b.slug] || 0) - (total[a.slug] || 0) || a.nome.localeCompare(b.nome, 'pt-BR'))
     const tags = [...new Set(ctas.flatMap((p) => p.tags || []))].sort()
     // os escolhidos, na ordem do clique: slug do CTA ('' = nenhum, o corpo puro) → o destino (o nome da saída)

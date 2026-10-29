@@ -71,7 +71,8 @@ finais falados no bruto; os de CTA entram pelo **+ Saída** do app ou pelo chat.
 | **Calibragem**, **Heurística** e **Aprendizados** | os vídeos de referência analisados (que ensinam a direção), as regras do criador por categoria e as correções que viraram regra |
 | **Lixeira** | tudo o que se apaga no app (projetos, mídias do banco, referências), inteiro, em `biblioteca/lixeira/`: restaurar volta para onde estava; apagar de vez (um item, um tipo ou tudo) libera o espaço |
 
-Cada vídeo tem uma **categoria** (📱 Reels, 📺 VSL, 💰 CTA… no painel Categorias), e cada categoria tem a sua
+Cada vídeo tem uma **categoria**, o quadro dele (📱 Storytelling Projects, 📱 Hacks & Tips, 💰 Pico, 💰 Ad VSL, 💰 CTA,
+📺 VSL… no painel Categorias), e cada categoria tem a sua
 Calibragem, a sua Heurística e os seus aprendizados: a direção de um vídeo aprende com os vídeos da categoria dele.
 
 ## Estrutura

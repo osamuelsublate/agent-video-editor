@@ -56,19 +56,19 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 import gemini  # noqa: E402
-from base import BIBLIOTECA, EXEMPLOS, PROJETOS, RAIZ, env, ffmpeg, gravar_json, inspecionar, ler_json, para_lixeira, renomear_tags, tags_limpas  # noqa: E402
+from base import BIBLIOTECA, CATEGORIA_PADRAO, EXEMPLOS, PROJETOS, RAIZ, env, ffmpeg, gravar_json, inspecionar, ler_json, para_lixeira, renomear_tags, tags_limpas  # noqa: E402
 
 REFS = BIBLIOTECA / 'referencias'
 FAVORITOS = REFS / '_favoritos.json'
 TAGS = REFS / '_tags.json'  # as tags dos planos da galeria: [{ref, inicio, fim, tags}]
 CATEGORIAS_ARQ = BIBLIOTECA / 'categorias-video.json'
-CATEGORIA_PADRAO = 'reels'  # das referências e dos projetos de antes das categorias
 CATEGORIAS = [
-    {'id': 'reels', 'nome': 'Reels', 'emoji': '📱'},
-    {'id': 'ad', 'nome': 'Ad', 'emoji': '💰'},
+    {'id': 'hacks', 'nome': 'Hacks & Tips', 'emoji': '📱'},
+    {'id': 'storytelling', 'nome': 'Storytelling Projects', 'emoji': '📱'},
+    {'id': 'pico', 'nome': 'Pico', 'emoji': '💰'},
+    {'id': 'ad', 'nome': 'Ad VSL', 'emoji': '💰'},
+    {'id': 'cta', 'nome': 'CTA', 'emoji': '💰'},
     {'id': 'vsl', 'nome': 'VSL', 'emoji': '📺'},
-    {'id': 'youtube', 'nome': 'YouTube', 'emoji': '🎥'},
-    {'id': 'aula', 'nome': 'Aula', 'emoji': '📚'},
 ]
 URL = '/biblioteca/referencias'  # como o servidor serve a pasta
 
@@ -629,18 +629,21 @@ def marcacao(plano: dict, elementos: list[dict]) -> str:
     return f'[{texto}]'
 
 
-def roteiro(itens: list[dict], palavras: list[dict]) -> list[dict]:
-    """As linhas do roteiro de um vídeo: uma por plano (um por corte de cena), com a marcação e a fala."""
+def roteiro(itens: list[dict], palavras: list[dict], codigo_ref: str | None = None) -> list[dict]:
+    """As linhas do roteiro de um vídeo: uma por plano (um por corte de cena), com a marcação, a fala e, com o código da
+    referência (`codigo_ref`, ex.: REF-12), a ref daquele corte (REF-12·p4: o plano que a direção pode abrir para modelar)."""
     planos = sorted((i for i in itens if i['camada'] == 'plano'), key=lambda i: i['inicio'])
     elementos = [i for i in itens if i['camada'] == 'elemento' and i['tipo'] != 'lettering']  # o lettering vai na fala
     letterings = [i for i in itens if i['camada'] == 'elemento' and i['tipo'] == 'lettering']
     return [{'plano': p['id'], 'tipo': p['tipo'], 'inicio': p['inicio'], 'fim': p['fim'],
              'marcacao': marcacao(p, [e for e in elementos if p['inicio'] <= e['inicio'] < p['fim']]),
-             'fala': _fala(palavras, p['inicio'], p['fim'], letterings)} for p in planos]
+             'fala': _fala(palavras, p['inicio'], p['fim'], letterings),
+             **({'ref': f"{codigo_ref}·{p['id']}"} if codigo_ref else {})} for p in planos]
 
 
 def _bloco(linha: dict) -> str:
-    return f"{linha['marcacao']}\n" + (f"“{linha['fala']}”" if linha['fala'] else '(sem fala)')
+    """Um corte do roteiro de exemplo: a marcação, a ref dele (o plano, para a direção abrir e modelar) e a fala."""
+    return f"{linha['marcacao']}\n" + (f"ref: {linha['ref']}\n" if linha.get('ref') else '') + (f"“{linha['fala']}”" if linha['fala'] else '(sem fala)')
 
 
 def _minuto(t: float) -> str:
@@ -702,10 +705,12 @@ def regenerar_exemplos() -> dict:
         if atual is None or (r['status'] == 'revisado' and atual[0]['status'] != 'revisado'):
             escolhidas[chave] = (r, itens, palavras)
     mudou, apagados, ficam = [], [], set()
+    cods = _codigos_refs()
     for (cat, _), (r, itens, palavras) in escolhidas.items():
         arq = pasta_exemplos(cat) / 'roteiros' / f"{r['id']}.md"
         ficam.add(arq)
-        texto = f"# {r['nome']}{' (revisado)' if r['status'] == 'revisado' else ''}\n\n" + '\n\n'.join(_bloco(x) for x in roteiro(itens, palavras)) + '\n' + _correcoes(r)
+        texto = (f"# {r['nome']}{' (revisado)' if r['status'] == 'revisado' else ''}\n\n"
+                 + '\n\n'.join(_bloco(x) for x in roteiro(itens, palavras, cods.get(r['id']))) + '\n' + _correcoes(r))
         if _escrever(arq, texto):
             mudou.append(r['id'])
     for arq in EXEMPLOS.glob('*/roteiros/*.md'):
@@ -714,11 +719,17 @@ def regenerar_exemplos() -> dict:
             apagados.append(arq.stem)
     # o favoritos.md de cada categoria que tem exemplos (uma categoria sem referências não ganha pasta)
     cats = {cat for cat, _ in escolhidas} | {p.name for p in EXEMPLOS.iterdir() if p.is_dir()}
-    favoritos = sum(_favoritos_md(cat) for cat in sorted(cats))
+    favoritos = sum(_favoritos_md(cat, cods) for cat in sorted(cats))
     return {'roteiros': sorted(r['id'] for r, _, _ in escolhidas.values()), 'mudaram': mudou, 'apagados': apagados, 'favoritos': favoritos}
 
 
-def _favoritos_md(cat: str) -> int:
+def _codigos_refs() -> dict[str, str]:
+    """{id da referência: código REF} (o registro de códigos dá o número às novas)."""
+    import codigo
+    return codigo.mapa()['referencia']
+
+
+def _favoritos_md(cat: str, cods: dict[str, str] | None = None) -> int:
     """`exemplos/<categoria>/favoritos.md`: os planos das referências da categoria marcados com ★ na galeria, agrupados
     por tipo de plano, cada um com o roteiro daquele plano (do jeito que está agora; se o vídeo foi reanalisado e o plano
     mudou, a cópia guardada ao favoritar)."""
@@ -730,14 +741,16 @@ def _favoritos_md(cat: str) -> int:
         if r is None or palavras is None or not ensina(r) or categoria_de(r) != cat:
             continue
         itens = (ler_json(base / 'direcao.json') or {}).get('itens', []) if r['status'] in ANALISADAS else []
-        linha = next((x for x in roteiro(itens, palavras) if abs(x['inicio'] - f['inicio']) < 0.05 and abs(x['fim'] - f['fim']) < 0.05), None)
+        cods = cods if cods is not None else _codigos_refs()
+        linha = next((x for x in roteiro(itens, palavras, cods.get(f['ref'])) if abs(x['inicio'] - f['inicio']) < 0.05 and abs(x['fim'] - f['fim']) < 0.05), None)
         if linha is None:
             letterings = [i for i in itens if i['camada'] == 'elemento' and i['tipo'] == 'lettering']
             plano = {'tipo': f.get('tipo') or 'full_ator', 'conteudo': f.get('conteudo'), 'descricao': f.get('descricao'), 'texto': f.get('texto')}
             linha = {'tipo': plano['tipo'], 'marcacao': marcacao(plano, []), 'fala': _fala(palavras, f['inicio'], f['fim'], letterings)}
         grupos.setdefault(tipo_atual(linha['tipo'], f.get('conteudo')), []).append((r['nome'], f['inicio'], linha))
     partes = ['# Favoritos\n\nSão os exemplos que o criador considera os melhores: os planos que ele marcou com ★ na galeria de '
-              'Referências do app. Na direção, prefira esses padrões (o material, como entra, o ritmo) quando a fala pedir algo parecido.']
+              'Referências do app. Na direção, prefira esses padrões (o material, como entra, o ritmo) quando a fala pedir algo parecido, '
+              'e ponha a `ref:` deles entre as refs candidatas do plano (03-direcao.md).']
     total = 0
     for tipo in [*PLANOS, *[t for t in grupos if t not in PLANOS]]:
         if tipo not in grupos:
@@ -1445,7 +1458,7 @@ def main() -> None:
     an.add_argument('video', nargs='?')
     an.add_argument('--nome')
     an.add_argument('--id')
-    an.add_argument('--categoria', default=CATEGORIA_PADRAO, help='reels, ad, vsl, youtube, aula… (padrão: reels)')
+    an.add_argument('--categoria', default=CATEGORIA_PADRAO, help='hacks, storytelling, pico, ad, cta, vsl… (calibragem.py categorias; padrão: hacks)')
     sub.add_parser('roteiros', help='reescreve exemplos/<categoria>/roteiros/*.md e os favoritos.md')
     sub.add_parser('categorias', help='as categorias de vídeo')
     ca = sub.add_parser('categoria', help='muda a categoria de uma referência')

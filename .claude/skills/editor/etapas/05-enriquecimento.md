@@ -23,9 +23,19 @@ uv run ferramentas/render.py <slug> --camadas     # em segundo plano (run_in_bac
 `escolher` usa as favoritas que o criador marcou por **situação** (modo de tela × nº de mídias × proporção, em
 `biblioteca/presets/ordem.json`). Ele imprime a escolha de cada insert e o motivo.
 
-**Sempre revise a escolha:** o `escolher` põe o 1º favorito da situação em todos, e quase toda tela dividida com 1 mídia
-cai no mesmo (no 1º teste, 9 de 12 inserts com "Corte seco"). Alterne entre os favoritos da situação (`presets.py listar`
-mostra as situações ★) para os inserts vizinhos não ficarem iguais.
+**Depois, modele cada insert pelas refs do plano** (`refs` no pedido, vindas da linha `refs:` da direção). O
+`escolher` só olha a situação (modo de tela × nº de mídias × proporção), não o que o momento pede: foi assim que entraram
+presets sem sentido. Para cada insert com refs:
+1. Abra cada ref: `uv run ferramentas/codigo.py REF-12·p4` dá o vídeo, o intervalo, a marcação e, se houver, o preset
+   que **nasceu daquele trecho** (`virou preset: PRE-17 …`). Olhe o trecho de verdade (4 a 6 quadros com o ffmpeg), não
+   só a descrição.
+2. **Se uma ref virou preset, use esse preset.** Senão, use o preset aprovado cujo efeito **reproduz o que a ref mostra**
+   (como a mídia entra, se fica parada ou tem zoom, como sai; `presets.py listar`), e afine com os `ajustes` (abaixo).
+3. **Se nenhum reproduz, fique no simples** (a mídia na área, sem efeito: "Corte seco") — nunca um preset vistoso que a
+   ref não pede. Anote no `porque` do plano a ref que modelou e o preset (ex.: `como REF-12·p4; PRE-17`), e diga na
+   entrega os inserts que ficaram simples por falta de preset (são candidatos a preset novo, `13-presets-novos.md`).
+
+Os inserts sem refs ficam com a escolha do `escolher` (o favorito da situação).
 
 ## Quando trocar à mão
 

@@ -63,7 +63,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
 sys.path.insert(0, str(Path(__file__).parent))
-from base import (APRENDIZADOS, BIBLIOTECA, EXEMPLOS, PROJETOS, RAIZ, apagar_de_vez, gravar_json, ler_json, listar_lixeira, migrar_lixeiras_antigas,  # noqa: E402
+from base import (APRENDIZADOS, BIBLIOTECA, CATEGORIA_PADRAO, EXEMPLOS, PROJETOS, RAIZ, apagar_de_vez, gravar_json, ler_json, listar_lixeira, migrar_lixeiras_antigas,  # noqa: E402
                   para_lixeira, preparar_biblioteca, renders_rodando, tamanho, renomear_tags, restaurar_da_lixeira, tag_limpa, tags_limpas)
 
 PORTA = 8719
@@ -139,7 +139,7 @@ def projetos() -> list[dict]:
         blocos = next(((ler_json(p / 'revisoes' / f'v{x}.json', {}) or {}).get('blocos') for x in reversed(vs)
                        if (ler_json(p / 'revisoes' / f'v{x}.json', {}) or {}).get('blocos')), None)
         ed = ler_json(p / 'edicao.json', {}) or {}
-        lista.append({'slug': p.name, 'nome': ed.get('nome') or p.name, 'formato': ed.get('formato') or 'reels',
+        lista.append({'slug': p.name, 'nome': ed.get('nome') or p.name, 'formato': ed.get('formato') or CATEGORIA_PADRAO,
                       'tags': ed.get('tags') or [], 'oculto': bool(ed.get('oculto')), 'versoes': vs, 'ultima': ultima, 'duracao': info.get('duracao'), 'estado': estado,
                       'comentarios': len(rev.get('comentarios', [])),
                       'conclusao': (100 if estado == 'aprovado' else round(100 * sum(1 for b in blocos if b.get('aprovado')) / len(blocos))) if blocos else None,
@@ -458,7 +458,7 @@ def _subir_referencia(h, q):
                 resta -= len(bloco)
         if resta:
             raise Erro('O envio parou no meio.', 400)
-        cat = unquote(h.headers.get('X-Categoria') or '') or 'reels'
+        cat = unquote(h.headers.get('X-Categoria') or '') or CATEGORIA_PADRAO
         return {'id': calibragem().enfileirar_analise(str(destino), Path(nome).stem, cat)}
     finally:
         shutil.rmtree(pasta, ignore_errors=True)
@@ -760,15 +760,15 @@ def _apagar_referencia(h, q, id_):
 
 def _categoria(q) -> str:
     """A categoria pedida (?categoria=…), entre as cadastradas; sem ela, Reels."""
-    cat = q.get('categoria', ['reels'])[0] or 'reels'
+    cat = q.get('categoria', [CATEGORIA_PADRAO])[0] or CATEGORIA_PADRAO
     if cat not in {c['id'] for c in calibragem().categorias()}:
         raise Erro(f'Categoria desconhecida: {cat}', 422)
     return cat
 
 
-def roteiros(cat: str = 'reels') -> list[dict]:
-    """Os roteiros de exemplo da categoria (exemplos/<categoria>/roteiros/<ref>.md), linha a linha: a marcação entre [ ]
-    e a fala. A linha k é o plano k da direção da referência (os roteiros são escritos dela, um bloco por plano): daí vêm
+def roteiros(cat: str = CATEGORIA_PADRAO) -> list[dict]:
+    """Os roteiros de exemplo da categoria (exemplos/<categoria>/roteiros/<ref>.md), linha a linha: a marcação entre [ ],
+    a ref do corte (`ref: REF-12·p4`) e a fala. A linha k é o plano k da direção da referência (os roteiros são escritos dela, um bloco por plano): daí vêm
     o tipo e os tempos."""
     out = []
     for md in sorted((EXEMPLOS / cat / 'roteiros').glob('*.md')):
@@ -783,6 +783,8 @@ def roteiros(cat: str = 'reels') -> list[dict]:
                 titulo = s[2:].strip()
             elif s.startswith('[') and s.endswith(']'):
                 linhas.append({'marcacao': s[1:-1], 'fala': ''})
+            elif s.startswith('ref:') and linhas:
+                linhas[-1]['ref'] = s[4:].strip()
             elif s and linhas:
                 linhas[-1]['fala'] = (linhas[-1]['fala'] + ' ' + s.strip('“”"')).strip()
         if len(planos) == len(linhas):
