@@ -24,7 +24,7 @@ Calibragem) e estão com o interruptor "Ensina" ligado (`ensina` no referencia.j
 Uma pasta por referência em `biblioteca/referencias/<id>/` (o mesmo formato do 18): referencia.json (a fonte de verdade,
 com o andamento em `analise.passos`), video.<ext>, proxy.mp4, palavras.json, silencios.json, cenas.json, trechos/NNN.json
 (o cache da análise por trecho), analise.json, direcao.json (`itens` revisáveis, `itens_ia`, `cortes`), quadros/.
-A análise: proxy → transcrição (ElevenLabs) → cortes de cena (PySceneDetect adaptativo) → uma chamada ao Gemini por trecho
+A análise: proxy → transcrição (ElevenLabs, pelo OpenRouter) → cortes de cena (PySceneDetect adaptativo) → uma chamada ao Gemini por trecho
 (vídeo com áudio, saída estruturada nas categorias fixas) → montagem → cada plano com insert assistido de novo, inteiro →
 "a revisar". Uma referência por vez (a trava `_fila`); os trechos de cada uma vão 2 em paralelo.
 Um projeto aprovado também vira referência (`de_projeto`, id `prj-<slug>-vN`), sem análise: a direção já é conhecida.
@@ -1034,7 +1034,7 @@ def _proxy(id: str, base: Path):
 
 
 def _transcricao(id: str, base: Path):
-    """O áudio, os silêncios e a transcrição com o ElevenLabs Scribe v2 (o motor padrão do 18), como o preparar."""
+    """O áudio, os silêncios e a transcrição com o ElevenLabs Scribe v2 pelo OpenRouter (o motor padrão do 18), como o preparar."""
     if (base / 'palavras.json').exists():
         return {'reaproveitado': True}
     from transcricao import extrair_audio, silencios, transcrever
@@ -1530,8 +1530,7 @@ def main() -> None:
     else:
         if not a.video:
             ap.error('diga o vídeo (ou --id)')
-        env('OPENROUTER_API_KEY')  # sem as chaves, nem começa
-        env('ELEVENLABS_API_KEY')
+        env('OPENROUTER_API_KEY')  # sem a chave, nem começa
         try:
             id = _criar(a.video, a.nome, a.categoria)
         except ValueError as e:
