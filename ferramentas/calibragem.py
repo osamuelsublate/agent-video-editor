@@ -56,7 +56,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 import gemini  # noqa: E402
-from base import BIBLIOTECA, CATEGORIA_PADRAO, EXEMPLOS, PROJETOS, RAIZ, env, ffmpeg, gravar_json, inspecionar, ler_json, para_lixeira, renomear_tags, tags_limpas  # noqa: E402
+from base import BIBLIOTECA, CATEGORIA_PADRAO, DECODIFICA, EXEMPLOS, H264_PLAYER, PROJETOS, RAIZ, env, ffmpeg, gravar_json, inspecionar, ler_json, para_lixeira, renomear_tags, tags_limpas  # noqa: E402
 
 REFS = BIBLIOTECA / 'referencias'
 FAVORITOS = REFS / '_favoritos.json'
@@ -1012,8 +1012,8 @@ def _proxy(id: str, base: Path):
     dur = ler(id)['video']['duracao']
     tmp = base / f'proxy.{os.getpid()}.tmp.mp4'
     escala = "scale='if(gt(iw,ih),-2,720)':'if(gt(iw,ih),720,-2)'"
-    cmd = ['ffmpeg', '-v', 'error', '-y', '-hwaccel', 'videotoolbox', '-i', str(_video(base)), '-vf', escala,
-           '-c:v', 'h264_videotoolbox', '-b:v', '3M', '-force_key_frames', 'expr:gte(t,n_forced*0.5)',
+    cmd = ['ffmpeg', '-v', 'error', '-y', *DECODIFICA, '-i', str(_video(base)), '-vf', escala,
+           *H264_PLAYER, '-b:v', '3M', '-force_key_frames', 'expr:gte(t,n_forced*0.5)',
            '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart', '-progress', 'pipe:1', '-nostats', str(tmp)]
     ultimo = 0.0
     try:

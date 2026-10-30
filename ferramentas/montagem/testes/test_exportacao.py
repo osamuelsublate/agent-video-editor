@@ -2,13 +2,31 @@
 de cada camada é exatamente o congelado no 18 (`dados/exportacao_comandos.json`, copiado de lá): o porte não mudou nada,
 e os ganchos sem nada a desenhar (transições, legenda) não mudam o comando."""
 import json
+import runpy
+import sys
 from pathlib import Path
 
 import pytest
 
-from montagem import exportacao, sons
+import base
+from montagem import exportacao, render_quadros, sons
 
 ESPERADO = Path(__file__).parent / 'dados' / 'exportacao_comandos.json'
+CODECS = ('DECODIFICA', 'H264_PROXY', 'HEVC_FINAL', 'PRORES_ALFA')
+
+
+@pytest.fixture
+def constantes_de(monkeypatch):
+    """Põe em `exportacao` as constantes de codec de uma plataforma (o `base.py` lido como se rodasse nela), para os
+    testes valerem em qualquer máquina. Devolve todas as constantes dela."""
+    def trocar(plataforma: str) -> dict:
+        with monkeypatch.context() as m:
+            m.setattr(sys, 'platform', plataforma)
+            g = runpy.run_path(base.__file__)
+        for nome in CODECS:
+            monkeypatch.setattr(exportacao, nome, g[nome])
+        return g
+    return trocar
 
 
 def casos(raiz: Path) -> dict[str, tuple[tuple, dict]]:
@@ -44,7 +62,9 @@ def comandos(comando_final, raiz: Path) -> dict[str, list[str]]:
     return {nome: [x.replace(str(raiz), '<raiz>') for x in comando_final(*args, **kw)] for nome, (args, kw) in casos(raiz).items()}
 
 
-def test_comando_por_camadas_e_identico_ao_de_antes(tmp_path):
+def test_comando_por_camadas_e_identico_ao_de_antes(tmp_path, constantes_de):
+    """Congelado com os codecs do Mac."""
+    constantes_de('darwin')
     biblioteca_falsa(sons.RAIZ)
     esperado = json.loads(ESPERADO.read_text())
     atual = comandos(exportacao.comando_final, tmp_path)
@@ -73,9 +93,10 @@ def test_cada_camada_na_sua_funcao(tmp_path):
     assert exportacao._audio(None, 3, 'ac', 'am', [{'inicio': 0, 'fim': 1}], 1.0) == ([], ['[ac]anull[am]'])
 
 
-def test_proxy_sem_chip_e_audio_pronto(tmp_path):
+def test_proxy_sem_chip_e_audio_pronto(tmp_path, constantes_de):
     """O proxy decodifica no processador (`hwaccel=False` só tira o `-hwaccel`) e o áudio já misturado pelo render
     (`pronta`, do cache) entra como está, sem refazer a mistura."""
+    constantes_de('darwin')
     biblioteca_falsa(sons.RAIZ)
     args, kw = casos(tmp_path)['vertical_simples']
     com, sem = exportacao.comando_final(*args, **kw), exportacao.comando_final(*args, **kw, hwaccel=False)
@@ -83,3 +104,35 @@ def test_proxy_sem_chip_e_audio_pronto(tmp_path):
     wav = tmp_path / 'audio.wav'
     assert exportacao._audio([], 3, 'ac', 'am', [{'inicio': 0, 'fim': 1}], 1.0, {'pronta': wav}) == (
         ['-i', str(wav)], ['[ac]anullsink', '[3:a]anull[am]'])
+
+
+def test_comandos_do_linux(tmp_path, constantes_de):
+    """No Linux: NVENC com -cq (nunca o -q:v do VideoToolbox), CUDA e o ProRes por software com alfa."""
+    g = constantes_de('linux')
+    biblioteca_falsa(sons.RAIZ)
+    atual = comandos(exportacao.comando_final, tmp_path)
+    for cmd in atual.values():
+        assert '-q:v' not in cmd and not any('videotoolbox' in x for x in cmd)
+        assert cmd[cmd.index('-hwaccel') + 1] == 'cuda'
+    hevc, h264 = atual['vertical_simples'], atual['atras_sem_mascara']
+    i = hevc.index('-c:v')
+    assert hevc[i:i + 6] == ['-c:v', 'hevc_nvenc', '-cq', str(g['CQ_FINAL']), '-tag:v', 'hvc1']
+    i = h264.index('-c:v')
+    assert h264[i:i + 4] == ['-c:v', 'h264_nvenc', '-cq', str(g['CQ_PROXY'])] and 'hvc1' not in h264
+    assert g['H264_PLAYER'] == ['-c:v', 'h264_nvenc', '-forced-idr', '1', '-pix_fmt', 'yuv420p']
+    assert g['HEVC_ENQUADRAMENTO'] == ['-c:v', 'hevc_nvenc', '-cq', str(g['CQ_ENQUADRAMENTO']), '-tag:v', 'hvc1']
+    assert g['PRORES_ALFA'] == ['-c:v', 'prores_ks', '-profile:v', '4444', '-pix_fmt', 'yuva444p10le']
+
+
+def test_constantes_do_mac(constantes_de):
+    """Os codecs do Mac, como sempre foram (os dos scripts fora do `comando_final`, que o congelado não cobre)."""
+    g = constantes_de('darwin')
+    assert g['DECODIFICA'] == ['-hwaccel', 'videotoolbox'] and g['H264_PLAYER'] == ['-c:v', 'h264_videotoolbox']
+    assert g['HEVC_ENQUADRAMENTO'] == ['-c:v', 'hevc_videotoolbox', '-q:v', '80', '-tag:v', 'hvc1']
+    assert g['HEVC_FINAL'] == ['-c:v', 'hevc_videotoolbox', '-q:v', '65', '-tag:v', 'hvc1']
+    assert g['PRORES_ALFA'] == ['-c:v', 'prores_videotoolbox', '-profile:v', '4444']
+
+
+def test_trabalhador_usa_o_prores_do_base():
+    """O trabalhador do render (`render_quadros`, que não importa `exportacao`) grava com a mesma constante."""
+    assert render_quadros.PRORES_ALFA is base.PRORES_ALFA
