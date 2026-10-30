@@ -11,8 +11,7 @@ ProRes 4444, o grosso do disco) dos projetos aprovados e parados há `CACHE_DIAS
 pastas temporárias de renders que morreram no meio (`.render-*` com mais de 6 h, `limpar_temporarios`).
 
 Rotas (JSON; um erro volta como {"erro": "…"}, com 422 numa validação):
-- GET /api/lista?pasta=… (nomes numa pasta pública) · GET /api/projetos (o início do app) · GET /api/motions/fonte/<pro|
-  rounded|mono> (as SF da Apple, lidas do Mac: o render/motion/fonts.css as pede) · PUT /api/revisao/<slug>/v<N> (a
+- GET /api/lista?pasta=… (nomes numa pasta pública) · GET /api/projetos (o início do app) · PUT /api/revisao/<slug>/v<N> (a
   revisão inteira; as respostas do Claude no arquivo são mantidas).
 - Calibragem (chama ferramentas/calibragem.py): GET|POST /api/referencias (POST: o vídeo cru no corpo, o nome do arquivo
   no cabeçalho X-Nome) · GET /api/referencias/clipes · GET /api/referencias/<id>/revisao · PUT …/<id>/direcao {itens} ·
@@ -68,7 +67,6 @@ from base import (APRENDIZADOS, BIBLIOTECA, CATEGORIA_PADRAO, EXEMPLOS, PROJETOS
 
 PORTA = 8719
 PUBLICOS = ('app', 'render', 'projetos', 'biblioteca')
-FONTES_DO_MAC = {'pro': 'SFNS.ttf', 'rounded': 'SFNSRounded.ttf', 'mono': 'SFNSMono.ttf'}  # não vão para o git
 AREAS = {'direcao': 'Direção', 'cortes': 'Cortes', 'inserts': 'Inserts', 'enriquecimento': 'Enriquecimento', 'motions': 'Motions', 'elementos': 'Elementos',
          'transicoes': 'Transições', 'audio': 'Áudio', 'legenda': 'Legenda', 'render': 'Render'}
 IMAGEM = re.compile(r'^[\w.-]+\.(png|jpe?g|webp|gif)$', re.I)
@@ -1494,16 +1492,6 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_header('Location', '/app/')
             self.end_headers()
             return
-        if url.path.startswith('/api/motions/fonte/'):
-            fonte = Path('/System/Library/Fonts') / FONTES_DO_MAC.get(url.path.rsplit('/', 1)[1], '-')
-            if not fonte.is_file():
-                return self.send_error(404)
-            corpo = fonte.read_bytes()
-            self.send_response(200)
-            self.send_header('Content-Type', 'font/ttf')
-            self.send_header('Content-Length', str(len(corpo)))
-            self.end_headers()
-            return self.wfile.write(corpo)
         if url.path == '/api/presets/ator.jpg' or url.path.startswith('/api/aprendizados/imagens/'):
             arq = poster_do_ator() if url.path == '/api/presets/ator.jpg' else imagem_aprendizado(unquote(url.path[26:]))
             if not arq:

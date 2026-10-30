@@ -15,7 +15,7 @@ import { eventosDaReceita, type EventoSom } from './sons'
 import { escolhasDeSom, eventosDoMotion, falaDoPlano, fundoDoMotion, marcasDaPagina, urlPaginaMotion } from './motions'
 import { comentarioDe, cardComentario } from './comentario'
 import { definirRelogio, desenhar, geometriaDoInsert, insertNoLugar, motionNoLugar, type Geometria, type V } from './desenho'
-import { desenharElementos, intervalosDeLettering, sonsDosElementos, zonasDosElementos, type Elemento, type Lugar } from './elementos'
+import { carregarFontes, desenharElementos, intervalosDeLettering, sonsDosElementos, zonasDosElementos, type Elemento, type Lugar } from './elementos'
 
 /** `divisao`: como a tela se divide no trecho (o ator: onde fica, e se a pessoa recortada sai por cima do insert).
  *  `assinatura`: tudo o que o trecho desenha (o render.py guarda a foto dele por ela). `geometria`: o insert parado que
@@ -99,6 +99,7 @@ async function iniciar() {
   // zoom (não pela densidade de pixels: com ela, o Chrome desenhava os vídeos com perspectiva 3D em baixa resolução)
   document.documentElement.style.zoom = String(window.innerWidth / 540)
   const raiz = document.getElementById('camada')!
+  await carregarFontes() // antes de medir qualquer texto
   const d = await carregar(slug)
   const { edicao, banco, presets } = d
   const ins = edicao.inserts ?? {}

@@ -1,19 +1,19 @@
 """A legenda no render (do 18: backend/app/legenda.py; SPEC §8.10, docs/legenda.md): o ASS que o libass desenha por cima
 de tudo, no fim da montagem. Os blocos (quais palavras, o texto, quando e onde) são montados pela página de render (a
-mesma conta da prévia) e chegam em `__render.legenda`; o estilo é o medido nas referências: SF Pro Display Bold branca
-com sombra difusa, centralizada."""
+mesma conta da prévia) e chegam em `__render.legenda`; o estilo é o medido nas referências, branca com sombra difusa,
+centralizada, na Inter Bold do repositório (a mesma no Mac e no Linux; nada instalado no sistema)."""
 from pathlib import Path
 
-# o tamanho: medido nas referências (OCR), 2,92% da altura no Chrome (56 px num 1080×1920) = 66 no libass (que mede a
-# fonte de outro jeito); conferido pela largura de uma palavra lida pelo OCR nos dois
-FONTE = 'SF Pro Display'
+# o tamanho: a altura das maiúsculas medida nas referências (OCR), 39,5 px num 1080×1920. O libass divide o tamanho pela
+# altura da fonte (ascendente + descendente: 1,21 em na Inter), então 66 no libass = 54,55 px no Chrome (`ESTILO`)
+FONTE = 'Inter'
+FONTES = Path(__file__).resolve().parents[2] / 'render' / 'motion' / 'fonts' / 'ass'  # só o TTF: o libass não lê woff2
 TAMANHO_ASS = 66 / 1920
 SOMBRA_Y = 3 / 1920  # a sombra difusa: um pouco para baixo, borrada
 SOMBRA_BLUR = 6 / 1920  # o blur em fração da altura (6 num 1080×1920, conferido lado a lado com a prévia; 12 em 4K)
 SOMBRA_ALFA = 0x55  # 0 = opaca, 255 = invisível (ASS)
-# o espaço entre as letras: a prévia aperta 0,01em; no libass, sem nada, a palavra sai 2 px mais larga num 1080×1920
-# ("vulnerabilidades": 413 × 411 px); −0,13 px por letra (`\fsp`) iguala as duas
-ESPACO = -0.13 / 1920
+# o espaço entre as letras: os −0,01em da prévia, em px (`\fsp`) num 1080×1920
+ESPACO = -0.55 / 1920
 
 
 def _tempo(t: float) -> str:
@@ -37,6 +37,7 @@ PlayResX: {w}
 PlayResY: {h}
 WrapStyle: 0
 ScaledBorderAndShadow: yes
+Kerning: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
@@ -67,12 +68,17 @@ def escrever(legenda: dict | None, w: int, h: int, destino: Path) -> Path | None
     return destino
 
 
-def filtro(arquivo: Path) -> str:
-    """O filtro do ffmpeg que desenha o ASS. O caminho vem do nome da exportação (texto do criador: espaços, apóstrofo,
-    vírgula…), escapado nos dois níveis do ffmpeg, sem aspas (dentro delas um apóstrofo não tem escape): primeiro o
-    valor da opção (`\\ ' :`), depois o grafo de filtros (`\\ ' [ ] , ;`)."""
+def _escapar(arquivo: Path) -> str:
     caminho = str(arquivo)
     for nivel in ("\\':", "\\'[],;"):
         for c in nivel:
             caminho = caminho.replace(c, '\\' + c)
-    return f'ass=filename={caminho}'
+    return caminho
+
+
+def filtro(arquivo: Path) -> str:
+    """O filtro do ffmpeg que desenha o ASS. O caminho vem do nome da exportação (texto do criador: espaços, apóstrofo,
+    vírgula…), escapado nos dois níveis do ffmpeg, sem aspas (dentro delas um apóstrofo não tem escape): primeiro o
+    valor da opção (`\\ ' :`), depois o grafo de filtros (`\\ ' [ ] , ;`). `fontsdir` traz a fonte, com o mesmo escape
+    (a pasta do repositório também pode ter espaços)."""
+    return f'ass=filename={_escapar(arquivo)}:fontsdir={_escapar(FONTES)}'

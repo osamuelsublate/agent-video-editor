@@ -239,11 +239,11 @@ export function noQuadro(c: { x: number; y: number; escala: number }, texto: str
 }
 
 /** A altura do card do comentário (`ComentarioIG`), em fração do quadro 9:16: as margens, o usuário, as linhas do
- *  texto (a SF a ~0,52em por letra) e "Responder". Uma estimativa: o card só existe desenhado no navegador. */
+ *  texto (a Inter a ~0,54em por letra) e "Responder". Uma estimativa: o card só existe desenhado no navegador. */
 export function alturaDoComentario(texto: string, escala: number) {
   const largura = Math.min(75 * escala, 96) - escala * (2 * 3.2 + 8.2 + 2.6) // a do texto, em % da largura do quadro
-  const porLinha = Math.max(largura / (3.6 * escala * 0.52), 1)
+  const porLinha = Math.max(largura / (3.49 * escala * 0.54), 1)
   const linhas = Math.max(1, Math.ceil(texto.length / porLinha))
-  const cqw = escala * (2 * 2.6 + 2 * 2.9 * 1.3 + 0.4 + 1.2) + linhas * 3.6 * escala * 1.3
+  const cqw = escala * (2 * 2.6 + 2 * 2.81 * 1.3 + 0.4 + 1.2) + linhas * 3.49 * escala * 1.3
   return (cqw / 100) * (9 / 16)
 }

@@ -7,8 +7,7 @@
     ?video=<id do banco>&formato=…&duracao=…[&exportacao=1]    um vídeo do banco ocupando o palco
     &tocar=1[&fundo=<id>]   toca sozinho em loop, cabendo na janela, com o fundo (o do preset) atrás: a galeria
   Quem manda no tempo é quem abre: window.__ir(t) e window.__sons() do runtime (render/motion/runtime.js).
-  As fontes da Apple (SF Pro, Rounded, Mono) o Chrome não acha pelo nome (local()): vêm do próprio Mac, pelo servidor
-  (GET /api/motions/fonte/<pro|rounded|mono>), como no 18. O runtime, o GSAP e as fontes livres ficam em render/motion/.
+  O runtime, o GSAP e as fontes (livres; os nomes da SF viram apelidos delas, em fonts.css) ficam em render/motion/.
 -->
 <html><head><meta charset="utf-8">
 <script>
@@ -105,11 +104,7 @@
   var fundo = FUNDOS[q.get('fundo')] ? q.get('fundo') : FUNDOS[info.fundo] ? info.fundo : 'gradiente'
   document.write(
     '<link rel="icon" href="data:,"><link rel="stylesheet" href="/render/motion/fonts.css">' +
-    // as da Apple, do Mac, pela API do servidor
     '<style>' +
-    '@font-face { font-family: "SF Pro"; font-weight: 100 900; font-display: block; src: url("/api/motions/fonte/pro") format("truetype"); }' +
-    '@font-face { font-family: "SF Pro Rounded"; font-weight: 100 900; font-display: block; src: url("/api/motions/fonte/rounded") format("truetype"); }' +
-    '@font-face { font-family: "SF Mono"; font-weight: 100 900; font-display: block; src: url("/api/motions/fonte/mono") format("truetype"); }' +
     'html,body{margin:0;padding:0;background:transparent;overflow:hidden}#palco{position:relative;width:' + w + 'px;height:' + h + 'px;overflow:hidden;font-family:Inter,sans-serif}' +
     (tocar ? 'html,body{width:100%;height:100%;background:' + FUNDOS[fundo] + '}#palco{transform-origin:0 0}#fundo{position:fixed;inset:0;overflow:hidden}' : '') +
     '</style>' +

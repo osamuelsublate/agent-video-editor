@@ -7,8 +7,8 @@ import { alturaDoComentario, aspectosDe, divisaoDe, lugarDoComentario, noQuadro,
 import type { PedidoNoTempo as Pedido } from './inserts'
 import type { Preset } from './presets'
 
-/** A legenda (SPEC §8.10; docs/legenda.md), no estilo medido nas referências (`ferramentas/legenda_analisar.py`): a SF
- *  Pro Display em negrito, branca, com sombra difusa, centralizada, **uma palavra por vez** (o mais comum: 7 das 10
+/** A legenda (SPEC §8.10; docs/legenda.md), no estilo medido nas referências (`ferramentas/legenda_analisar.py`): a Inter
+ *  em negrito, branca, com sombra difusa, centralizada, **uma palavra por vez** (o mais comum: 7 das 10
  *  referências) ou frases curtas (até 3 palavras), na altura de cada tipo de plano e desviando do card do comentário.
  *  Os blocos saem daqui para a prévia, para a etapa e para a página de render (o ASS da exportação, `legenda.py`). */
 export type Modo = 'palavra' | 'frase'
@@ -23,13 +23,14 @@ export type Legenda = { ligada: boolean; modo: Modo; ajustes: Record<string, Aju
  *  e se foi mexido à mão (`ajustado`) ou escondido (`oculto`: texto vazio). */
 export type Bloco = { id: string; palavras: string[]; texto: string; ini: number; fim: number; y: number; ajustado: boolean; oculto: boolean }
 
-/** O estilo: o tamanho em fração da altura do quadro (56 px num 1080×1920; o ASS usa 66 no libass, que mede a fonte de
- *  outro jeito), a sombra (escolhida lado a lado com as referências) e a altura do centro do texto em cada tipo de plano
- *  (a mediana medida nas referências; `alturaDaLegenda` acerta pela costura real e pelo card do comentário). */
+/** O estilo: o tamanho em fração da altura do quadro (54,55 px num 1080×1920, que dá as maiúsculas medidas, 39,7 px; o ASS usa 66
+ *  no libass, que mede a fonte de outro jeito), a sombra (escolhida lado a lado com as referências) e a altura do centro do texto em cada tipo de plano
+ *  (a mediana medida nas referências; `alturaDaLegenda` acerta pela costura real e pelo card do comentário). Quem
+ *  desenhar mais de uma linha no navegador usa `text-wrap: balance` e entrelinha 1,21, como o libass. */
 export const ESTILO = {
-  fonte: "'SF Pro Display', system-ui, sans-serif",
+  fonte: 'Inter, sans-serif',
   peso: 700,
-  tamanho: 56 / 1920,
+  tamanho: 54.55 / 1920,
   espaco: '-0.01em',
   sombra: { y: 3 / 1920, blur: 12 / 1920, cor: 'rgba(0,0,0,0.67)' },
   margem: 0.06,

@@ -11,7 +11,7 @@ Formato: {formato} ({palco}) · duração ~{duracao} s · fala: "{fala}"
 {extra}
 Regras: poucos elementos; quase nenhum texto além de rótulos curtos (campos editáveis com esses padrões); entrada curta
 e suave, chegada longa (curva perto de 0.25,0.1,0.1,1 em 0,8–1 s), nunca linear; a cena nunca para até o corte; fontes
-Inter, Instrument Serif ou SF Pro; sons só da biblioteca (biblioteca/sons/catalogo.json). Texto legível num celular (não
+Inter, Instrument Serif ou JetBrains Mono; sons só da biblioteca (biblioteca/sons/catalogo.json). Texto legível num celular (não
 menor que ~28 px no palco de 1080). Algo já na tela no 1º quadro: nunca o fundo vazio esperando uma palavra.
 Nunca zoom na mídia dentro de um card ou quadro (ela fica parada, preenchendo-o); a aproximação, se houver, é no card
 inteiro ou na cena. Cada movimento visível tem o som certo e nenhum som fica sem movimento: motion.som(m, t) põe o PICO

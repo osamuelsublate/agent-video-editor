@@ -1,6 +1,6 @@
 # 09 · Legenda
 
-Gerada sozinha da fala cortada, no estilo medido nas referências: SF Pro Display Bold, branca, sombra escura difusa,
+Gerada sozinha da fala cortada, no estilo medido nas referências: Inter Bold, branca, sombra escura difusa,
 minúsculas como na fala, centralizada, **uma palavra por vez**, na altura de cada tipo de plano (desviando da costura da
 tela dividida e do card do comentário). Entra 0,17 s antes da palavra.
 

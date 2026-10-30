@@ -924,9 +924,9 @@
   }
   function alturaDoComentario(texto, escala) {
     const largura = Math.min(75 * escala, 96) - escala * (2 * 3.2 + 8.2 + 2.6);
-    const porLinha = Math.max(largura / (3.6 * escala * 0.52), 1);
+    const porLinha = Math.max(largura / (3.49 * escala * 0.54), 1);
     const linhas = Math.max(1, Math.ceil(texto.length / porLinha));
-    const cqw = escala * (2 * 2.6 + 2 * 2.9 * 1.3 + 0.4 + 1.2) + linhas * 3.6 * escala * 1.3;
+    const cqw = escala * (2 * 2.6 + 2 * 2.81 * 1.3 + 0.4 + 1.2) + linhas * 3.49 * escala * 1.3;
     return cqw / 100 * (9 / 16);
   }
 
@@ -975,7 +975,7 @@
     ...auto ?? {},
     ...x.comentario ?? {}
   });
-  var FONTE_IG = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro", "Helvetica Neue", system-ui, sans-serif';
+  var FONTE_IG = "Inter, sans-serif";
   function cardComentario(c, texto) {
     const pos = noQuadro(c, texto);
     const u = (v) => `${v * c.escala}cqw`;
@@ -1005,17 +1005,17 @@
                 {
                   chave: "usuario",
                   classe: "flex items-baseline",
-                  estilo: { gap: u(1.6), fontSize: u(2.9), filter: `blur(${u(0.55)})` },
+                  estilo: { gap: u(1.6), fontSize: u(2.81), filter: `blur(${u(0.55)})` },
                   filhos: [
                     { chave: "nome", tag: "span", classe: "font-semibold cor-262626", texto: c.usuario },
                     { chave: "tempo", tag: "span", classe: "cor-737373", texto: c.tempo }
                   ]
                 },
-                { chave: "texto", tag: "p", classe: "cor-000 quebra-qualquer", estilo: { fontSize: u(3.6), marginTop: u(0.4) }, texto },
+                { chave: "texto", tag: "p", classe: "cor-000 quebra-qualquer", estilo: { fontSize: u(3.49), marginTop: u(0.4) }, texto },
                 {
                   chave: "acoes",
                   classe: "flex font-semibold cor-737373",
-                  estilo: { gap: u(4), fontSize: u(2.9), marginTop: u(1.2) },
+                  estilo: { gap: u(4), fontSize: u(2.81), marginTop: u(1.2) },
                   filhos: [{ chave: "responder", tag: "span", texto: "Responder" }, c.traducao && { chave: "traducao", tag: "span", texto: "Ver tradu\xE7\xE3o" }]
                 }
               ]
@@ -1029,9 +1029,9 @@
   // src/legenda.ts
   var ajusteNoModo = (aj, modo) => aj?.modo && aj.modo !== modo ? void 0 : aj;
   var ESTILO = {
-    fonte: "'SF Pro Display', system-ui, sans-serif",
+    fonte: "Inter, sans-serif",
     peso: 700,
-    tamanho: 56 / 1920,
+    tamanho: 54.55 / 1920,
     espaco: "-0.01em",
     sombra: { y: 3 / 1920, blur: 12 / 1920, cor: "rgba(0,0,0,0.67)" },
     margem: 0.06
@@ -1541,11 +1541,11 @@
   // src/elementos.ts
   var queixo = (l) => l.rosto ? l.rosto.cy + l.rosto.h / 2 : 0.45;
   var olhos = (l) => l.rosto ? l.rosto.cy - 0.15 * l.rosto.h : 0.29;
-  var FONTE = "'SF Pro Display', system-ui, sans-serif";
-  var MONO = "ui-monospace, 'SF Mono', Menlo, monospace";
+  var FONTE = "Inter, sans-serif";
+  var MONO = '"JetBrains Mono", monospace';
   var W_H2 = 9 / 16;
   var POP = { dur: 0.18, escala: 0.92, curva: bezier(0.16, 1, 0.3, 1) };
-  var MAIUSCULA = 0.7046;
+  var MAIUSCULA = 0.7275;
   var TAM = { grande: 5.75 / MAIUSCULA, insert: 4.5 / MAIUSCULA, manychat: 2.35 / MAIUSCULA };
   var SOMBRA_TEXTO = "0 0.03em 0.16em rgba(0,0,0,0.55), 0 0 0.04em rgba(0,0,0,0.25)";
   var DESFOQUE = { raio: 0.9, escurece: 0.22 };
@@ -1554,6 +1554,7 @@
   var SONS = { digitacao: ["typing-ios-01", "Digita\xE7\xE3o"], pop: ["ui-pop-02", "Pop"] };
   var AVIAO = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="#fff" stroke="#fff" stroke-width="1.4" stroke-linejoin="round" d="M3 11 22 2 13 21 11 13Z"/></svg>')}`;
   var ctx = null;
+  var carregarFontes = () => Promise.all([`400 1em ${FONTE}`, `500 1em ${FONTE}`, `600 1em ${FONTE}`, `700 1em ${FONTE}`, `500 1em ${MONO}`].map((f) => document.fonts.load(f)));
   function emEm(texto, peso, familia2 = FONTE) {
     ctx ??= document.createElement("canvas").getContext("2d");
     ctx.font = `${peso} 100px ${familia2}`;
@@ -1583,7 +1584,7 @@ ${b}` };
     }
     return linhas;
   }
-  var CAIXINHA = { w: 0.8, cabecalho: 1.9, pergunta: 2.9, pad: 2.2, padCab: 1.4, y: 0.32 };
+  var CAIXINHA = { w: 0.8, cabecalho: 1.84, pergunta: 2.81, pad: 2.2, padCab: 1.4, y: 0.32 };
   function medidasCaixinha(e) {
     const linhas = quebrar(e.texto ?? "", CAIXINHA.pergunta, CAIXINHA.w - 0.1, 600);
     const h = (2 * CAIXINHA.padCab + CAIXINHA.cabecalho * 1.2 + 2 * CAIXINHA.pad + linhas.length * CAIXINHA.pergunta * 1.25) / 100;
@@ -1833,6 +1834,7 @@ ${b}` };
     const slug = new URLSearchParams(location.search).get("projeto") ?? "";
     document.documentElement.style.zoom = String(window.innerWidth / 540);
     const raiz = document.getElementById("camada");
+    await carregarFontes();
     const d = await carregar(slug);
     const { edicao, banco, presets } = d;
     const ins = edicao.inserts ?? {};

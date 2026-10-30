@@ -22,15 +22,15 @@ export type Elemento = { id: string; tipo: string; inicio: number; fim: number; 
  *  medida, os das referências. */
 const queixo = (l: Lugar) => (l.rosto ? l.rosto.cy + l.rosto.h / 2 : 0.45)
 const olhos = (l: Lugar) => (l.rosto ? l.rosto.cy - 0.15 * l.rosto.h : 0.29)
-const FONTE = "'SF Pro Display', system-ui, sans-serif"
-const MONO = "ui-monospace, 'SF Mono', Menlo, monospace"
+const FONTE = 'Inter, sans-serif'
+const MONO = '"JetBrains Mono", monospace'
 const W_H = 9 / 16 // largura ÷ altura do quadro
 /** A entrada de todos: um "pop" rápido (escala e opacidade na curva de chegada); a saída é seca. */
 const POP = { dur: 0.18, escala: 0.92, curva: bezier(0.16, 1, 0.3, 1) }
-/** A altura das maiúsculas da SF Pro Display (em, medida no Chrome) e o tamanho de cada texto, pelas maiúsculas medidas
+/** A altura das maiúsculas da Inter Bold (em, medida no Chrome) e o tamanho de cada texto, pelas maiúsculas medidas
  *  nas referências (fração da altura do quadro): o Full ator com lettering ~5,75%, o lettering sobre insert ~4,5%, a
  *  palavra do ManyChat ~2,35%. */
-const MAIUSCULA = 0.7046
+const MAIUSCULA = 0.7275
 const TAM = { grande: 5.75 / MAIUSCULA, insert: 4.5 / MAIUSCULA, manychat: 2.35 / MAIUSCULA }
 /** A sombra dos letterings: escura e difusa, como a da legenda. */
 const SOMBRA_TEXTO = '0 0.03em 0.16em rgba(0,0,0,0.55), 0 0 0.04em rgba(0,0,0,0.25)'
@@ -50,7 +50,8 @@ const AVIAO = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w
 // ---------------------------------------------------------------- medir texto
 
 let ctx: CanvasRenderingContext2D | null = null
-/** A largura do texto em em (a fonte do sistema: a SF da Apple, instalada no Mac). */
+export const carregarFontes = () => Promise.all([`400 1em ${FONTE}`, `500 1em ${FONTE}`, `600 1em ${FONTE}`, `700 1em ${FONTE}`, `500 1em ${MONO}`].map((f) => document.fonts.load(f)))
+/** A largura do texto em em (a fonte já carregada: `carregarFontes`, senão o canvas mede com outra). */
 function emEm(texto: string, peso: number, familia = FONTE) {
   ctx ??= document.createElement('canvas').getContext('2d')!
   ctx.font = `${peso} 100px ${familia}`
@@ -92,7 +93,7 @@ function quebrar(texto: string, tam: number, largura: number, peso: number) {
  *  altura; sobre o ator, subindo até ficar acima dos olhos (como os stickers dos Stories, que não cobrem o rosto); na
  *  tela dividida, na costura, como o card do comentário (no meio da metade de cima, ela tapava o insert atrás), sem
  *  descer mais que 5% abaixo dela (a caixinha de três linhas cobria a cabeça do ator). */
-const CAIXINHA = { w: 0.8, cabecalho: 1.9, pergunta: 2.9, pad: 2.2, padCab: 1.4, y: 0.32 }
+const CAIXINHA = { w: 0.8, cabecalho: 1.84, pergunta: 2.81, pad: 2.2, padCab: 1.4, y: 0.32 }
 function medidasCaixinha(e: Elemento) {
   const linhas = quebrar(e.texto ?? '', CAIXINHA.pergunta, CAIXINHA.w - 0.1, 600)
   const h = (2 * CAIXINHA.padCab + CAIXINHA.cabecalho * 1.2 + 2 * CAIXINHA.pad + linhas.length * CAIXINHA.pergunta * 1.25) / 100
