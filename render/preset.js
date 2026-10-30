@@ -809,10 +809,18 @@
     const area = areaDoInsert(divisao);
     const n = pedido.midias.length;
     const dur = Math.max(pedido.t.fim - pedido.t.inicio, 0.01);
-    const rel = Math.max(p.tempo - pedido.t.inicio, 0);
+    let rel = Math.max(p.tempo - pedido.t.inicio, 0);
     if (!n) return [];
     const atras = divisao?.modo === "atras" && { chave: "atras", classe: "pointer-events-none absolute inset-0", filhos: [fundo(p.fundo)] };
-    if (p.receita)
+    if (p.receita) {
+      let receita = p.receita;
+      if (p.so === "fundo") receita = { ...receita, cards: [] };
+      else if (p.so != null) {
+        const c = receita.cards[p.so];
+        receita = { ...receita, fundo: "proprio", cards: [c] };
+        rel = c.inicio_frac * dur;
+      }
+      const sombra = typeof p.so === "number";
       return [
         atras,
         {
@@ -821,18 +829,19 @@
           estilo: area,
           filhos: [
             cenaPreset({
-              receita: p.receita,
+              receita,
               rel,
               dur,
               fundo: p.fundo,
               classe: "inset-0",
-              semFundo: divisao?.modo === "atras",
+              semFundo: divisao?.modo === "atras" || sombra,
               caixa: p.caixa,
-              midia: (k2, relM, topo) => midia(pedido.midias[k2], banco, relM, topo)
+              midia: (k2, relM, topo) => sombra ? null : midia(pedido.midias[k2], banco, relM, topo)
             })
           ]
         }
       ].filter(Boolean);
+    }
     const emCard = ESTILO_SIMPLES[pedido.formato].layout === "card";
     const { k, ini, durM } = corteSimples(n, rel, dur);
     const anim = estiloSimples(rel - ini, durM);

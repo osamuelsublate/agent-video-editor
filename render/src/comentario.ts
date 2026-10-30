@@ -3,7 +3,7 @@ import { noQuadro } from './divisao'
 import type { V } from './desenho'
 
 /** O card de comentário do Instagram (plano Comentário + insert + ator; SPEC §8.3): foto, usuário e tempo borrados,
- *  o texto, "Responder" e "Ver tradução". Fonte do sistema da Apple (a que o Instagram usa no iPhone). */
+ *  o texto, "Responder" e "Ver tradução". Na Inter, com os tamanhos que dão as maiúsculas da SF do iPhone. */
 export type Comentario = { texto: string | null; avatar: number; usuario: string; tempo: string; traducao: boolean; x: number; y: number; escala: number }
 const COMENTARIO_PADRAO: Comentario = { texto: null, avatar: 0, usuario: 'usuario.do.ig', tempo: '4 sem', traducao: true, x: 50, y: 50, escala: 1 }
 /** O comentário do insert; sem posição salva (nunca arrastado), fica no lugar automático da divisão (`auto`). */
@@ -13,7 +13,7 @@ export const comentarioDe = (x: { comentario?: Partial<Comentario> }, auto?: { x
   ...(x.comentario ?? {}),
 })
 
-const FONTE_IG = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro", "Helvetica Neue", system-ui, sans-serif'
+const FONTE_IG = 'Inter, sans-serif'
 
 /** O card (centro em `x`, `y` %; largura 75% × escala), sempre inteiro no quadro (`divisao.noQuadro`). */
 export function cardComentario(c: Comentario, texto: string): V {
@@ -45,17 +45,17 @@ export function cardComentario(c: Comentario, texto: string): V {
               {
                 chave: 'usuario',
                 classe: 'flex items-baseline',
-                estilo: { gap: u(1.6), fontSize: u(2.9), filter: `blur(${u(0.55)})` },
+                estilo: { gap: u(1.6), fontSize: u(2.81), filter: `blur(${u(0.55)})` },
                 filhos: [
                   { chave: 'nome', tag: 'span', classe: 'font-semibold cor-262626', texto: c.usuario },
                   { chave: 'tempo', tag: 'span', classe: 'cor-737373', texto: c.tempo },
                 ],
               },
-              { chave: 'texto', tag: 'p', classe: 'cor-000 quebra-qualquer', estilo: { fontSize: u(3.6), marginTop: u(0.4) }, texto },
+              { chave: 'texto', tag: 'p', classe: 'cor-000 quebra-qualquer', estilo: { fontSize: u(3.49), marginTop: u(0.4) }, texto },
               {
                 chave: 'acoes',
                 classe: 'flex font-semibold cor-737373',
-                estilo: { gap: u(4), fontSize: u(2.9), marginTop: u(1.2) },
+                estilo: { gap: u(4), fontSize: u(2.81), marginTop: u(1.2) },
                 filhos: [{ chave: 'responder', tag: 'span', texto: 'Responder' }, c.traducao && { chave: 'traducao', tag: 'span', texto: 'Ver tradução' }],
               },
             ],
