@@ -11,19 +11,21 @@ import tempfile
 from pathlib import Path
 
 # os codecs de vídeo: no Mac, o chip de vídeo (VideoToolbox); no Linux, a placa da NVIDIA (NVENC e CUDA) e o ProRes por
-# software. O -q:v do NVENC não significa o mesmo que o do VideoToolbox: lá a qualidade é o -cq (menor é melhor)
+# software. O -q:v do NVENC não significa o mesmo que o do VideoToolbox: lá a qualidade é o -cq (menor é melhor), medido
+# com VMAF e quadros ampliados. -level 5.1: o nível automático (5.0) trava o 4K em ~20 Mb/s; assim o teto é ~33 Mb/s
 MAC = sys.platform == 'darwin'
-CQ_PROXY = 23  # o proxy 720p montado pelo render
-CQ_ENQUADRAMENTO = 23  # o bruto 9:16 (matéria-prima: vai ser recodificado)
-CQ_FINAL = 23  # o final 4K
+CQ_PROXY = 28  # o proxy 720p montado pelo render (mais limpo que o libx264 crf 23; -cq 30 iguala o tamanho dele)
+CQ_ENQUADRAMENTO = 16  # o bruto 9:16 (matéria-prima: vai ser recodificado, o que perde ~0,4 de VMAF)
+CQ_FINAL = 22  # o final 4K (indistinguível da fonte em 1:1; 26 já amolece a borda do texto)
+NVENC = ['-preset', 'p5', '-rc', 'vbr', '-b:v', '0']  # p6 e p7, lookahead e AQ: mais lentos e sem ganho
 DECODIFICA = ['-hwaccel', 'videotoolbox' if MAC else 'cuda']
 # os proxies de mídia, com taxa fixa (`-b:v`) e quadro-chave forçado para o player saltar. No NVENC: sem o -forced-idr, o
 # quadro forçado não vira quadro-chave de verdade no arquivo (só o 1º do vídeo); sem o -pix_fmt, um bruto de 10 bits ou
 # 4:2:2 não abre o codificador
 H264_PLAYER = ['-c:v', 'h264_videotoolbox'] if MAC else ['-c:v', 'h264_nvenc', '-forced-idr', '1', '-pix_fmt', 'yuv420p']
-H264_PROXY = ['-c:v', 'h264_videotoolbox', '-q:v', '65'] if MAC else ['-c:v', 'h264_nvenc', '-cq', str(CQ_PROXY)]
-HEVC_ENQUADRAMENTO = (['-c:v', 'hevc_videotoolbox', '-q:v', '80'] if MAC else ['-c:v', 'hevc_nvenc', '-cq', str(CQ_ENQUADRAMENTO)]) + ['-tag:v', 'hvc1']
-HEVC_FINAL = (['-c:v', 'hevc_videotoolbox', '-q:v', '65'] if MAC else ['-c:v', 'hevc_nvenc', '-cq', str(CQ_FINAL)]) + ['-tag:v', 'hvc1']
+H264_PROXY = ['-c:v', 'h264_videotoolbox', '-q:v', '65'] if MAC else ['-c:v', 'h264_nvenc', *NVENC, '-cq', str(CQ_PROXY)]
+HEVC_ENQUADRAMENTO = (['-c:v', 'hevc_videotoolbox', '-q:v', '80'] if MAC else ['-c:v', 'hevc_nvenc', *NVENC, '-level', '5.1', '-cq', str(CQ_ENQUADRAMENTO)]) + ['-tag:v', 'hvc1']
+HEVC_FINAL = (['-c:v', 'hevc_videotoolbox', '-q:v', '65'] if MAC else ['-c:v', 'hevc_nvenc', *NVENC, '-level', '5.1', '-cq', str(CQ_FINAL)]) + ['-tag:v', 'hvc1']
 # com transparência; sem o pix_fmt, o prores_ks perde o alfa
 PRORES_ALFA = ['-c:v', 'prores_videotoolbox', '-profile:v', '4444'] if MAC else ['-c:v', 'prores_ks', '-profile:v', '4444', '-pix_fmt', 'yuva444p10le']
 

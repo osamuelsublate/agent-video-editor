@@ -116,11 +116,11 @@ def test_comandos_do_linux(tmp_path, constantes_de):
         assert cmd[cmd.index('-hwaccel') + 1] == 'cuda'
     hevc, h264 = atual['vertical_simples'], atual['atras_sem_mascara']
     i = hevc.index('-c:v')
-    assert hevc[i:i + 6] == ['-c:v', 'hevc_nvenc', '-cq', str(g['CQ_FINAL']), '-tag:v', 'hvc1']
+    assert hevc[i:i + 14] == ['-c:v', 'hevc_nvenc', *g['NVENC'], '-level', '5.1', '-cq', str(g['CQ_FINAL']), '-tag:v', 'hvc1']
     i = h264.index('-c:v')
-    assert h264[i:i + 4] == ['-c:v', 'h264_nvenc', '-cq', str(g['CQ_PROXY'])] and 'hvc1' not in h264
+    assert h264[i:i + 10] == ['-c:v', 'h264_nvenc', *g['NVENC'], '-cq', str(g['CQ_PROXY'])] and 'hvc1' not in h264
     assert g['H264_PLAYER'] == ['-c:v', 'h264_nvenc', '-forced-idr', '1', '-pix_fmt', 'yuv420p']
-    assert g['HEVC_ENQUADRAMENTO'] == ['-c:v', 'hevc_nvenc', '-cq', str(g['CQ_ENQUADRAMENTO']), '-tag:v', 'hvc1']
+    assert g['HEVC_ENQUADRAMENTO'] == ['-c:v', 'hevc_nvenc', *g['NVENC'], '-level', '5.1', '-cq', str(g['CQ_ENQUADRAMENTO']), '-tag:v', 'hvc1']
     assert g['PRORES_ALFA'] == ['-c:v', 'prores_ks', '-profile:v', '4444', '-pix_fmt', 'yuva444p10le']
 
 
