@@ -55,8 +55,8 @@ from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-import gemini  # noqa: E402
 from base import clonar  # noqa: E402
+import gemini  # noqa: E402
 from base import BIBLIOTECA, CATEGORIA_PADRAO, EXEMPLOS, PROJETOS, RAIZ, env, ffmpeg, gravar_json, inspecionar, ler_json, para_lixeira, renomear_tags, tags_limpas  # noqa: E402
 
 REFS = BIBLIOTECA / 'referencias'

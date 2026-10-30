@@ -24,10 +24,11 @@ from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
+from base import clonar as clonar_arquivo  # noqa: E402
 import enquadramento  # noqa: E402
 import rosto  # noqa: E402
 import voz  # noqa: E402
-from base import CATEGORIA_PADRAO, PROJETOS, clonar as clonar_arquivo, env, gravar_json, inspecionar, preparar_biblioteca  # noqa: E402
+from base import CATEGORIA_PADRAO, PROJETOS, env, gravar_json, inspecionar, preparar_biblioteca  # noqa: E402
 from transcricao import extrair_audio, silencios, transcrever  # noqa: E402
 
 ROTULOS = {'enquadramento': 'enquadramento 9:16', 'proxy': 'proxy 720p e rosto', 'audio': 'áudio e silêncios',
