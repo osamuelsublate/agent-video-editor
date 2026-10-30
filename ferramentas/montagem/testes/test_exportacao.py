@@ -136,3 +136,8 @@ def test_constantes_do_mac(constantes_de):
 def test_trabalhador_usa_o_prores_do_base():
     """O trabalhador do render (`render_quadros`, que não importa `exportacao`) grava com a mesma constante."""
     assert render_quadros.PRORES_ALFA is base.PRORES_ALFA
+
+
+def test_curva_do_video_so_no_mac():
+    """A curva da Apple clareia o vídeo só no Chrome do Mac; no Linux, a foto do navegador não muda o cinza."""
+    assert exportacao.CURVA_VIDEO == (0.9 if base.MAC else 1.0)

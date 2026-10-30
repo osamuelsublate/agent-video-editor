@@ -7,7 +7,7 @@ import math
 import subprocess
 from pathlib import Path
 
-from base import DECODIFICA, H264_PROXY, HEVC_FINAL, PRORES_ALFA, RAIZ, inspecionar
+from base import DECODIFICA, H264_PROXY, HEVC_FINAL, MAC, PRORES_ALFA, RAIZ, inspecionar
 
 from . import audio as audio_mod
 from . import legenda as legenda_mod
@@ -392,7 +392,8 @@ SEM_MARCA = 'bt709'
 FILTRO = 'bilinear'  # a escala da mídia no card (a que mais se aproxima do navegador, medida contra as fotos)
 # um vídeo dentro do card sai mais claro na foto do navegador (o Chrome do Mac trata o vídeo com a curva da Apple,
 # gama ~1,96, e entrega em sRGB): a mesma curva, medida contra as fotos (a chuva, sem card, e as imagens não mudam)
-CURVA_VIDEO = 0.9
+# no Linux não há essa curva: o Chromium mantém o cinza 128 do vídeo, e 0,9 deixava o insert desenhado aqui mais claro (135)
+CURVA_VIDEO = 0.9 if MAC else 1.0
 
 
 def _midia(arq: Path) -> tuple[dict, str]:
