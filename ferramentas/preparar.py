@@ -9,7 +9,7 @@ do 18, menos os cortes pela IA e os motores extras).
 
 Cria projetos/<slug>/ (contrato em .claude/skills/editor/edicao.md) com o bruto clonado e, em paralelo: o 9:16 pelo rosto
 (só num vídeo horizontal, antes do que depende dele), o proxy 720p e o rosto (numa leitura só do vídeo), o áudio e os
-silêncios, a transcrição (ElevenLabs Scribe v2), a voz limpa Leve e o nível da voz; por fim, o edicao.json inicial. Se um
+silêncios, a transcrição (ElevenLabs Scribe v2, pelo OpenRouter), a voz limpa Leve e o nível da voz; por fim, o edicao.json inicial. Se um
 passo falha, diz qual e por quê, e a pasta é apagada (rodar de novo é o "tentar de novo").
 """
 import argparse
@@ -264,7 +264,7 @@ def main() -> None:
     video = Path(a.video).expanduser().resolve()
     if not video.is_file():
         raise SystemExit(f'Não achei o vídeo: {a.video}')
-    env('ELEVENLABS_API_KEY')  # sem a chave, nem começa
+    env('OPENROUTER_API_KEY')  # sem a chave, nem começa
     briefing = a.briefing
     if briefing and Path(briefing).expanduser().is_file():
         briefing = Path(briefing).expanduser().read_text(encoding='utf-8')
