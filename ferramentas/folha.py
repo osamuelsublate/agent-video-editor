@@ -17,7 +17,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 from base import BIBLIOTECA, PROJETOS, ffmpeg, inspecionar  # noqa: E402
 
-FONTE = '/System/Library/Fonts/Supplemental/Arial.ttf'
+# a primeira fonte que existe: a do Mac, a DejaVu do Linux; sem nenhuma, o ffmpeg escolhe pelo fontconfig. (As de
+# render/motion/fonts/ são woff2: o drawtext não lê.)
+FONTE = next((f for f in ('/System/Library/Fonts/Supplemental/Arial.ttf', '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf') if Path(f).is_file()), None)
 LADO = 320  # o lado maior de cada quadro
 
 
@@ -41,7 +43,7 @@ def folha(video: Path, cada: float = 2.0, colunas: int = 8) -> Path:
     texto = r"%{eif\:trunc(t/60)\:d}\:%{eif\:mod(trunc(t)\,60)\:d\:2}\,%{eif\:trunc(mod(t\,1)*10)\:d}"
     filtros = [f"select='isnan(prev_selected_t)+gte(t-prev_selected_t\\,{cada - 0.02})'",
                f"scale='if(gt(iw,ih),{LADO},-2)':'if(gt(iw,ih),-2,{LADO})'",
-               f"drawtext=fontfile={FONTE}:text='{texto}':x=8:y=8:fontsize=20:fontcolor=white:box=1:boxcolor=black@0.65:boxborderw=5",
+               f"drawtext={'fontfile=' + FONTE if FONTE else 'font=sans'}:text='{texto}':x=8:y=8:fontsize=20:fontcolor=white:box=1:boxcolor=black@0.65:boxborderw=5",
                f'tile={colunas}x{linhas}:margin=4:padding=4:color=0x202020']
     saida = destino(video)
     ffmpeg('-i', str(video), '-vf', ','.join(filtros), '-fps_mode', 'vfr', '-frames:v', '1', '-q:v', '3', str(saida))

@@ -56,6 +56,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 import gemini  # noqa: E402
+from base import clonar  # noqa: E402
 from base import BIBLIOTECA, CATEGORIA_PADRAO, EXEMPLOS, PROJETOS, RAIZ, env, ffmpeg, gravar_json, inspecionar, ler_json, para_lixeira, renomear_tags, tags_limpas  # noqa: E402
 
 REFS = BIBLIOTECA / 'referencias'
@@ -854,8 +855,7 @@ def de_projeto(slug: str, versao: int | str | None = None) -> str:
         shutil.rmtree(base, ignore_errors=True)
         base.mkdir(parents=True)
     try:
-        if subprocess.run(['cp', '-c', str(vdir / 'proxy.mp4'), str(base / 'proxy.mp4')], capture_output=True).returncode:
-            shutil.copy2(vdir / 'proxy.mp4', base / 'proxy.mp4')
+        clonar(vdir / 'proxy.mp4', base / 'proxy.mp4')
         ffmpeg('-ss', str(min(1.0, dur / 2)), '-i', str(base / 'proxy.mp4'), '-frames:v', '1', '-vf', 'scale=360:-2', '-q:v', '4',
                str(base / 'miniatura.jpg'))
         gravar_json(base / 'palavras.json', {'motor': (ler_json(p / 'transcricao.json') or {}).get('motor'), 'palavras': palavras})
@@ -896,8 +896,7 @@ def _criar(arquivo: str, nome: str | None, categoria: str = CATEGORIA_PADRAO) ->
         base.mkdir(parents=True)
     destino = base / f'video{origem.suffix.lower() or ".mp4"}'
     try:
-        if subprocess.run(['cp', '-c', str(origem), str(destino)], capture_output=True).returncode:
-            shutil.copy2(origem, destino)  # entre volumes diferentes, uma cópia comum
+        clonar(origem, destino)
         try:
             info = inspecionar(destino)
         except RuntimeError:
