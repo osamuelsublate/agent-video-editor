@@ -114,10 +114,16 @@ def palavras_na_saida(palavras: list[dict], clipes: list[dict]) -> list[dict]:
 
 def copias_do_banco(edicao: dict) -> int:
     """A cópia de exportação de cada vídeo do banco usado (o original, ou o pai de um trecho): a resolução original com
-    quadro-chave a cada 6 quadros, para a busca quadro a quadro ser rápida; refeita se o original mudou. Do 18:
-    banco.arquivo_para_exportar. Devolve quantas fez."""
+    quadro-chave a cada 6 quadros, para a busca quadro a quadro ser rápida, em H.264 8 bits 4:2:0, que todo Chromium toca;
+    refeita se o original mudou. Do 18: banco.arquivo_para_exportar. Devolve quantas fez."""
     feitas = 0
     usados = {m['banco'] for x in (edicao.get('inserts') or {}).get('pedidos', []) for m in x.get('midias', []) if m.get('banco')}
+    # os prints sobrepostos e os motions (o vídeo e os campos que citam um id): sem a cópia, a página toca o original, e
+    # HEVC ou ProRes num Chromium sem o codec sai como um plano preto, sem erro nenhum
+    usados |= {i['banco'] for i in (edicao.get('direcao') or {}).get('itens', []) if i.get('banco')}
+    for m in (edicao.get('motions') or {}).values():
+        usados |= {m['banco']} if m.get('banco') else set()
+        usados |= set(re.findall(r'\b[0-9a-f]{10}\b', json.dumps(m.get('valores') or {})))
     for base in sorted({(ler_json(BIBLIOTECA / 'banco' / b / 'item.json') or {}).get('pai') or b for b in usados}):
         pasta_item = BIBLIOTECA / 'banco' / base
         item = ler_json(pasta_item / 'item.json')
