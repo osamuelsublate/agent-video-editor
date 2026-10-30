@@ -28,9 +28,11 @@ sys.path.insert(0, str(Path(__file__).parent))
 import banco  # noqa: E402
 
 # proporção → janela de computador (px de CSS) e densidade. A 9:16 é um computador em pé (nunca a versão de celular):
-# 1200 px de largura pega o layout desktop; 1,8× → 2160×3840
+# 1200 px de largura pega o layout desktop; 0,9× → 1080×1920, o tamanho do quadro final. Sem GPU (WSL2, Linux) o
+# screencast é limitado pelos pixels: numa página que anima o tempo todo, 2× dava 3 a 7 quadros únicos/s (travadas
+# de 100 a 450 ms) e 1× dá 17 a 26; por isso 1×, e não 2× como no Mac
 JANELAS = {'16:9': (1440, 810), '4:3': (1200, 900), '1:1': (1080, 1080), '9:16': (1200, 2133)}
-DENSIDADE = {'9:16': 1.8}  # as outras: 2×
+DENSIDADE = {'9:16': 0.9}  # as outras: 1×
 FPS = 30
 ASSENTAR = 1.0  # s do começo da dobra do topo que ficam de fora: o layout ainda muda
 MAX_DOBRAS = 3
@@ -72,11 +74,13 @@ async def _gravar(url: str, proporcao: str, y: float, duracao: float, saida: Pat
     from playwright.async_api import async_playwright
 
     w, h = JANELAS[proporcao]
-    dpr = DENSIDADE.get(proporcao, 2)
+    dpr = DENSIDADE.get(proporcao, 1)
     quadros: list[tuple[float, bytes]] = []
     topo = 0
     async with async_playwright() as pw:
-        # channel 'chromium' = headless novo, com GPU (Metal); a densidade precisa ser real, senão o screencast sai em 1×
+        # channel 'chromium' = headless novo (no Mac, com GPU pelo Metal; no WSL2 sai em software, sem alternativa estável:
+        # com a composição na GPU do Mesa/d3d12 o processo da GPU cai); a densidade precisa ser real, senão o screencast
+        # sai em 1×
         browser = await pw.chromium.launch(channel='chromium', args=[
             '--force-color-profile=srgb', '--hide-scrollbars', '--disable-background-timer-throttling', '--disable-renderer-backgrounding',
             '--disable-backgrounding-occluded-windows', '--enable-gpu-rasterization', '--ignore-gpu-blocklist', f'--force-device-scale-factor={dpr}'])
