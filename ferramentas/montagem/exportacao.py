@@ -7,7 +7,7 @@ import math
 import subprocess
 from pathlib import Path
 
-from base import RAIZ, inspecionar
+from base import DECODIFICA, H264_PROXY, HEVC_FINAL, PRORES_ALFA, RAIZ, inspecionar
 
 from . import audio as audio_mod
 from . import legenda as legenda_mod
@@ -332,13 +332,13 @@ def comando_final(bruto: Path, clipes: list[dict], horizontal: bool, enquadramen
                   mascara_vinheta: Path | None = None, audio: dict | None = None, movimentos: list[dict] | None = None,
                   hwaccel: bool = True) -> list[str]:
     """Uma passada só, montada por camadas na ordem do contrato (SPEC §13; cada área mexe só na sua função): o ator e o
-    áudio do bruto, decodificado pelo chip de vídeo (`_ator`); por cima, a camada dos inserts (`_inserts`); por cima
+    áudio do bruto, decodificado pelo hardware de vídeo (`_ator`); por cima, a camada dos inserts (`_inserts`); por cima
     dela, o ator na janela do "insert atrás" e a pessoa recortada (a parte de cima de `_ator`); depois, sobre o quadro
-    montado, as transições e a legenda (`_pos_montagem`); o áudio (`_audio`). Codifica no chip de vídeo (HEVC ou H.264).
+    montado, as transições e a legenda (`_pos_montagem`); o áudio (`_audio`). Codifica no hardware de vídeo (HEVC ou H.264).
     Entradas do ffmpeg, nesta ordem: o bruto, a máscara (se usada), os clipes dos inserts, os sons e a máscara da
     vinheta do look (se houver; lida uma vez e repetida pelo filtro `loop`). O look (LUT + vinheta, `look.py`) vale só
-    para o ator, logo depois da escala. `hwaccel`: decodificar o bruto no chip de vídeo (no 4K compensa; num vídeo leve,
-    como o proxy 720p, trazer cada quadro do chip de volta custa mais que decodificar no processador)."""
+    para o ator, logo depois da escala. `hwaccel`: decodificar o bruto no hardware de vídeo (no 4K compensa; num vídeo leve,
+    como o proxy 720p, trazer cada quadro de volta dele custa mais que decodificar no processador)."""
     com_look = look_mod.ativo(look)
     partes, topo = _ator(clipes, horizontal, enquadramento_x, w, h, fps, divisoes, duracao, mascara is not None, com_look, movimentos)
     usa_mascara = any('[1:v]' in x for x in partes)
@@ -356,8 +356,8 @@ def comando_final(bruto: Path, clipes: list[dict], horizontal: bool, enquadramen
     ent_pos, f_pos = _pos_montagem(transicoes, legenda, 'topo', 'v', w, h, 1 + entradas.count('-i'), fps)
     entradas += ent_pos
     partes += f_ins + f_som + topo + f_pos
-    cv = ['-c:v', 'hevc_videotoolbox', '-q:v', '65', '-tag:v', 'hvc1'] if codec == 'hevc' else ['-c:v', 'h264_videotoolbox', '-q:v', '65']
-    return ['ffmpeg', '-y', '-loglevel', 'error', '-progress', 'pipe:1', '-nostats', *(['-hwaccel', 'videotoolbox'] if hwaccel else []), '-i', str(bruto),
+    cv = HEVC_FINAL if codec == 'hevc' else H264_PROXY
+    return ['ffmpeg', '-y', '-loglevel', 'error', '-progress', 'pipe:1', '-nostats', *(DECODIFICA if hwaccel else []), '-i', str(bruto),
             *entradas, '-filter_complex', ';'.join(partes), '-map', '[v]', '-map', '[am]', *cv, '-pix_fmt', 'yuv420p',
             '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709', '-color_range', 'tv',
             '-c:a', 'aac', '-b:a', '320k', '-ar', '48000', '-t', f'{duracao:.4f}', '-movflags', '+faststart', str(saida)]
@@ -442,7 +442,7 @@ def camada_do_insert(t: dict, w: int, h: int, fps: int, saida: Path, fixas: dict
         dur = inspecionar(CHUVA)
         s0 = t['ini'] % dur['duracao']  # o relógio do vídeo final, dando a volta no laço (`desenho.chuvaNoRelogio`)
         ss = max(0.0, s0 - 1)
-        i = entrada('-hwaccel', 'videotoolbox', '-stream_loop', '-1', '-ss', f'{ss:.6f}', '-i', str(CHUVA))
+        i = entrada(*DECODIFICA, '-stream_loop', '-1', '-ss', f'{ss:.6f}', '-i', str(CHUVA))
         k = max(aw / dur['largura'], ah / dur['altura'])
         sw, sh = max(round(dur['largura'] * k), aw), max(round(dur['altura'] * k), ah)
         # quadro j: o último da chuva até s0 + j/fps (o vídeo parado num instante mostra o quadro daquele instante)
@@ -547,4 +547,4 @@ def camada_do_insert(t: dict, w: int, h: int, fps: int, saida: Path, fixas: dict
     f.append(f'[{atual}]pad={w}:{h}:0:{round(g["area"]["y"] * h)}:color=black@0,format=rgba,'
              f'setparams=color_primaries=unknown:color_trc=unknown:colorspace=unknown:range=unknown[v]')
     return ['ffmpeg', '-y', '-loglevel', 'error', *entradas, '-filter_complex', ';'.join(f), '-map', '[v]', '-frames:v', str(n),
-            '-r', str(fps), '-c:v', 'prores_videotoolbox', '-profile:v', '4444', str(saida)]
+            '-r', str(fps), *PRORES_ALFA, str(saida)]

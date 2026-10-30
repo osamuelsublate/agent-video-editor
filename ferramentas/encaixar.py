@@ -27,7 +27,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from base import BIBLIOTECA, gravar_json, ler_json, pasta  # noqa: E402
+from base import BIBLIOTECA, HEVC_FINAL, gravar_json, ler_json, pasta  # noqa: E402
 from montagem import sons, transicoes  # noqa: E402
 
 FPS = 24
@@ -183,7 +183,7 @@ def encaixar(corpo_slug: str, cta_slug: str, saida: Path, transicao: str, tipo: 
         f.append('[0:a][acta]concat=n=2:v=0:a=1[afim]')
     saida.parent.mkdir(parents=True, exist_ok=True)
     cmd = ['ffmpeg', '-loglevel', 'error', *entradas, '-filter_complex', ';'.join(f), '-map', '[vfim]', '-map', '[afim]',
-           '-c:v', 'hevc_videotoolbox', '-q:v', '65', '-tag:v', 'hvc1', '-r', str(FPS), '-pix_fmt', 'yuv420p',
+           *HEVC_FINAL, '-r', str(FPS), '-pix_fmt', 'yuv420p',
            '-c:a', 'aac', '-b:a', '320k', '-ar', '48000', '-movflags', '+faststart', '-n', str(saida)]
     subprocess.run(cmd, check=True)
     s = sonda(saida)

@@ -14,7 +14,7 @@ import tempfile
 from contextlib import contextmanager
 from pathlib import Path
 
-from base import BIBLIOTECA, inspecionar
+from base import BIBLIOTECA, DECODIFICA, inspecionar
 
 MODELO = BIBLIOTECA / 'modelos' / 'blaze_face_short_range.tflite'
 URL_MODELO = ('https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/latest/'
@@ -81,7 +81,7 @@ def _quadros(video: Path, por_segundo: int, junto: list[str]):
     k_esc = min(1.0, 1280 / max(w, h, 1))
     w, h = max(int(w * k_esc) // 2 * 2, 2), max(int(h * k_esc) // 2 * 2, 2)
     with tempfile.TemporaryFile() as erros:  # num arquivo, para o stderr nunca encher o cano e travar o ffmpeg
-        ff = subprocess.Popen(['ffmpeg', '-v', 'error', '-y', '-hwaccel', 'videotoolbox', '-i', str(video), *junto,
+        ff = subprocess.Popen(['ffmpeg', '-v', 'error', '-y', *DECODIFICA, '-i', str(video), *junto,
                                '-vf', f'fps={por_segundo},scale={w}:{h}', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-'],
                               stdout=subprocess.PIPE, stderr=erros)
         tamanho = w * h * 3

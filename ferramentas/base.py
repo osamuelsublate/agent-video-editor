@@ -6,8 +6,26 @@ import json
 import os
 import re
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
+
+# os codecs de vídeo: no Mac, o chip de vídeo (VideoToolbox); no Linux, a placa da NVIDIA (NVENC e CUDA) e o ProRes por
+# software. O -q:v do NVENC não significa o mesmo que o do VideoToolbox: lá a qualidade é o -cq (menor é melhor)
+MAC = sys.platform == 'darwin'
+CQ_PROXY = 23  # o proxy 720p montado pelo render
+CQ_ENQUADRAMENTO = 23  # o bruto 9:16 (matéria-prima: vai ser recodificado)
+CQ_FINAL = 23  # o final 4K
+DECODIFICA = ['-hwaccel', 'videotoolbox' if MAC else 'cuda']
+# os proxies de mídia, com taxa fixa (`-b:v`) e quadro-chave forçado para o player saltar. No NVENC: sem o -forced-idr, o
+# quadro forçado não vira quadro-chave de verdade no arquivo (só o 1º do vídeo); sem o -pix_fmt, um bruto de 10 bits ou
+# 4:2:2 não abre o codificador
+H264_PLAYER = ['-c:v', 'h264_videotoolbox'] if MAC else ['-c:v', 'h264_nvenc', '-forced-idr', '1', '-pix_fmt', 'yuv420p']
+H264_PROXY = ['-c:v', 'h264_videotoolbox', '-q:v', '65'] if MAC else ['-c:v', 'h264_nvenc', '-cq', str(CQ_PROXY)]
+HEVC_ENQUADRAMENTO = (['-c:v', 'hevc_videotoolbox', '-q:v', '80'] if MAC else ['-c:v', 'hevc_nvenc', '-cq', str(CQ_ENQUADRAMENTO)]) + ['-tag:v', 'hvc1']
+HEVC_FINAL = (['-c:v', 'hevc_videotoolbox', '-q:v', '65'] if MAC else ['-c:v', 'hevc_nvenc', '-cq', str(CQ_FINAL)]) + ['-tag:v', 'hvc1']
+# com transparência; sem o pix_fmt, o prores_ks perde o alfa
+PRORES_ALFA = ['-c:v', 'prores_videotoolbox', '-profile:v', '4444'] if MAC else ['-c:v', 'prores_ks', '-profile:v', '4444', '-pix_fmt', 'yuva444p10le']
 
 RAIZ = Path(__file__).resolve().parents[1]
 # fora do git: a biblioteca (o que serve a qualquer vídeo; copia-se entre máquinas, por cima) e os projetos de cada um

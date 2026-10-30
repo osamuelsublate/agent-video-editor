@@ -11,7 +11,7 @@ import subprocess
 from pathlib import Path
 
 import rosto
-from base import gravar_json, inspecionar
+from base import HEVC_ENQUADRAMENTO, gravar_json, inspecionar
 
 # a suavidade da câmera: a zona morta (fração da largura do recorte em que o rosto anda sem a câmera andar), a
 # velocidade máxima (fração da largura do recorte por segundo) e a rigidez da mola (1/s)
@@ -109,8 +109,8 @@ def _fps(f) -> float:
 
 
 def renderizar(original: Path, destino: Path, centros: list[float], por_segundo: float, info: dict) -> None:
-    """O bruto 9:16: cada quadro recortado na posição do caminho, na altura original, HEVC de alta qualidade pelo chip
-    do Mac; o áudio copiado como está."""
+    """O bruto 9:16: cada quadro recortado na posição do caminho, na altura original, HEVC de alta qualidade pelo
+    hardware de vídeo; o áudio copiado como está."""
     largura, altura = info['largura'], info['altura']
     cw = largura_recorte(largura, altura)
     cmds = destino.with_suffix('.cmds')
@@ -119,8 +119,8 @@ def renderizar(original: Path, destino: Path, centros: list[float], por_segundo:
     x0 = int(round(centros[0] * largura - cw / 2)) if centros else (largura - cw) // 2
     filtro = f"sendcmd=f='{str(cmds).replace(chr(39), chr(92) + chr(39))}',crop@c=w={cw}:h={altura}:x={x0}:y=0"
     tmp = destino.with_name(destino.stem + '.parte.mp4')
-    r = subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', str(original), '-vf', filtro, '-c:v', 'hevc_videotoolbox', '-q:v', '80',
-                        '-tag:v', 'hvc1', '-pix_fmt', 'yuv420p', '-c:a', 'copy', '-movflags', '+faststart', str(tmp)],
+    r = subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', str(original), '-vf', filtro, *HEVC_ENQUADRAMENTO,
+                        '-pix_fmt', 'yuv420p', '-c:a', 'copy', '-movflags', '+faststart', str(tmp)],
                        capture_output=True, text=True)
     cmds.unlink(missing_ok=True)
     if r.returncode:

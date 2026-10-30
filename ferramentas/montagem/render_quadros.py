@@ -1,11 +1,13 @@
 """Trabalhador do render (do 18: backend/app/render_quadros.py, SPEC §13): um processo com um navegador escondido na
 página de render, que fotografa pedaços da camada dos inserts e grava cada pedaço num clipe ProRes 4444 (com
-transparência, pelo chip de vídeo do Mac). Vários rodam em paralelo. Módulo leve de propósito: não importa o resto, para
-cada processo subir rápido."""
+transparência). Vários rodam em paralelo. Módulo leve de propósito: do resto, só o `base` (biblioteca padrão), para cada
+processo subir rápido."""
 import base64
 import re
 import subprocess
 from io import BytesIO
+
+from base import PRORES_ALFA
 
 _pagina = None
 _cdp = None
@@ -127,7 +129,7 @@ def pedaco(args: tuple[list[float], int, int, int, str]) -> int:
     Devolve quantos fez."""
     tempos, fps, w, h, saida = args
     ff = subprocess.Popen(['ffmpeg', '-y', '-loglevel', 'error', '-f', 'rawvideo', '-pix_fmt', 'rgba', '-s', f'{w}x{h}',
-                           '-framerate', str(fps), '-i', '-', '-c:v', 'prores_videotoolbox', '-profile:v', '4444', saida],
+                           '-framerate', str(fps), '-i', '-', *PRORES_ALFA, saida],
                           stdin=subprocess.PIPE, stderr=subprocess.PIPE)
     anterior: tuple[str | None, bytes] = (None, b'')
     for t in tempos:

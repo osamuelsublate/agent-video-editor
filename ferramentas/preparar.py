@@ -28,7 +28,7 @@ from base import clonar as clonar_arquivo  # noqa: E402
 import enquadramento  # noqa: E402
 import rosto  # noqa: E402
 import voz  # noqa: E402
-from base import CATEGORIA_PADRAO, PROJETOS, env, gravar_json, inspecionar, preparar_biblioteca  # noqa: E402
+from base import CATEGORIA_PADRAO, H264_PLAYER, PROJETOS, env, gravar_json, inspecionar, preparar_biblioteca  # noqa: E402
 from transcricao import extrair_audio, silencios, transcrever  # noqa: E402
 
 ROTULOS = {'enquadramento': 'enquadramento 9:16', 'proxy': 'proxy 720p e rosto', 'audio': 'áudio e silêncios',
@@ -94,7 +94,7 @@ def proxy_e_rosto(video: Path, pasta: Path) -> dict:
     tmp = destino.with_name(destino.stem + '.parte.mp4')
     escala = "scale='if(gt(iw,ih),-2,720)':'if(gt(iw,ih),720,-2)'"
     try:
-        medida = rosto.medir(video, junto=['-vf', escala, '-c:v', 'h264_videotoolbox', '-b:v', '3M', '-force_key_frames', 'expr:gte(t,n_forced*0.5)',
+        medida = rosto.medir(video, junto=['-vf', escala, *H264_PLAYER, '-b:v', '3M', '-force_key_frames', 'expr:gte(t,n_forced*0.5)',
                                            '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart', str(tmp)])
         tmp.replace(destino)
     finally:
