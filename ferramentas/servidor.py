@@ -23,7 +23,7 @@ Rotas (JSON; um erro volta como {"erro": "…"}, com 422 numa validação):
   roteiros de exemplo dela, com os tempos dos planos. · GET|PUT /api/categorias {categorias} (as categorias de vídeo:
   Reels, Ad…; uma em uso não sai) · PUT /api/referencias/<id>/categoria {categoria} · PUT /api/projetos/<slug>/categoria
   {categoria} · o POST /api/referencias aceita a categoria no cabeçalho X-Categoria.
-- POST /api/projetos/<slug>/abrir-final: abre no Finder a pasta dos exports (final/: as saídas, cada uma com o .md).
+- POST /api/projetos/<slug>/abrir-final: abre no gerenciador de arquivos (Finder, Explorer no WSL) a pasta dos exports (final/: as saídas, cada uma com o .md).
 - GET /api/aprendizados (as áreas, com os bullets "Do criador", do geral e das categorias) · GET|PUT
   /api/aprendizados/<área>[?categoria=…] {texto} (o aprendizados/<área>.md, ou o exemplos/<categoria>/aprendizados/<área>.md)
   · GET /api/aprendizados/imagens/<nome> (as imagens que os .md mostram).
@@ -506,11 +506,20 @@ def _categoria_referencia(h, q, id_):
 
 @rota('POST', r'/api/projetos/([\w-]+)/abrir-final')
 def _abrir_final(h, q, slug):
-    """Abre no Finder a pasta dos exports do projeto (final/: só as entregas, cada uma com o .md)."""
+    """Abre no Finder (Mac) ou no Explorer (WSL) a pasta dos exports do projeto (final/: só as entregas, cada uma com o .md)."""
     alvo = PROJETOS / slug / 'final'
     if not alvo.is_dir():
         raise Erro('Este projeto ainda não tem export final.', 404)
-    subprocess.run(['open', str(alvo)], check=False)
+    if sys.platform == 'darwin':
+        comando = ['open', str(alvo)]
+    elif 'microsoft' in os.uname().release.lower():  # WSL: o Explorer do Windows, com o caminho no formato dele
+        comando = ['explorer.exe', subprocess.run(['wslpath', '-w', str(alvo)], capture_output=True, text=True, check=True).stdout.strip()]
+    elif shutil.which('xdg-open'):
+        comando = ['xdg-open', str(alvo)]
+    else:
+        raise Erro(f'Não sei abrir pastas neste sistema. A pasta dos exports: {alvo}', 501)
+    # o explorer.exe devolve código 1 mesmo quando abre: o código não conta
+    subprocess.run(comando, check=False, capture_output=True)
     return {'ok': True}
 
 

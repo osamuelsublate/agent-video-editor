@@ -2,15 +2,14 @@
 
     uv run ferramentas/importar18.py <id-no-18> [slug-aqui]
 
-Lê o 18 sem mexer nele. A mídia é clonada (APFS `cp -c`: não ocupa espaço novo). O edicao.json é o subconjunto do
+Lê o 18 sem mexer nele. A mídia é clonada (clone do APFS ou reflink: não ocupa espaço novo). O edicao.json é o subconjunto do
 projeto.json do 18 descrito em .claude/skills/editor/edicao.md.
 """
-import subprocess
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from base import PROJETOS, gravar_json, ler_json  # noqa: E402
+from base import PROJETOS, clonar as clonar_arquivo, gravar_json, ler_json  # noqa: E402
 
 DEZOITO = Path(__file__).resolve().parents[2] / '18-harness-video-editor' / 'dados' / 'projetos'
 CAMPOS = ['id', 'nome', 'criado_em', 'formato', 'saida', 'fontes', 'enquadramento', 'look', 'velocidade', 'nivel_voz',
@@ -20,7 +19,7 @@ CAMPOS = ['id', 'nome', 'criado_em', 'formato', 'saida', 'fontes', 'enquadrament
 def clonar(de: Path, para: Path) -> None:
     if de.is_file() and not para.exists():
         para.parent.mkdir(parents=True, exist_ok=True)
-        subprocess.run(['cp', '-c', str(de), str(para)], check=True)
+        clonar_arquivo(de, para)
 
 
 def importar(origem: str, slug: str) -> Path:

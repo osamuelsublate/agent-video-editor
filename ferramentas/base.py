@@ -43,6 +43,20 @@ def preparar_biblioteca() -> None:
             shutil.copy2(x, alvo)
 
 
+# ---------------------------------------------------------------- cópia
+
+def clonar(de: Path, para: Path) -> None:
+    """Copia um arquivo sem ocupar espaço novo quando o sistema deixa: `cp -c` (clone do APFS) no Mac, `cp --reflink=auto`
+    no Linux (clone onde o sistema de arquivos suporta, senão cópia comum). Se o cp falhar (volumes diferentes no Mac),
+    uma cópia comum."""
+    import shutil
+    import sys
+
+    opcao = '-c' if sys.platform == 'darwin' else '--reflink=auto'
+    if subprocess.run(['cp', opcao, str(de), str(para)], capture_output=True).returncode:
+        shutil.copy2(de, para)
+
+
 # ---------------------------------------------------------------- a lixeira
 
 def para_lixeira(pastas: list[Path], tipo: str, id_: str, nome: str, miniatura: str | None = None, video: str | None = None,

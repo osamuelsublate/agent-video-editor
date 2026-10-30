@@ -15,7 +15,6 @@ passo falha, diz qual e por quê, e a pasta é apagada (rodar de novo é o "tent
 import argparse
 import re
 import shutil
-import subprocess
 import sys
 import threading
 import time
@@ -25,6 +24,7 @@ from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
+from base import clonar as clonar_arquivo  # noqa: E402
 import enquadramento  # noqa: E402
 import rosto  # noqa: E402
 import voz  # noqa: E402
@@ -74,10 +74,9 @@ def pasta_livre(base: str) -> Path:
 
 
 def clonar(de: Path, para: Path) -> None:
-    """Clone do APFS (instantâneo, sem ocupar espaço); entre volumes diferentes, uma cópia comum."""
+    """Clone (APFS no Mac, reflink no Linux: instantâneo, sem ocupar espaço); entre volumes diferentes, uma cópia comum."""
     para.parent.mkdir(parents=True, exist_ok=True)
-    if subprocess.run(['cp', '-c', str(de), str(para)], capture_output=True).returncode:
-        shutil.copy2(de, para)
+    clonar_arquivo(de, para)
 
 
 # ---------------------------------------------------------------- os passos

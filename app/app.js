@@ -92,7 +92,7 @@ async function inicio(tela, ctas = false) {
       <button class="apagar-projeto ocultar-projeto" data-ocultar title="${p.oculto ? 'Mostrar de novo na lista' : 'Ocultar (sai da lista e vai para Ocultos)'}" aria-label="${p.oculto ? 'Mostrar' : 'Ocultar'} ${esc(p.nome)}">${p.oculto ? ICONE.olho : ICONE.olhoFechado}</button>
       ${p.estado !== 'aprovado' ? `<button class="aprovar-projeto" data-aprovar-projeto title="Aprovar o vídeo (copia o “Aprovado” para colar no chat do Claude)" aria-label="Aprovar ${esc(p.nome)}">${ICONE.check}</button>`
         : `<button class="aprovar-projeto desaprovar-projeto" data-desaprovar-projeto title="Desaprovar (volta para Em edição)" aria-label="Desaprovar ${esc(p.nome)}">${ICONE.refazer}</button>`}
-      ${p.tem_final ? `<button class="abrir-exports" data-abrir-final title="Abrir a pasta dos exports no Finder" aria-label="Abrir os exports de ${esc(p.nome)}">${ICONE.abrir}</button>` : ''}
+      ${p.tem_final ? `<button class="abrir-exports" data-abrir-final title="Abrir a pasta dos exports" aria-label="Abrir os exports de ${esc(p.nome)}">${ICONE.abrir}</button>` : ''}
       <a class="card-projeto" href="#/p/${encodeURIComponent(p.slug)}">
       <div class="mini mini-916"><video muted playsinline preload="metadata" src="${proxy}#t=1.5"></video>
         <span class="selo ${cor}">${estado}</span></div>
