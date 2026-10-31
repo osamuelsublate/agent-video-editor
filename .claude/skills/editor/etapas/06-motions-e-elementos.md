@@ -42,9 +42,24 @@ Se nenhum preset serve e a ideia é simples (um número que cresce, dois logos l
 gráfico de barras), um **subagente em segundo plano** (`model: opus`) escreve um preset novo:
 
 ```bash
-uv run ferramentas/inserts.py motion-brief <slug> <plano> --preset <id-novo> [--duracao <s>] [--pedido "<o que mais mostrar>"]
+uv run ferramentas/inserts.py motion-brief <slug> <plano> --preset <id-novo> [--duracao <s>] [--pedido "<o que mais mostrar>"] [--estilo <slug-do-estilo>]
 ```
 Um plano com `refs` (da direção) já leva as refs no brief: o subagente abre cada uma e recria na linha dela.
+**Estilo** (`biblioteca/estilos/`, guias de 66 estilos): use `--estilo` se a direção ou o criador pedir um ("no estilo
+news-package"), ou se nenhum preset servir e um estilo combinar com o plano. O subagente lê `estilos/COMO-USAR.md` e o
+`STYLE.md` dele. Sem pedido e com referência do criador, a referência manda: não ponha estilo por cima. Os mais úteis para
+este conteúdo (o resto está em `estilos/README.md`):
+
+| Plano | Estilo |
+|---|---|
+| notícia, lançamento, comparação de preços | `news-package`, `caption-news` |
+| um número ou um gráfico | `dataviz`, `swiss-motion` |
+| produto, interface, um anúncio de IA | `dark-keynote`, `living-screencast` |
+| terminal, código | `ascii-crt` |
+| como algo funciona, um diagrama | `whiteboard`, `blueprint`, `iso-infographic`, `circuit-board` |
+| etapas, um caminho | `transit-map` |
+| ritmo de brincadeira, um quiz | `game-show` |
+
 **Pedido por uma referência** (o criador citou um `REF-…·pN` ou "como este"): o `--pedido` manda extrair e olhar os
 quadros dela (o vídeo e o trecho vêm do `codigo.py`) e copiar ritmo, tipo de troca, tamanho, vinheta, curva e o material
 real; não descreva a referência de cabeça (`aprendizados/motions.md`).

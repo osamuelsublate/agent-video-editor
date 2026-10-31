@@ -18,6 +18,7 @@ Responda em PT-BR, direto. Separe o que existe do que é plano.
 - `biblioteca/` (fora do git; copia-se entre máquinas, por cima): `exemplos/` (criador.md e, por categoria de vídeo, as
   regras e os roteiros dirigidos, gerados pela Calibragem), `aprendizados/` (um .md por área com as correções do criador,
   e `imagens/`), presets, transições, sons, trilhas, LUTs, motions, banco de inserts, referências, códigos (os CTAs são projetos da categoria CTA) e
+  `estilos/` (guias de estilo para motions; `COMO-USAR.md`) e
   `lixeira/` (o que se apaga no app: `base.para_lixeira`; restaurar ou apagar de vez pela página Lixeira).
 - `projetos/<slug>/` (fora do git): um vídeo por pasta.
 
