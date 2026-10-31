@@ -64,10 +64,12 @@ def test_estilo_errado_erra_com_mensagem(com_estilos, errado):
 
 def test_o_modelo_do_brief_formata_com_e_sem_estilo():
     modelo = (inserts.ETAPAS / '06-brief-motion.md').read_text(encoding='utf-8')
-    campos = dict(raiz='/r', preset='novo', projeto='p', pedido='a', formato='vertical', categoria='c', exemplos='/e', palco='1080', duracao='2,5', fala='f')
+    campos = dict(raiz='/r', preset='novo', projeto='p', pedido='a', formato='vertical', categoria='c', exemplos='/e', palco='1080', duracao='2,5', duracao_url='2.5', fala='f')
     texto = modelo.format(extra='Estilo pedido: x', **campos)
     assert 'Estilo pedido: x' in texto and '/r/biblioteca/estilos/COMO-USAR.md' in texto
-    assert 'leitura.py novo --formato\nvertical --duracao 2,5' in texto
+    assert 'leitura.py novo --formato\nvertical --duracao 2.5' in texto
+    assert '&duracao=2.5&tocar=1' in texto  # com vírgula, a página leria 2 s
+    assert 'nenhum whoosh nem riser' in texto
 
 
 def quadros(*textos, dur=4.0, passo=0.05):

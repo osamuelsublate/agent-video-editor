@@ -317,7 +317,7 @@ def motion_brief(slug: str, plano: str, preset: str, duracao: float | None, pedi
         raiz=RAIZ, preset=preset, projeto=slug, pedido=pl.get('descricao') or pedido_extra or '—', formato='dividida' if dividida else 'vertical',
         categoria=_categoria(edicao), exemplos=_exemplos(edicao),
         palco='1080×960, a metade de cima; o ator fica embaixo' if dividida else '1080×1920, a tela toda',
-        duracao=num(duracao or (b - a), 1), fala=fala,
+        duracao=num(duracao or (b - a), 1), duracao_url=f'{duracao or (b - a):.1f}', fala=fala,
         extra='\n'.join(x for x in [guia, f'Mais: {pedido_extra}' if pedido_extra else '',
                                      f'Modele na linha destas refs da Calibragem: {", ".join(pl["refs"])}. Antes de escrever, abra cada uma '
                                      '(`uv run ferramentas/codigo.py <ref>` dá o vídeo e o intervalo; tire 4 a 6 quadros do trecho com o ffmpeg e '
