@@ -10,7 +10,7 @@ backend/app/inserts.py `definir_midias` e motions.py `usar`). Os pedidos saem da
     uv run ferramentas/inserts.py juntar <slug>        liga o que cada subagente achou (projetos/<slug>/inserts/<plano>.json)
     uv run ferramentas/inserts.py briefs <slug> [--grupo 3] [--contexto "…"] [--todos]
                                                        os briefs dos subagentes de inserts, em grupos (etapas/04-brief-inserts.md)
-    uv run ferramentas/inserts.py motion-brief <slug> <plano> --preset <id-novo> [--duracao s] [--pedido "…"]
+    uv run ferramentas/inserts.py motion-brief <slug> <plano> --preset <id-novo> [--duracao s] [--pedido "…"] [--estilo <slug>]
                                                        o brief do subagente de um motion novo (etapas/06-brief-motion.md)
     uv run ferramentas/inserts.py motion <slug> <plano> <preset> [--valores '{"campo": "texto"}'] [--fundo id]
     uv run ferramentas/inserts.py motion <slug> <plano> --video <banco_id>
@@ -18,6 +18,7 @@ backend/app/inserts.py `definir_midias` e motions.py `usar`). Os pedidos saem da
 O resultado de um subagente: {"plano": "p5", "midias": ["<banco_id>", …], "fontes": ["url", …], "nota": "…"}.
 """
 import argparse
+import difflib
 import json
 import re
 import sys
@@ -27,7 +28,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 import banco  # noqa: E402
-from base import BIBLIOTECA, CATEGORIA_PADRAO, EXEMPLOS, RAIZ, gravar, ler, ler_json, pasta  # noqa: E402
+from base import BIBLIOTECA, CATEGORIA_PADRAO, EXEMPLOS, RAIZ, gravar, ler, ler_json, pasta, preparar_biblioteca  # noqa: E402
 from cortes import num, seg  # noqa: E402
 from direcao import PLANOS, saida_do, tempos  # noqa: E402
 
@@ -285,10 +286,23 @@ def briefs(slug: str, grupo: int, contexto: str | None, todos: bool) -> None:
         print(f'{arq}  ({", ".join(x["plano"] for x in g)})')
 
 
-def motion_brief(slug: str, plano: str, preset: str, duracao: float | None, pedido_extra: str | None) -> None:
+def linha_estilo(slug: str) -> str:
+    """A linha do brief que manda ler o guia de um estilo; erra se o estilo não existe."""
+    estilos = BIBLIOTECA / 'estilos'
+    if not estilos.is_dir():  # uma biblioteca de antes dos estilos
+        preparar_biblioteca()
+    if not re.fullmatch(r'[a-z0-9-]+', slug) or not (estilos / slug / 'STYLE.md').is_file():
+        nomes = sorted(a.parent.name for a in estilos.glob('*/STYLE.md'))
+        perto = difflib.get_close_matches(slug, nomes, 3)
+        raise SystemExit(f'Estilo não encontrado: {slug}.' + (f' Parecidos: {", ".join(perto)}.' if perto else '') + f' Os {len(nomes)} estilos: {estilos / "README.md"}')
+    return f'Estilo pedido: {slug}. Leia {estilos / "COMO-USAR.md"} e {estilos / slug / "STYLE.md"} antes de escrever.'
+
+
+def motion_brief(slug: str, plano: str, preset: str, duracao: float | None, pedido_extra: str | None, estilo: str | None = None) -> None:
     """O brief do subagente que escreve um preset de motion novo para o plano. Imprime o caminho."""
     if not re.fullmatch(r'[a-z0-9-]{2,40}', preset):
         raise SystemExit('O id do preset novo: minúsculas, números e hífens.')
+    guia = linha_estilo(estilo) if estilo else ''
     edicao = ler(slug)
     itens = (edicao.get('direcao') or {}).get('itens') or []
     pl = next((i for i in itens if i['id'] == plano and i['camada'] == 'plano'), None)
@@ -304,7 +318,7 @@ def motion_brief(slug: str, plano: str, preset: str, duracao: float | None, pedi
         categoria=_categoria(edicao), exemplos=_exemplos(edicao),
         palco='1080×960, a metade de cima; o ator fica embaixo' if dividida else '1080×1920, a tela toda',
         duracao=num(duracao or (b - a), 1), fala=fala,
-        extra='\n'.join(x for x in [f'Mais: {pedido_extra}' if pedido_extra else '',
+        extra='\n'.join(x for x in [guia, f'Mais: {pedido_extra}' if pedido_extra else '',
                                      f'Modele na linha destas refs da Calibragem: {", ".join(pl["refs"])}. Antes de escrever, abra cada uma '
                                      '(`uv run ferramentas/codigo.py <ref>` dá o vídeo e o intervalo; tire 4 a 6 quadros do trecho com o ffmpeg e '
                                      'olhe-os) e recrie o que ela faz (composição, como entra, o movimento), com o conteúdo deste plano.'
@@ -334,6 +348,7 @@ if __name__ == '__main__':
     mb.add_argument('--preset', required=True, help='o id do preset novo (minúsculas e hífens)')
     mb.add_argument('--duracao', type=float)
     mb.add_argument('--pedido', help='o que mais o motion deve mostrar')
+    mb.add_argument('--estilo', help='um estilo de biblioteca/estilos/: o subagente lê o guia dele')
     mo = sub.add_parser('motion')
     mo.add_argument('slug')
     mo.add_argument('plano')
@@ -351,7 +366,7 @@ if __name__ == '__main__':
     elif a.cmd == 'briefs':
         briefs(a.slug, max(1, a.grupo), a.contexto, a.todos)
     elif a.cmd == 'motion-brief':
-        motion_brief(a.slug, a.plano, a.preset, a.duracao, a.pedido)
+        motion_brief(a.slug, a.plano, a.preset, a.duracao, a.pedido, a.estilo)
     else:
         if bool(a.preset) == bool(a.video):
             raise SystemExit('Diga um preset ou --video <banco_id> (um dos dois).')

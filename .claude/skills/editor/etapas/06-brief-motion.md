@@ -9,6 +9,9 @@ pausada entregue com motion.pronto(tl); motion.som/motion.digitar/motion.curva/m
 Pedido: {pedido}
 Formato: {formato} ({palco}) · duração ~{duracao} s · fala: "{fala}"
 {extra}
+Estilo: só se este brief ou o pedido nomear um estilo de {raiz}/biblioteca/estilos/ ("no estilo news-package"), leia
+{raiz}/biblioteca/estilos/COMO-USAR.md e o STYLE.md dele, e siga a gramática dele dentro destas regras. Sem isso, a
+referência do criador continua mandando: não escolha um estilo por conta própria.
 Regras: poucos elementos; quase nenhum texto além de rótulos curtos (campos editáveis com esses padrões); entrada curta
 e suave, chegada longa (curva perto de 0.25,0.1,0.1,1 em 0,8–1 s), nunca linear; a cena nunca para até o corte; fontes
 Inter, Instrument Serif ou JetBrains Mono; sons só da biblioteca (biblioteca/sons/catalogo.json). Texto legível num celular (não
@@ -21,6 +24,8 @@ longo (> 0,5 s) sem dur. No teste, fotografe o instante de cada som e confira o 
 vazia. A legenda vai onde sobrar espaço (diga em que altura, em fração, para o plano receber `legenda_y`).
 Teste: abra render/motion.html?preset={preset}&formato={formato}&duracao={duracao}&tocar=1 com o servidor
 (`uv run ferramentas/servidor.py <porta livre>`) e fotografe 4 instantes com Playwright; olhe as imagens e corrija até
-ficar limpo e legível. No fim, grave a prévia que a página Motions do app toca: `uv run ferramentas/render.py
+ficar limpo e legível. Antes da prévia, confira o tempo de leitura: `uv run ferramentas/leitura.py {preset} --formato
+{formato} --duracao {duracao}`; corrija o que reprovar (texto fora do palco, pouco tempo na tela) e, se algo for de
+propósito, diga na resposta. No fim, grave a prévia que a página Motions do app toca: `uv run ferramentas/render.py
 previas-motions {preset}`. Não ligue o motion ao plano (quem edita liga) e não edite outros arquivos. Responda com o id,
 os campos e 1 linha sobre como ficou.
