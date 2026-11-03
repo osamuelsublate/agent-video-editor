@@ -9,7 +9,7 @@ def eventos(blocos, w=1080, h=1920):
 def test_cada_palavra_acende_no_seu_tempo():
     ev = eventos([{'ini': 1.0, 'fim': 3.0, 'texto': 'documentar todas as', 'y': 0.74, 'tempos': [1.17, 1.6, 2.1]}])
     texto = [e for e in ev if ',Legenda,' in e][0]
-    assert '}documentar' in texto and '\\1a&H00&' in texto.split('}documentar')[0]  # a 1ª já entra acesa
+    assert '\\t(170,' in texto.split('}documentar')[0]  # a 1ª também acende na fala (o bloco entra 0,17 s antes)
     assert f'\\t(600,{600 + round(legenda.ACENDE * 1000)},\\1a&H00&' in texto and f'\\1a&H{legenda.APAGADA:02X}&' in texto
     assert '\\t(1100,' in texto
 

@@ -18,9 +18,9 @@ HALO = 7 / 1920
 # o contorno fino escuro que deixa a letra legível em qualquer fundo, até em tela branca (sem faixa escura atrás)
 CONTORNO = 2.4 / 1920
 CONTORNO_ALFA = 0x40
-# a palavra ainda não dita fica apagada e acende quando é falada (a 1ª já entra acesa)
-APAGADA = 0x70
-ACENDE = 0.08  # s
+# a palavra ainda não dita fica cinza e acende quando é falada, inclusive a 1ª (o bloco entra um pouco antes da fala)
+APAGADA = 0xA8
+ACENDE = 0.06  # s
 # a placa: um retângulo arredondado escuro e desfocado atrás da frase, que garante a leitura em qualquer fundo
 PLACA_ALFA = 0x5C  # ~64% de preto
 PLACA_RAIO = 0.42  # em fração da altura da letra
@@ -62,15 +62,16 @@ def _texto(s: str) -> str:
 
 
 def _acendendo(texto: str, tempos: list | None, ini: float) -> str:
-    """O texto com cada palavra acendendo quando é dita: começa apagada (`APAGADA`) e vai ao branco em `ACENDE` s, no
-    tempo dela dentro do bloco. Sem os tempos (um texto à mão) ou com outra contagem de palavras, o texto todo aceso."""
+    """O texto com cada palavra acendendo quando é dita: começa cinza (`APAGADA`) e vai ao branco em `ACENDE` s, no
+    tempo dela dentro do bloco (a 1ª também: o bloco entra antes da fala). Sem os tempos (um texto à mão) ou com outra
+    contagem de palavras, o texto todo aceso."""
     palavras = texto.split(' ')
-    if not tempos or len(tempos) != len(palavras) or len(palavras) < 2:
+    if not tempos or len(tempos) != len(palavras):
         return _texto(texto)
     partes = []
     for k, (p, t) in enumerate(zip(palavras, tempos)):
         ms = max(round((float(t) - ini) * 1000), 0)
-        if k == 0 or ms == 0:
+        if ms == 0:
             partes.append(f'{{\\1a&H00&\\3a&H{CONTORNO_ALFA:02X}&}}{_texto(p)}')
         else:
             partes.append(f'{{\\1a&H{APAGADA:02X}&\\3a&HC0&\\t({ms},{ms + round(ACENDE * 1000)},\\1a&H00&\\3a&H{CONTORNO_ALFA:02X}&)}}{_texto(p)}')
