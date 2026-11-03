@@ -7,6 +7,8 @@
     uv run ferramentas/render.py <slug>            → projetos/<slug>/versoes/vN/ (proxy.mp4 720×1280 H.264 + os JSONs da revisão)
     uv run ferramentas/render.py <slug> --final    → projetos/<slug>/final/<nome>.mp4 (2160×3840 HEVC) e, ao lado, o .md
         com a transcrição (a fala que ficou no corte): o vídeo sem saídas (um CTA, um Reels sem outro final)
+    uv run ferramentas/render.py <slug> --final --1080p  → o mesmo em 1080×1920 (mais rápido; o criador pediu quando o
+        4K não faz falta)
     uv run ferramentas/render.py <slug> --saida <id> | --saidas
         → o export de uma saída (ou de todas): final/<nome> - <destino>.mp4 + .md (a falada renderizada com o final; a de
         CTA, o final do corpo emendado no do CTA; a sem final, o corpo). As saídas: cortes.py saidas <slug>. O corpo em 4K
@@ -486,7 +488,8 @@ def montar_por_trechos(video: Path, clipes: list[dict], horizontal: bool, enq_x:
         div = [(max(x0 - ta, 0.0), min(x1, tb) - ta, d) for x0, x1, d in divisoes if x0 < tb and x1 > ta]
         trans = [{**x, 't': x['t'] - ta} for x in r.get('transicoes') or [] if x['t'] + x['depois'] > ta and x['t'] - x['antes'] < tb]
         mov = [{**m, 'ini': m['ini'] - ta, 'fim': m['fim'] - ta} for m in r.get('movimentos') or [] if m['ini'] < tb and m['fim'] > ta]
-        blocos = [{**b, 'ini': max(b['ini'] - ta, 0.0), 'fim': min(b['fim'], tb) - ta}
+        # os tempos de cada palavra (a que acende) também no relógio do trecho, como o bloco
+        blocos = [{**b, 'ini': max(b['ini'] - ta, 0.0), 'fim': min(b['fim'], tb) - ta, **({'tempos': [t - ta for t in b['tempos']]} if b.get('tempos') else {})}
                   for b in (r.get('legenda') or {}).get('blocos') or [] if b['ini'] < tb and b['fim'] > ta]
         arq_leg = legenda.escrever({'blocos': blocos}, w, h, tmp / f'legenda_{i:03d}.ass')
         saida = tmp / f'trecho_{i:03d}.mp4'
@@ -1160,6 +1163,8 @@ if __name__ == '__main__':
     if '--previa-saida' in sys.argv:  # a prévia de uma saída de CTA nova, na versão mais nova (o + Saída do app)
         previa_da_saida(sys.argv[1], sys.argv[sys.argv.index('--previa-saida') + 1])
         sys.exit(0)
+    if '--1080p' in sys.argv:  # o final em 1080×1920, HEVC (o mesmo caminho do 4K, só menor)
+        FINAL = (1080, 1920, 'hevc')
     if {'--final', '--saida', '--saidas'} & set(sys.argv):
         # um export em 4K por vez na máquina (a fila): vários juntos (4 CTAs aprovados de uma vez, cada um com os seus
         # navegadores) travaram todos por falta de memória e de rede (2026-10-20)
@@ -1176,7 +1181,7 @@ if __name__ == '__main__':
         for sid in ids:
             exportar_saida(slug, sid)
         sys.exit(0)
-    args = [a for a in sys.argv[1:] if a not in ('--final', '--camadas')]
+    args = [a for a in sys.argv[1:] if a not in ('--final', '--camadas', '--1080p')]
     if len(args) != 1:
         raise SystemExit(__doc__)
     if '--camadas' in sys.argv[1:]:

@@ -21,7 +21,7 @@ export const ajusteNoModo = (aj: Ajuste | undefined, modo: Modo): Ajuste | undef
 export type Legenda = { ligada: boolean; modo: Modo; ajustes: Record<string, Ajuste> }
 /** Um bloco no tempo da saída: as palavras (ids), o texto, quando aparece e some, o centro do texto (fração da altura)
  *  e se foi mexido à mão (`ajustado`) ou escondido (`oculto`: texto vazio). */
-export type Bloco = { id: string; palavras: string[]; texto: string; ini: number; fim: number; y: number; ajustado: boolean; oculto: boolean }
+export type Bloco = { id: string; palavras: string[]; texto: string; ini: number; fim: number; y: number; ajustado: boolean; oculto: boolean; tempos: number[] }
 
 /** O estilo: o tamanho em fração da altura do quadro (54,55 px num 1080×1920, que dá as maiúsculas medidas, 39,7 px; o ASS usa 66
  *  no libass, que mede a fonte de outro jeito), a sombra (escolhida lado a lado com as referências) e a altura do centro do texto em cada tipo de plano
@@ -30,7 +30,7 @@ export type Bloco = { id: string; palavras: string[]; texto: string; ini: number
 export const ESTILO = {
   fonte: 'Inter, sans-serif',
   peso: 700,
-  tamanho: 54.55 / 1920,
+  tamanho: 66.12 / 1920, // 80 no libass
   espaco: '-0.01em',
   sombra: { y: 3 / 1920, blur: 12 / 1920, cor: 'rgba(0,0,0,0.67)' },
   margem: 0.06,
@@ -56,7 +56,7 @@ const MINIMO = 0.12 // s: o mínimo que um bloco fica na tela antes do próximo 
 const SOBRA = 0.07 // depois do fim (antecipado) da última palavra: sai ~0,1 s antes do fim da fala
 /** Frase curta: escolhido (não medido) — até 3 palavras e 18 letras, quebrando na pontuação e nas pausas de 0,3 s
  *  (três referências usam frases, com mediana de 2 a 3 palavras). */
-const FRASE = { palavras: 3, letras: 18, pausa: 0.3 }
+const FRASE = { palavras: 3, letras: 20, pausa: 0.3 }
 /** A legenda num insert de tela cheia com mídia deitada: abaixo do card centrado (o 16:9 na largura toda vai de ~34%
  *  a ~66% da altura; mvi-0717 v3 c3: a legenda caía em cima do vídeo). */
 const ALTURA_DEITADA = 0.76
@@ -202,6 +202,7 @@ export function blocosDaLegenda(saida: PalavraSaida[], planos: ItemRef[], lg: Le
       ini,
       ajustado: !!aj,
       oculto: !texto.trim(),
+      tempos: grupo.map((w) => w.saida_ini),
       fala: ws[i].saida_ini,
       fimFala: ws[j].saida_fim,
     })
@@ -251,4 +252,5 @@ export function semOsLetterings(bs: Bloco[], saida: PalavraSaida[], letterings: 
 }
 
 /** Para a página de render: os blocos visíveis no formato do ASS (`legenda.py`). */
-export const paraExportar = (bs: Bloco[]) => bs.filter((b) => !b.oculto).map((b) => ({ ini: b.ini, fim: b.fim, texto: b.texto, y: b.y }))
+/** `tempos`: quando cada palavra é dita (s da saída), para a palavra falada acender; um texto à mão, sem eles. */
+export const paraExportar = (bs: Bloco[]) => bs.filter((b) => !b.oculto).map((b) => ({ ini: b.ini, fim: b.fim, texto: b.texto, y: b.y, ...(b.ajustado ? {} : { tempos: b.tempos }) }))

@@ -1031,7 +1031,8 @@
   var ESTILO = {
     fonte: "Inter, sans-serif",
     peso: 700,
-    tamanho: 54.55 / 1920,
+    tamanho: 66.12 / 1920,
+    // 80 no libass
     espaco: "-0.01em",
     sombra: { y: 3 / 1920, blur: 12 / 1920, cor: "rgba(0,0,0,0.67)" },
     margem: 0.06
@@ -1051,7 +1052,7 @@
   var SEGURA = 0.3;
   var MINIMO = 0.12;
   var SOBRA = 0.07;
-  var FRASE = { palavras: 3, letras: 18, pausa: 0.3 };
+  var FRASE = { palavras: 3, letras: 20, pausa: 0.3 };
   var ALTURA_DEITADA = 0.76;
   var MEIA = ESTILO.tamanho * 1.15 / 2;
   var FOLGA = 0.015;
@@ -1153,6 +1154,7 @@
         ini,
         ajustado: !!aj,
         oculto: !texto.trim(),
+        tempos: grupo.map((w) => w.saida_ini),
         fala: ws[i].saida_ini,
         fimFala: ws[j].saida_fim
       });
@@ -1192,7 +1194,7 @@
       return fim - ini >= 0.05 ? [{ ...b, ini, fim }] : [];
     });
   }
-  var paraExportar = (bs) => bs.filter((b) => !b.oculto).map((b) => ({ ini: b.ini, fim: b.fim, texto: b.texto, y: b.y }));
+  var paraExportar = (bs) => bs.filter((b) => !b.oculto).map((b) => ({ ini: b.ini, fim: b.fim, texto: b.texto, y: b.y, ...b.ajustado ? {} : { tempos: b.tempos } }));
 
   // src/transicoes.ts
   var familia = (c) => c.startsWith("full_ator") ? "ator" : c.startsWith("tela_dividida") || c === "comentario_insert_ator" ? "dividida" : "cheia";
