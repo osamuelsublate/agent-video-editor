@@ -90,7 +90,9 @@ def ler_preset_motion(pid: str) -> dict:
             return {}
         return d if isinstance(d, dict) else {}
     info = bloco('preset')
-    return {'id': pid, 'nome': str(info.get('nome') or pid), 'fundo': info.get('fundo') or 'gradiente', 'campos': bloco('campos')}
+    # fundo "" no preset: sem fundo, por cima do ator (o lista-numerada); sem a chave, o gradiente
+    fundo = info['fundo'] if isinstance(info.get('fundo'), str) else 'gradiente'
+    return {'id': pid, 'nome': str(info.get('nome') or pid), 'fundo': fundo, 'campos': bloco('campos')}
 
 
 def motion(slug: str, plano: str, preset: str | None, valores: dict, fundo: str | None, video: str | None) -> None:
@@ -118,7 +120,7 @@ def motion(slug: str, plano: str, preset: str | None, valores: dict, fundo: str 
             if (c or {}).get('tipo') == 'imagem' and k in valores and not banco.existe(str(valores[k])):
                 raise SystemExit(f'O campo {k} é uma imagem do banco: {valores[k]} não existe lá.')
         fundo = fundo or p['fundo']
-        if fundo not in FUNDOS:
+        if fundo and fundo not in FUNDOS:
             raise SystemExit(f'Fundo desconhecido: {fundo} (use: {", ".join(FUNDOS)})')
         info = {'tipo': 'preset', 'preset': p['id'], 'nome': p['nome'], 'formato': formato,
                 'valores': {k: str(v)[:500] for k, v in valores.items()}, 'fundo': fundo}
