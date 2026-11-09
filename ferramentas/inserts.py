@@ -123,7 +123,8 @@ def motion(slug: str, plano: str, preset: str | None, valores: dict, fundo: str 
         if fundo and fundo not in FUNDOS:
             raise SystemExit(f'Fundo desconhecido: {fundo} (use: {", ".join(FUNDOS)})')
         info = {'tipo': 'preset', 'preset': p['id'], 'nome': p['nome'], 'formato': formato,
-                'valores': {k: str(v)[:500] for k, v in valores.items()}, 'fundo': fundo}
+                # 2000: os 20 itens de uma lista (lista-numerada) passam de 500 caracteres e o fim sumia
+                'valores': {k: str(v)[:2000] for k, v in valores.items()}, 'fundo': fundo}
     info['usado_em'] = datetime.now().isoformat(timespec='seconds')
     edicao.setdefault('motions', {})[plano] = info
     gravar(slug, edicao)
